@@ -7,14 +7,14 @@ import (
 )
 
 const (
-	Group            string = "install.greymatter.io"
+	Group            string = "operator.greymatter.io"
 	Version          string = "v1"
-	Kind             string = "Operator"
+	Kind             string = "Mesh"
 	GroupVersionKind string = Group + "/" + Version + ", Kind=" + Kind
 
-	PluralName   string = "operators"
-	SingluarName string = "operator"
-	ShortName    string = "op"
+	PluralName   string = "meshes"
+	SingluarName string = "mesh"
+	ShortName    string = "m"
 	CRDName      string = PluralName + "." + Group
 )
 
@@ -40,8 +40,8 @@ func Resource(resource string) schema.GroupResource {
 // Adds the list of known types to the given scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&Operator{},
-		&OperatorList{},
+		&Mesh{},
+		&MeshList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

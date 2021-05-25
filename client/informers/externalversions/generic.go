@@ -8,7 +8,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1 "github.com/bcmendoza/gm-operator/apis/install/v1"
+	v1 "github.com/bcmendoza/gm-operator/apis/operator/v1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -39,9 +39,9 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=install.greymatter.io, Version=v1
-	case v1.SchemeGroupVersion.WithResource("operators"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Install().V1().Operators().Informer()}, nil
+	// Group=operator.greymatter.io, Version=v1
+	case v1.SchemeGroupVersion.WithResource("meshes"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Operator().V1().Meshes().Informer()}, nil
 
 	}
 

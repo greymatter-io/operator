@@ -8,7 +8,7 @@ package versioned
 import (
 	"fmt"
 
-	installv1 "github.com/bcmendoza/gm-operator/client/clientset/versioned/typed/install/v1"
+	operatorv1 "github.com/bcmendoza/gm-operator/client/clientset/versioned/typed/operator/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -16,19 +16,19 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	InstallV1() installv1.InstallV1Interface
+	OperatorV1() operatorv1.OperatorV1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	installV1 *installv1.InstallV1Client
+	operatorV1 *operatorv1.OperatorV1Client
 }
 
-// InstallV1 retrieves the InstallV1Client
-func (c *Clientset) InstallV1() installv1.InstallV1Interface {
-	return c.installV1
+// OperatorV1 retrieves the OperatorV1Client
+func (c *Clientset) OperatorV1() operatorv1.OperatorV1Interface {
+	return c.operatorV1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -52,7 +52,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.installV1, err = installv1.NewForConfig(&configShallowCopy)
+	cs.operatorV1, err = operatorv1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.installV1 = installv1.NewForConfigOrDie(c)
+	cs.operatorV1 = operatorv1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -77,7 +77,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.installV1 = installv1.New(c)
+	cs.operatorV1 = operatorv1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

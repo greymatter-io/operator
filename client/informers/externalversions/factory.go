@@ -11,8 +11,8 @@ import (
 	time "time"
 
 	versioned "github.com/bcmendoza/gm-operator/client/clientset/versioned"
-	install "github.com/bcmendoza/gm-operator/client/informers/externalversions/install"
 	internalinterfaces "github.com/bcmendoza/gm-operator/client/informers/externalversions/internalinterfaces"
+	operator "github.com/bcmendoza/gm-operator/client/informers/externalversions/operator"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -159,9 +159,9 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Install() install.Interface
+	Operator() operator.Interface
 }
 
-func (f *sharedInformerFactory) Install() install.Interface {
-	return install.New(f, f.namespace, f.tweakListOptions)
+func (f *sharedInformerFactory) Operator() operator.Interface {
+	return operator.New(f, f.namespace, f.tweakListOptions)
 }

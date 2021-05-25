@@ -6,7 +6,7 @@
 package scheme
 
 import (
-	installv1 "github.com/bcmendoza/gm-operator/apis/install/v1"
+	operatorv1 "github.com/bcmendoza/gm-operator/apis/operator/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -18,7 +18,7 @@ var Scheme = runtime.NewScheme()
 var Codecs = serializer.NewCodecFactory(Scheme)
 var ParameterCodec = runtime.NewParameterCodec(Scheme)
 var localSchemeBuilder = runtime.SchemeBuilder{
-	installv1.AddToScheme,
+	operatorv1.AddToScheme,
 }
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition

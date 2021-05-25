@@ -5,6 +5,7 @@
 - [Istio's operator spec](https://github.com/istio/api/blob/master/operator/v1alpha1/operator.pb.go#L97)
 - [Example controller code for managing a CRD](https://github.com/kubernetes/sample-controller)
 - [Tutorial on CRD code gen](https://www.openshift.com/blog/kubernetes-deep-dive-code-generation-customresources)
+- [Another tutorial](https://itnext.io/how-to-generate-client-codes-for-kubernetes-custom-resource-definitions-crd-b4b9907769ba)
 
 ## API Client Generation
 

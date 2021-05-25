@@ -11,8 +11,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// Operators returns a OperatorInformer.
-	Operators() OperatorInformer
+	// Meshes returns a MeshInformer.
+	Meshes() MeshInformer
 }
 
 type version struct {
@@ -26,7 +26,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// Operators returns a OperatorInformer.
-func (v *version) Operators() OperatorInformer {
-	return &operatorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// Meshes returns a MeshInformer.
+func (v *version) Meshes() MeshInformer {
+	return &meshInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

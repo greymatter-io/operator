@@ -7,31 +7,31 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Operator is a top-level type. A client is created for it.
-type Operator struct {
+// Mesh is a top-level type. A client is created for it.
+type Mesh struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              OperatorSpec `json:"spec,omitempty"`
+	Spec              MeshSpec `json:"spec,omitempty"`
 	// +optional
-	Status OperatorStatus `json:"status,omitempty"`
+	Status MeshStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// OperatorList is a top-level list type. The client methods for lists are automatically created.
+// MeshList is a top-level list type. The client methods for lists are automatically created.
 // You are not supposed to create a separated client for this one.
-type OperatorList struct {
+type MeshList struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Operator `json:"items"`
+	Items           []Mesh `json:"items"`
 }
 
-type OperatorSpec struct {
-	Profile string `json:"profile"`
+type MeshSpec struct {
+	Version string `json:"version"`
 }
 
-type OperatorStatus struct {
-	Description string `json:"status,omitempty"`
+type MeshStatus struct {
+	Deployed bool `json:"deployed,omitempty"`
 }

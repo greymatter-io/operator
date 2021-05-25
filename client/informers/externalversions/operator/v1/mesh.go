@@ -9,69 +9,69 @@ import (
 	"context"
 	time "time"
 
-	installv1 "github.com/bcmendoza/gm-operator/apis/install/v1"
+	operatorv1 "github.com/bcmendoza/gm-operator/apis/operator/v1"
 	versioned "github.com/bcmendoza/gm-operator/client/clientset/versioned"
 	internalinterfaces "github.com/bcmendoza/gm-operator/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/bcmendoza/gm-operator/client/listers/install/v1"
+	v1 "github.com/bcmendoza/gm-operator/client/listers/operator/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// OperatorInformer provides access to a shared informer and lister for
-// Operators.
-type OperatorInformer interface {
+// MeshInformer provides access to a shared informer and lister for
+// Meshes.
+type MeshInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.OperatorLister
+	Lister() v1.MeshLister
 }
 
-type operatorInformer struct {
+type meshInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewOperatorInformer constructs a new informer for Operator type.
+// NewMeshInformer constructs a new informer for Mesh type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewOperatorInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredOperatorInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewMeshInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredMeshInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredOperatorInformer constructs a new informer for Operator type.
+// NewFilteredMeshInformer constructs a new informer for Mesh type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredOperatorInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredMeshInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.InstallV1().Operators(namespace).List(context.TODO(), options)
+				return client.OperatorV1().Meshes(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.InstallV1().Operators(namespace).Watch(context.TODO(), options)
+				return client.OperatorV1().Meshes(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&installv1.Operator{},
+		&operatorv1.Mesh{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *operatorInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredOperatorInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *meshInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredMeshInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *operatorInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&installv1.Operator{}, f.defaultInformer)
+func (f *meshInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&operatorv1.Mesh{}, f.defaultInformer)
 }
 
-func (f *operatorInformer) Lister() v1.OperatorLister {
-	return v1.NewOperatorLister(f.Informer().GetIndexer())
+func (f *meshInformer) Lister() v1.MeshLister {
+	return v1.NewMeshLister(f.Informer().GetIndexer())
 }

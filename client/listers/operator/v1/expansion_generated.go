@@ -5,10 +5,10 @@
 
 package v1
 
-// OperatorListerExpansion allows custom methods to be added to
-// OperatorLister.
-type OperatorListerExpansion interface{}
+// MeshListerExpansion allows custom methods to be added to
+// MeshLister.
+type MeshListerExpansion interface{}
 
-// OperatorNamespaceListerExpansion allows custom methods to be added to
-// OperatorNamespaceLister.
-type OperatorNamespaceListerExpansion interface{}
+// MeshNamespaceListerExpansion allows custom methods to be added to
+// MeshNamespaceLister.
+type MeshNamespaceListerExpansion interface{}

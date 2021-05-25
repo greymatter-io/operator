@@ -7,8 +7,8 @@ package fake
 
 import (
 	clientset "github.com/bcmendoza/gm-operator/client/clientset/versioned"
-	installv1 "github.com/bcmendoza/gm-operator/client/clientset/versioned/typed/install/v1"
-	fakeinstallv1 "github.com/bcmendoza/gm-operator/client/clientset/versioned/typed/install/v1/fake"
+	operatorv1 "github.com/bcmendoza/gm-operator/client/clientset/versioned/typed/operator/v1"
+	fakeoperatorv1 "github.com/bcmendoza/gm-operator/client/clientset/versioned/typed/operator/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -66,7 +66,7 @@ var (
 	_ testing.FakeClient  = &Clientset{}
 )
 
-// InstallV1 retrieves the InstallV1Client
-func (c *Clientset) InstallV1() installv1.InstallV1Interface {
-	return &fakeinstallv1.FakeInstallV1{Fake: &c.Fake}
+// OperatorV1 retrieves the OperatorV1Client
+func (c *Clientset) OperatorV1() operatorv1.OperatorV1Interface {
+	return &fakeoperatorv1.FakeOperatorV1{Fake: &c.Fake}
 }

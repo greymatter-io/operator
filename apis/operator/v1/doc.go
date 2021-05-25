@@ -1,5 +1,5 @@
 // +k8s:deepcopy-gen=package,register
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=install.greymatter.io
+// +groupName=operator.greymatter.io
 
 package v1
