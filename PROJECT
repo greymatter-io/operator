@@ -1,0 +1,18 @@
+domain: greymatter.io
+layout: go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: gm-operator
+repo: github.com/bcmendoza/gm-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: greymatter.io
+  group: install
+  kind: Mesh
+  path: github.com/bcmendoza/gm-operator/api/v1
+  version: v1
+version: "3"

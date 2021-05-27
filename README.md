@@ -1,33 +1,19 @@
 # GM Operator
 
+## MVP
+
+The goal for this Frackday will be to use the Operator Framework to create an Kubernetes operator that watches for install.greymatter.io/v1.Mesh CR (Custom Resource) objects in a cluster and installs a *subset* of core Grey Matter services into the same namespace where the Mesh CR exists.
+
+By *subset*, we mean that the Operator will deploy the following per Mesh CR:
+1. Control
+2. Control API with Sidecar
+3. Edge
+
+Furthermore, the Operator will spawn a process that will call the Control API to configure the mesh network from Edge to Control API with the goal that we'll be able to access Control API via `{edge}/services/control-api/latest`.
+
 ## Resources
 
+- [Operator Framework: Go Operator Tutorial](https://sdk.operatorframework.io/docs/building-operators/golang/tutorial/)
+- [Operator SDK Installation](https://sdk.operatorframework.io/docs/building-operators/golang/installation/)
+- [Operator Manager Overview](https://book.kubebuilder.io/cronjob-tutorial/empty-main.html)
 - [Istio's operator spec](https://github.com/istio/api/blob/master/operator/v1alpha1/operator.pb.go#L97)
-- [Example controller code for managing a CRD](https://github.com/kubernetes/sample-controller)
-- [Tutorial on CRD code gen](https://www.openshift.com/blog/kubernetes-deep-dive-code-generation-customresources)
-- [Another tutorial](https://itnext.io/how-to-generate-client-codes-for-kubernetes-custom-resource-definitions-crd-b4b9907769ba)
-
-## API Client Generation
-
-### Setup
-
-Run the following to clone the `kubernetes/code-generator` repo into your $GOPATH and checkout to the latest stable version for building and running the code-generation binaries. As a convenience, the script returns you to this repo's workspace.
-
-```bash
-cd $GOPATH/src/github.com
-mkdir -p kubernetes
-cd kubernetes
-git clone git@github.com:kubernetes/code-generator
-cd code-generator
-cd $GOPATH/src/github.com/bcmendoza/gm-operator
-```
-
-### Generate
-
-Finally, **in this workspace** (required so that the code-generation binaries don't fetch this repo from remote), run the script to generate the clientset, informers, and listers for the API defined in `apis/install/v1`:
-
-```bash
-./generate.sh
-```
-
-Any time changes are made to `/apis/install/v1`, run this script.
