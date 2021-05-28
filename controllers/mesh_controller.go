@@ -101,13 +101,13 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	// Ingress
-	if err := r.mkIngress(ctx, mesh); err != nil {
+	// Catalog
+	if err := r.mkCatalog(ctx, mesh, gmi); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	//Catalog
-	if err := r.mkCatalog(ctx, mesh); err != nil {
+	// Ingress
+	if err := r.mkIngress(ctx, mesh); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 

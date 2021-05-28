@@ -15,13 +15,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *MeshReconciler) mkCatalog(ctx context.Context, mesh *installv1.Mesh) error {
+func (r *MeshReconciler) mkCatalog(ctx context.Context, mesh *installv1.Mesh, gmi gmImages) error {
 
 	// Check if the deployment exists; if not, create a new one
 	deployment := &appsv1.Deployment{}
 	err := r.Get(ctx, types.NamespacedName{Name: "catalog", Namespace: mesh.Namespace}, deployment)
 	if err != nil && errors.IsNotFound(err) {
-		deployment = r.mkCatalogAPIDeployment(mesh)
+		deployment = r.mkCatalogAPIDeployment(mesh, gmi)
 		r.Log.Info("Creating deployment", "Name", "catalog", "Namespace", mesh.Namespace)
 		err = r.Create(ctx, deployment)
 		if err != nil {
@@ -51,7 +51,7 @@ func (r *MeshReconciler) mkCatalog(ctx context.Context, mesh *installv1.Mesh) er
 	return nil
 }
 
-func (r *MeshReconciler) mkCatalogAPIDeployment(mesh *installv1.Mesh) *appsv1.Deployment {
+func (r *MeshReconciler) mkCatalogAPIDeployment(mesh *installv1.Mesh, gmi gmImages) *appsv1.Deployment {
 	replicas := int32(1)
 	labels := map[string]string{
 		"deployment":            "catalog",
@@ -80,32 +80,12 @@ func (r *MeshReconciler) mkCatalogAPIDeployment(mesh *installv1.Mesh) *appsv1.De
 					Containers: []corev1.Container{
 						{
 							Name:  "catalog",
-							Image: "docker.greymatter.io/release/gm-catalog:1.2.2",
+							Image: fmt.Sprintf("docker.greymatter.io/release/gm-catalog:%s", gmi.Catalog),
 							Env: []corev1.EnvVar{
-								{Name: "CA_CERT_PATH", Value: "/etc/pki/ca.crt"},
-								{Name: "CLIENT_ADDRESS", Value: "localhost"},
-								{Name: "CLIENT_USE_TLS", Value: "false"},
-								{Name: "CONFIG_POLLING_INTERVAL", Value: "30s"},
-								{Name: "CONFIG_SOURCE", Value: "gmdata"},
-								{Name: "CONTROL_SERVER_0_ADDRESS", Value: "'control.dia-greymatter.svc.cluster.local:50000'"},
+								{Name: "CONTROL_SERVER_0_ADDRESS", Value: fmt.Sprintf("control.%s.svc.cluster.local:50000", mesh.Namespace)},
 								{Name: "CONTROL_SERVER_0_REQUEST_CLUSTER_NAME", Value: "edge"},
 								{Name: "CONTROL_SERVER_0_ZONE_NAME", Value: "zone-default-zone"},
-								{Name: "GMDATA_MAX_RETRIES", Value: "100"},
-								{Name: "GMDATA_RETRY_DELAY", Value: "5s"},
-								{Name: "GMDATA_ROOT_EVENT_NAME", Value: "world"},
-								{Name: "GMDATA_STARTUP_DELAY", Value: "10s"},
-								{Name: "INSTANCE_POLLING_INTERVAL", Value: "5s"},
 								{Name: "PORT", Value: "9080"},
-								{Name: "SERVER_CERT_PATH", Value: "/etc/pki/server.crt"},
-								{Name: "SERVER_KEY_PATH", Value: "/etc/pki/server.key"},
-								{Name: "USE_TLS", Value: "false"},
-								{Name: "CLIENT_IDENTITY", Value: "CN=greymatter,OU=di2e,O=u.s. government,L=Alexandria,ST=Virginia,C=us"},
-								{Name: "CLIENT_EMAIL", Value: "greymatter@deciphernow.com"},
-								{Name: "CLIENT_PORT", Value: "10909"},
-								{Name: "CLIENT_PREFIX", Value: "/data"},
-								{Name: "CLIENT_CERT", Value: ""},
-								{Name: "CLIENT_KEY", Value: ""},
-								{Name: "CLIENT_TRUST", Value: ""},
 							},
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Ports: []corev1.ContainerPort{
@@ -114,7 +94,7 @@ func (r *MeshReconciler) mkCatalogAPIDeployment(mesh *installv1.Mesh) *appsv1.De
 						},
 						{
 							Name:  "sidecar",
-							Image: "docker.greymatter.io/release/gm-proxy:1.5.1",
+							Image: fmt.Sprintf("docker.greymatter.io/release/%s", gmi.Proxy),
 							Env: []corev1.EnvVar{
 								{Name: "ENVOY_ADMIN_LOG_PATH", Value: "/dev/stdout"},
 								{Name: "PROXY_DYNAMIC", Value: "true"},
