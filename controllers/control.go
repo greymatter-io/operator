@@ -56,10 +56,15 @@ func (r *MeshReconciler) mkDeploymentForControl(m *installv1.Mesh) *appsv1.Deplo
 					Labels: ls,
 				},
 				Spec: corev1.PodSpec{
+					ImagePullSecrets: []corev1.LocalObjectReference{
+						{Name: "docker.secret"},
+					},
+					DNSPolicy:     corev1.DNSClusterFirst,
+					RestartPolicy: corev1.RestartPolicyAlways,
 					Containers: []corev1.Container{{
 						Image:           "docker.greymatter.io/release/gm-control:1.5.3",
 						Name:            "control",
-						ImagePullPolicy: "Always",
+						ImagePullPolicy: corev1.PullAlways,
 						Env: []corev1.EnvVar{
 							{Name: "GM_CONTROL_API_INSECURE", Value: "true"},
 							{Name: "GM_CONTROL_API_SSL", Value: "true"},
