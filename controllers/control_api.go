@@ -47,10 +47,41 @@ func (r *MeshReconciler) mkControlAPI(ctx context.Context, mesh *installv1.Mesh)
 }
 
 func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh) *appsv1.Deployment {
+	replicas := int32(1)
+	labels := map[string]string{
+		"deployment":            "control-api",
+		"greymatter":            "fabric",
+		"greymatter.io/control": "control-api",
+	}
+
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "control-api",
 			Namespace: mesh.Namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "control-api",
+							Env: []corev1.EnvVar{
+								{Name: "GM_CONTROL_API_ADDRESS", Value: "0.0.0.0:5555"},
+								{Name: "GM_CONTROL_API_BASE_URL", Value: "/services/control-api/latest/v1.0/"},
+								{Name: "GM_CONTROL_API_DISABLE_VERSION_CHECK", Value: "false"},
+								{Name: "GM_CONTROL_API_EXPERIMENTS", Value: "true"},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
