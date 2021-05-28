@@ -11,7 +11,12 @@ By *subset*, we mean that the Operator will deploy the following per Mesh CR:
 
 Furthermore, the Operator will spawn a process that will call the Control API to configure the mesh network from Edge to Control API with the goal that we'll be able to access Control API via `{edge}/services/control-api/latest`.
 
-When the Operator is deployed, it will check to see if the Mesh CRD has been created in the cluster. If not, it will create it. This way, the only requirement for deploying a Mesh will be to deploy the Operator.
+## Getting Started
+
+- `make docker-build`
+- `k3d cluster create gm-operator -a 4 -p 30000:10808@loadbalancer`
+- `export KUBECONFIG=$(k3d kubeconfig write gm-operator)`
+- `make deploy`
 
 ## Resources
 

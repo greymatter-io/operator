@@ -40,6 +40,8 @@ type MeshReconciler struct {
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes/finalizers,verbs=update
+//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -65,7 +67,7 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		}
 		// Error reading the Mesh object - requeue the request.
 		log.Error(err, "Failed to get Mesh")
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	// TODO: Check if Grey Matter core deployments and services exist. If not, create them.
