@@ -14,11 +14,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *MeshReconciler) mkEdge(ctx context.Context, mesh *installv1.Mesh) error {
+func (r *MeshReconciler) mkEdge(ctx context.Context, mesh *installv1.Mesh, gmi gmImages) error {
 	deployment := &appsv1.Deployment{}
 	err := r.Get(ctx, types.NamespacedName{Name: "edge", Namespace: mesh.Namespace}, deployment)
 	if err != nil && errors.IsNotFound(err) {
-		deployment = r.mkEdgeDeployment(mesh)
+		deployment = r.mkEdgeDeployment(mesh, gmi)
 		r.Log.Info("Creating deployment", "Name", "edge", "Namespace", mesh.Namespace)
 		err = r.Create(ctx, deployment)
 		if err != nil {
@@ -48,7 +48,7 @@ func (r *MeshReconciler) mkEdge(ctx context.Context, mesh *installv1.Mesh) error
 	return nil
 }
 
-func (r *MeshReconciler) mkEdgeDeployment(mesh *installv1.Mesh) *appsv1.Deployment {
+func (r *MeshReconciler) mkEdgeDeployment(mesh *installv1.Mesh, gmi gmImages) *appsv1.Deployment {
 	replicas := int32(1)
 	labels := map[string]string{
 		"greymatter.io/control": "edge",
@@ -76,7 +76,7 @@ func (r *MeshReconciler) mkEdgeDeployment(mesh *installv1.Mesh) *appsv1.Deployme
 					},
 					Containers: []corev1.Container{{
 						Name:            "edge",
-						Image:           "docker.greymatter.io/release/gm-proxy:1.5.1",
+						Image:           fmt.Sprintf("docker.greymatter.io/release/gm-proxy:%s", gmi.Proxy),
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						Env: []corev1.EnvVar{
 							{Name: "ENVOY_ADMIN_LOG_PATH", Value: "/dev/stdout"},

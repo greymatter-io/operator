@@ -15,13 +15,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *MeshReconciler) mkControlAPI(ctx context.Context, mesh *installv1.Mesh) error {
+func (r *MeshReconciler) mkControlAPI(ctx context.Context, mesh *installv1.Mesh, gmi gmImages) error {
 
 	// Check if the deployment exists; if not, create a new one
 	deployment := &appsv1.Deployment{}
 	err := r.Get(ctx, types.NamespacedName{Name: "control-api", Namespace: mesh.Namespace}, deployment)
 	if err != nil && errors.IsNotFound(err) {
-		deployment = r.mkControlAPIDeployment(mesh)
+		deployment = r.mkControlAPIDeployment(mesh, gmi)
 		r.Log.Info("Creating deployment", "Name", "control-api", "Namespace", mesh.Namespace)
 		err = r.Create(ctx, deployment)
 		if err != nil {
@@ -51,7 +51,7 @@ func (r *MeshReconciler) mkControlAPI(ctx context.Context, mesh *installv1.Mesh)
 	return nil
 }
 
-func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh) *appsv1.Deployment {
+func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh, gmi gmImages) *appsv1.Deployment {
 	replicas := int32(1)
 	labels := map[string]string{
 		"deployment":            "control-api",
@@ -80,7 +80,7 @@ func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh) *appsv1.De
 					Containers: []corev1.Container{
 						{
 							Name:  "control-api",
-							Image: "docker.greymatter.io/release/gm-control-api:1.5.4",
+							Image: fmt.Sprintf("docker.greymatter.io/release/gm-control-api:%s", gmi.ControlAPI),
 							Env: []corev1.EnvVar{
 								{Name: "GM_CONTROL_API_ADDRESS", Value: "0.0.0.0:5555"},
 								{Name: "GM_CONTROL_API_DISABLE_VERSION_CHECK", Value: "false"},
@@ -100,7 +100,7 @@ func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh) *appsv1.De
 						},
 						{
 							Name:  "sidecar",
-							Image: "docker.greymatter.io/release/gm-proxy:1.5.1",
+							Image: fmt.Sprintf("docker.greymatter.io/release/gm-proxy:%s", gmi.Proxy),
 							Env: []corev1.EnvVar{
 								{Name: "ENVOY_ADMIN_LOG_PATH", Value: "/dev/stdout"},
 								{Name: "PROXY_DYNAMIC", Value: "true"},

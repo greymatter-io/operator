@@ -14,13 +14,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *MeshReconciler) mkControl(ctx context.Context, mesh *installv1.Mesh) error {
+func (r *MeshReconciler) mkControl(ctx context.Context, mesh *installv1.Mesh, gmi gmImages) error {
 
 	// Check if the deployment exists; if not, create a new one
 	deployment := &appsv1.Deployment{}
 	err := r.Get(ctx, types.NamespacedName{Name: "control", Namespace: mesh.Namespace}, deployment)
 	if err != nil && errors.IsNotFound(err) {
-		deployment = r.mkControlDeployment(mesh)
+		deployment = r.mkControlDeployment(mesh, gmi)
 		r.Log.Info("Creating deployment", "Name", "control", "Namespace", mesh.Namespace)
 		err = r.Create(ctx, deployment)
 		if err != nil {
@@ -49,7 +49,7 @@ func (r *MeshReconciler) mkControl(ctx context.Context, mesh *installv1.Mesh) er
 	return nil
 }
 
-func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh) *appsv1.Deployment {
+func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh, gmi gmImages) *appsv1.Deployment {
 	replicas := int32(1)
 	labels := map[string]string{
 		"deployment":            "control",
@@ -78,7 +78,7 @@ func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh) *appsv1.Deplo
 					DNSPolicy:     corev1.DNSClusterFirst,
 					RestartPolicy: corev1.RestartPolicyAlways,
 					Containers: []corev1.Container{{
-						Image:           "docker.greymatter.io/release/gm-control:1.5.3",
+						Image:           fmt.Sprintf("docker.greymatter.io/release/gm-control:%s", gmi.Control),
 						Name:            "control",
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						Env: []corev1.EnvVar{

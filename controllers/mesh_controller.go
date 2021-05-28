@@ -76,18 +76,28 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		mesh.Spec.ImagePullSecret = &secret
 	}
 
+	var gmi gmImages
+	if mesh.Spec.Version != nil {
+		switch *mesh.Spec.Version {
+		case "1.2":
+			gmi = gmVersionMap["1.2"]
+		default:
+			gmi = gmVersionMap["1.3"]
+		}
+	}
+
 	// Control API
-	if err := r.mkControlAPI(ctx, mesh); err != nil {
+	if err := r.mkControlAPI(ctx, mesh, gmi); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
 	// Control
-	if err := r.mkControl(ctx, mesh); err != nil {
+	if err := r.mkControl(ctx, mesh, gmi); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
 	// Edge
-	if err := r.mkEdge(ctx, mesh); err != nil {
+	if err := r.mkEdge(ctx, mesh, gmi); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
