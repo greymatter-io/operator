@@ -106,6 +106,11 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{Requeue: true}, err
 	}
 
+	//Catalog
+	if err := r.mkCatalog(ctx, mesh); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
