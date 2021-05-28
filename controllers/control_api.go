@@ -8,6 +8,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -69,14 +70,57 @@ func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh) *appsv1.De
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
+					ImagePullSecrets: []corev1.LocalObjectReference{
+						{Name: "docker.secret"},
+					},
+					DNSPolicy:     corev1.DNSClusterFirst,
+					RestartPolicy: corev1.RestartPolicyAlways,
 					Containers: []corev1.Container{
 						{
-							Name: "control-api",
+							Name:  "control-api",
+							Image: "docker.greymatter.io/development/gm-control-api:1.6.0-rc.1",
 							Env: []corev1.EnvVar{
 								{Name: "GM_CONTROL_API_ADDRESS", Value: "0.0.0.0:5555"},
-								{Name: "GM_CONTROL_API_BASE_URL", Value: "/services/control-api/latest/v1.0/"},
 								{Name: "GM_CONTROL_API_DISABLE_VERSION_CHECK", Value: "false"},
+								{Name: "GM_CONTROL_API_LOG_LEVEL", Value: "debug"},
+								{Name: "GM_CONTROL_API_PERSISTER_TYPE", Value: "null"},
 								{Name: "GM_CONTROL_API_EXPERIMENTS", Value: "true"},
+								{Name: "GM_CONTROL_API_BASE_URL", Value: "/services/control-api/latest/v1.0/"},
+								{Name: "GM_CONTROL_API_USE_TLS", Value: "false"},
+								{Name: "GM_CONTROL_API_ORG_KEY", Value: "deciphernow"},
+								{Name: "GM_CONTROL_API_ZONE_KEY", Value: "zone-default-zone"},
+								{Name: "GM_CONTROL_API_ZONE_NAME", Value: "zone-default-zone"},
+							},
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Ports: []corev1.ContainerPort{
+								{ContainerPort: 5555, Name: "http", Protocol: "TCP"},
+							},
+						},
+						{
+							Name:  "sidecar",
+							Image: "docker.greymatter.io/development/gm-proxy:1.6.0-rc.1",
+							Env: []corev1.EnvVar{
+								{Name: "ENVOY_ADMIN_LOG_PATH", Value: "/dev/stdout"},
+								{Name: "PROXY_DYNAMIC", Value: "true"},
+								{Name: "XDS_CLUSTER", Value: "control-api"},
+								{Name: "XDS_HOST", Value: fmt.Sprintf("control.%s.svc", mesh.Namespace)},
+								{Name: "XDS_PORT", Value: "50000"},
+								{Name: "XDS_ZONE", Value: "zone-default-zone"},
+							},
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Ports: []corev1.ContainerPort{
+								{ContainerPort: 10808, Name: "proxy", Protocol: "TCP"},
+								{ContainerPort: 8081, Name: "metrics", Protocol: "TCP"},
+							},
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("200m"),
+									corev1.ResourceMemory: resource.MustParse("512Mi"),
+								},
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("128Mi"),
+								},
 							},
 						},
 					},

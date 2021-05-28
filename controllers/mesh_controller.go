@@ -70,8 +70,11 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	// TODO: Check if Grey Matter core deployments and services exist. If not, create them.
-	// Control API with sidecar
+	// Control API
+	if err := r.mkControlAPI(ctx, mesh); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+
 	// Control
 	// Edge
 
