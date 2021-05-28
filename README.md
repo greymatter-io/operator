@@ -23,16 +23,12 @@ This assumes you have at least Go 1.15, K3d, and kubectl installed.
 
 1. Download Go dependencies: `go mod vendor`
 2. Build the Docker image: `make docker-build`
-3. Make a K3d cluster: `k3d cluster create gm-operator -a 1 -p 30000:10808@loadbalancer`
-4. Set your `KUBECONFIG` to it: `export KUBECONFIG=$(k3d kubeconfig write gm-operator)`
-5. Create a secret with your LDAP credentials for pulling Docker images (for now create this in the `default` namespace, although later on we'd want to create it in the `gm-operator-system` namespace so that the Operator can re-create the secret in each namespace where a Mesh CR is deployed):
-```bash
-kubectl create secret docker-registry docker.secret \
-  --docker-server=docker.greymatter.io \
-  --docker-username=<your-greymatter-email> \
-  --docker-password=<your-nexus-password> \
-  --docker-email=<your-greymatter-email>
-```
+3. Push the Docker image to Nexus: `make docker-push`
+4. Make a K3d cluster: `k3d cluster create gm-operator -a 1 -p 30001:10808@loadbalancer`
+5. Set your `KUBECONFIG` to it: `export KUBECONFIG=$(k3d kubeconfig write gm-operator)`
+6. Store your Grey Matter LDAP credentials in the environment variables `NEXUS_USER` and `NEXUS_PASSWORD` and then run the create script to create a secret for pulling Docker images: `./create-docker-secret.sh`
+
+*NOTE: The Docker secret is created in the `default` namespace for now, although later on we'd want to create it in the `gm-operator-system` namespace so that the Operator can re-create the secret in each namespace where a Mesh CR is deployed.*
 
 Then to deploy:
 
