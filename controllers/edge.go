@@ -115,11 +115,6 @@ func (r *MeshReconciler) mkEdgeDeployment(mesh *installv1.Mesh) *appsv1.Deployme
 func (r *MeshReconciler) mkEdgeService(mesh *installv1.Mesh) *corev1.Service {
 	labels := map[string]string{
 		"greymatter.io/control": "edge",
-		"deployment":            "edge",
-		"greymatter":            "edge",
-	}
-	selectors := map[string]string{
-		"greymatter.io/control": "edge",
 	}
 
 	service := &corev1.Service{
@@ -133,7 +128,7 @@ func (r *MeshReconciler) mkEdgeService(mesh *installv1.Mesh) *corev1.Service {
 				{Name: "proxy", Port: 10808, Protocol: "TCP"},
 				{Name: "metrics", Port: 8081, Protocol: "TCP"},
 			},
-			Selector:        selectors,
+			Selector:        labels,
 			SessionAffinity: corev1.ServiceAffinityNone,
 			Type:            corev1.ServiceTypeClusterIP,
 		},

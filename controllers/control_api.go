@@ -141,15 +141,18 @@ func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh) *appsv1.De
 }
 
 func (r *MeshReconciler) mkControlAPIService(mesh *installv1.Mesh) *corev1.Service {
+	labels := map[string]string{
+		"greymatter.io/control": "control-api",
+	}
+
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "control-api",
 			Namespace: mesh.Namespace,
+			Labels:    labels,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{
-				"greymatter.io/control": "control-api",
-			},
+			Selector: labels,
 			Ports: []corev1.ServicePort{
 				{Port: 5555, TargetPort: intstr.FromInt(5555), Protocol: "TCP"},
 			},
