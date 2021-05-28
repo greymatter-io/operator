@@ -94,7 +94,7 @@ func (r *MeshReconciler) mkCatalogAPIDeployment(mesh *installv1.Mesh, gmi gmImag
 						},
 						{
 							Name:  "sidecar",
-							Image: fmt.Sprintf("docker.greymatter.io/release/%s", gmi.Proxy),
+							Image: fmt.Sprintf("docker.greymatter.io/release/gm-proxy:%s", gmi.Proxy),
 							Env: []corev1.EnvVar{
 								{Name: "ENVOY_ADMIN_LOG_PATH", Value: "/dev/stdout"},
 								{Name: "PROXY_DYNAMIC", Value: "true"},
