@@ -49,6 +49,10 @@ func (r *MeshReconciler) mkControlAPI(ctx context.Context, mesh *installv1.Mesh,
 		r.Log.Error(err, fmt.Sprintf("failed to get service for %s:control-api", mesh.Namespace))
 	}
 
+	if mesh.Status.Deployed {
+		return nil
+	}
+
 	if err = mkMeshObjects(mesh); err != nil {
 		r.Log.Error(err, "failed to configure mesh")
 	}

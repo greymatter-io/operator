@@ -106,6 +106,12 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{Requeue: true}, err
 	}
 
+	mesh.Status.Deployed = true
+	if err := r.Status().Update(ctx, mesh); err != nil {
+		log.Error(err, "Failed to set mesh status to deployed")
+		return ctrl.Result{Requeue: true}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 

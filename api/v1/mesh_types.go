@@ -44,8 +44,8 @@ type MeshStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// The pods deployed by configuring the Mesh.
-	Pods []string `json:"pods"`
+	// Whether the mesh was deployed or not.
+	Deployed bool `json:"deployed"`
 
 	// TODO
 	// Conditions []Condition `json:"conditions"`
