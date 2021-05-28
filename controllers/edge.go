@@ -33,9 +33,16 @@ func (r *MeshReconciler) mkEdge(ctx context.Context, mesh *installv1.Mesh) error
 	service := &corev1.Service{}
 	err = r.Get(ctx, types.NamespacedName{Name: "edge", Namespace: mesh.Namespace}, service)
 	if err != nil && errors.IsNotFound(err) {
-		// TODO: Create service
+		service = r.mkEdgeService(mesh)
+		r.Log.Info("Creating service", "Name", "edge", "Namespace", mesh.Namespace)
+		err = r.Create(ctx, service)
+		if err != nil {
+			r.Log.Error(err, fmt.Sprintf("Failed to create service for %s:edge", mesh.Namespace))
+			return err
+		}
 	} else if err != nil {
-		r.Log.Error(err, fmt.Sprintf("failed to get corev1.Service for %s:edge", mesh.Namespace))
+		r.Log.Error(err, fmt.Sprintf("Failed to get service for %s:edge", mesh.Namespace))
+		return err
 	}
 
 	return nil
@@ -103,4 +110,35 @@ func (r *MeshReconciler) mkEdgeDeployment(mesh *installv1.Mesh) *appsv1.Deployme
 
 	ctrl.SetControllerReference(mesh, deployment, r.Scheme)
 	return deployment
+}
+
+func (r *MeshReconciler) mkEdgeService(mesh *installv1.Mesh) *corev1.Service {
+	labels := map[string]string{
+		"greymatter.io/control": "edge",
+		"deployment":            "edge",
+		"greymatter":            "edge",
+	}
+	selectors := map[string]string{
+		"greymatter.io/control": "edge",
+	}
+
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "edge",
+			Namespace: mesh.Namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{Name: "proxy", Port: 10808, Protocol: "TCP"},
+				{Name: "metrics", Port: 8081, Protocol: "TCP"},
+			},
+			Selector:        selectors,
+			SessionAffinity: corev1.ServiceAffinityNone,
+			Type:            corev1.ServiceTypeClusterIP,
+		},
+	}
+
+	ctrl.SetControllerReference(mesh, service, r.Scheme)
+	return service
 }
