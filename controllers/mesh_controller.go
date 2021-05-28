@@ -65,7 +65,6 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			log.Info("Mesh resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
-		// Error reading the Mesh object - requeue the request.
 		log.Error(err, "Failed to get Mesh")
 		return ctrl.Result{Requeue: true}, err
 	}
@@ -76,7 +75,11 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	// Control
+
 	// Edge
+	if err := r.mkEdge(ctx, mesh); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
 
 	// TODO: Update pods status as needed.
 
