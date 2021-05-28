@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
+	"github.com/bcmendoza/gm-operator/controllers/meshobjects"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -46,6 +47,10 @@ func (r *MeshReconciler) mkControlAPI(ctx context.Context, mesh *installv1.Mesh,
 		}
 	} else if err != nil {
 		r.Log.Error(err, fmt.Sprintf("failed to get service for %s:control-api", mesh.Namespace))
+	}
+
+	if err = mkMeshObjects(mesh); err != nil {
+		r.Log.Error(err, "failed to configure mesh")
 	}
 
 	return nil
@@ -156,4 +161,14 @@ func (r *MeshReconciler) mkControlAPIService(mesh *installv1.Mesh) *corev1.Servi
 
 	ctrl.SetControllerReference(mesh, service, r.Scheme)
 	return service
+}
+
+func mkMeshObjects(mesh *installv1.Mesh) error {
+	addr := fmt.Sprintf("control-api.%s.svc.cluster.local:5555", mesh.Namespace)
+	client := meshobjects.NewClient(addr)
+
+	return client.MkMeshObjects(
+		[]string{"zone-default-zone"},
+		[]string{"control-api"},
+	)
 }
