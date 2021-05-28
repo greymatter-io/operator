@@ -23,16 +23,28 @@ This assumes you have at least Go 1.15, K3d, and kubectl installed.
 
 1. Download Go dependencies: `go mod vendor`
 2. Build the Docker image: `make docker-build`
-3. Make a K3d cluster: `k3d cluster create gm-operator -a 4 -p 30000:10808@loadbalancer`
+3. Make a K3d cluster: `k3d cluster create gm-operator -a 1 -p 30000:10808@loadbalancer`
 4. Set your `KUBECONFIG` to it: `export KUBECONFIG=$(k3d kubeconfig write gm-operator)`
-5. Deploy to the K3d cluster: `make deploy`.
-6. Create a Mesh CR: `kubectl apply -f config/samples/install_v1_mesh.yaml`
-7. Check the Mesh CR: `kubectl get mesh sample-mesh -o yaml`
+5. Create a secret with your LDAP credentials for pulling Docker images (for now create this in the `default` namespace, although later on we'd want to create it in the `gm-operator-system` namespace so that the Operator can re-create the secret in each namespace where a Mesh CR is deployed):
+```bash
+kubectl create secret docker-registry docker.secret \
+  --docker-server=docker.greymatter.io \
+  --docker-username=<your-greymatter-email> \
+  --docker-password=<your-nexus-password> \
+  --docker-email=<your-greymatter-email>
+```
+
+Then to deploy:
+
+1. Deploy to the K3d cluster: `make deploy`.
+2. Create a Mesh CR: `kubectl apply -f config/samples/install_v1_mesh.yaml`
+3. Check the Mesh CR: `kubectl get mesh sample-mesh -o yaml`
 
 ## Cleanup
 
 1. `kubectl delete -f config/samples/install_v1_mesh.yaml`
 2. `make undeploy`
+3. `k3d cluster delete gm-operator`
 
 ## Resources
 
