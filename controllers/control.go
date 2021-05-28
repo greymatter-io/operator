@@ -102,7 +102,7 @@ func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh) *appsv1.Deplo
 			},
 		},
 	}
-	ctrl.SetControllerReference(m, dep, r.Scheme)
+	ctrl.SetControllerReference(mesh, dep, r.Scheme)
 	return dep
 }
 
