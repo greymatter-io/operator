@@ -128,7 +128,7 @@ func (r *MeshReconciler) mkEdgeService(mesh *installv1.Mesh) *corev1.Service {
 			},
 			Selector:        labels,
 			SessionAffinity: corev1.ServiceAffinityNone,
-			Type:            corev1.ServiceTypeClusterIP,
+			Type:            corev1.ServiceTypeLoadBalancer,
 		},
 	}
 
