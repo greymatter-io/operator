@@ -71,6 +71,11 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{Requeue: true}, err
 	}
 
+	if mesh.Spec.ImagePullSecret == nil {
+		secret := "docker.secret"
+		mesh.Spec.ImagePullSecret = &secret
+	}
+
 	// Control API
 	if err := r.mkControlAPI(ctx, mesh); err != nil {
 		return ctrl.Result{Requeue: true}, err
@@ -90,8 +95,6 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	if err := r.mkIngress(ctx, mesh); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
-
-	// TODO: Update pods status as needed.
 
 	return ctrl.Result{}, nil
 }

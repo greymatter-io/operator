@@ -49,7 +49,7 @@ func (r *MeshReconciler) mkControl(ctx context.Context, mesh *installv1.Mesh) er
 	return nil
 }
 
-func (r *MeshReconciler) mkControlDeployment(m *installv1.Mesh) *appsv1.Deployment {
+func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh) *appsv1.Deployment {
 	replicas := int32(1)
 	labels := map[string]string{
 		"deployment":            "control",
@@ -60,7 +60,7 @@ func (r *MeshReconciler) mkControlDeployment(m *installv1.Mesh) *appsv1.Deployme
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "control",
-			Namespace: m.Namespace,
+			Namespace: mesh.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -73,7 +73,7 @@ func (r *MeshReconciler) mkControlDeployment(m *installv1.Mesh) *appsv1.Deployme
 				},
 				Spec: corev1.PodSpec{
 					ImagePullSecrets: []corev1.LocalObjectReference{
-						{Name: "docker.secret"},
+						{Name: *mesh.Spec.ImagePullSecret},
 					},
 					DNSPolicy:     corev1.DNSClusterFirst,
 					RestartPolicy: corev1.RestartPolicyAlways,
@@ -95,7 +95,7 @@ func (r *MeshReconciler) mkControlDeployment(m *installv1.Mesh) *appsv1.Deployme
 							{Name: "GM_CONTROL_XDS_ADS_ENABLED", Value: "true"},
 							{Name: "GM_CONTROL_KUBERNETES_CLUSTER_LABEL", Value: "greymatter.io"},
 							{Name: "GM_CONTROL_KUBERNETES_PORT_NAME", Value: "proxy"},
-							{Name: "GM_CONTROL_KUBERNETES_NAMESPACES", Value: m.Namespace},
+							{Name: "GM_CONTROL_KUBERNETES_NAMESPACES", Value: mesh.Namespace},
 						},
 					}},
 				},

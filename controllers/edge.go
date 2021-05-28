@@ -72,7 +72,7 @@ func (r *MeshReconciler) mkEdgeDeployment(mesh *installv1.Mesh) *appsv1.Deployme
 				},
 				Spec: corev1.PodSpec{
 					ImagePullSecrets: []corev1.LocalObjectReference{
-						{Name: "docker.secret"},
+						{Name: *mesh.Spec.ImagePullSecret},
 					},
 					Containers: []corev1.Container{{
 						Name:            "edge",

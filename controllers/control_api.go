@@ -75,7 +75,7 @@ func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh) *appsv1.De
 				},
 				Spec: corev1.PodSpec{
 					ImagePullSecrets: []corev1.LocalObjectReference{
-						{Name: "docker.secret"},
+						{Name: *mesh.Spec.ImagePullSecret},
 					},
 					Containers: []corev1.Container{
 						{
