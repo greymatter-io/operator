@@ -1,6 +1,6 @@
 #!/bin/bash
 
-kubectl create ns gm-operator-system
+kc create ns gm-operator-system
 
 kubectl create secret docker-registry docker.secret \
   -n gm-operator-system \
