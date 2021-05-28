@@ -48,9 +48,6 @@ func (r *MeshReconciler) mkControlAPI(ctx context.Context, mesh *installv1.Mesh)
 		r.Log.Error(err, fmt.Sprintf("failed to get service for %s:control-api", mesh.Namespace))
 	}
 
-	// TODO: Configure mesh objects (send requests to service)
-	// Check if objects exist; if not, create them
-
 	return nil
 }
 
@@ -80,12 +77,10 @@ func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh) *appsv1.De
 					ImagePullSecrets: []corev1.LocalObjectReference{
 						{Name: "docker.secret"},
 					},
-					DNSPolicy:     corev1.DNSClusterFirst,
-					RestartPolicy: corev1.RestartPolicyAlways,
 					Containers: []corev1.Container{
 						{
 							Name:  "control-api",
-							Image: "docker.greymatter.io/development/gm-control-api:1.6.0-rc.1",
+							Image: "docker.greymatter.io/release/gm-control-api:1.5.4",
 							Env: []corev1.EnvVar{
 								{Name: "GM_CONTROL_API_ADDRESS", Value: "0.0.0.0:5555"},
 								{Name: "GM_CONTROL_API_DISABLE_VERSION_CHECK", Value: "false"},
@@ -105,7 +100,7 @@ func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh) *appsv1.De
 						},
 						{
 							Name:  "sidecar",
-							Image: "docker.greymatter.io/development/gm-proxy:1.6.0-rc.1",
+							Image: "docker.greymatter.io/release/gm-proxy:1.5.1",
 							Env: []corev1.EnvVar{
 								{Name: "ENVOY_ADMIN_LOG_PATH", Value: "/dev/stdout"},
 								{Name: "PROXY_DYNAMIC", Value: "true"},

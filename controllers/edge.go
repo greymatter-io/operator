@@ -74,11 +74,9 @@ func (r *MeshReconciler) mkEdgeDeployment(mesh *installv1.Mesh) *appsv1.Deployme
 					ImagePullSecrets: []corev1.LocalObjectReference{
 						{Name: "docker.secret"},
 					},
-					DNSPolicy:     corev1.DNSClusterFirst,
-					RestartPolicy: corev1.RestartPolicyAlways,
 					Containers: []corev1.Container{{
 						Name:            "edge",
-						Image:           "docker.greymatter.io/development/gm-proxy:1.6.0-rc.1",
+						Image:           "docker.greymatter.io/release/gm-proxy:1.5.1",
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						Env: []corev1.EnvVar{
 							{Name: "ENVOY_ADMIN_LOG_PATH", Value: "/dev/stdout"},

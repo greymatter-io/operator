@@ -10,15 +10,17 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func (r *MeshReconciler) mkControl(ctx context.Context, mesh *installv1.Mesh) error {
-	// Make deployment
+
+	// Check if the deployment exists; if not, create a new one
 	deployment := &appsv1.Deployment{}
 	err := r.Get(ctx, types.NamespacedName{Name: "control", Namespace: mesh.Namespace}, deployment)
 	if err != nil && errors.IsNotFound(err) {
-		deployment = r.mkDeploymentForControl(mesh)
+		deployment = r.mkControlDeployment(mesh)
 		r.Log.Info("Creating deployment", "Name", "control", "Namespace", mesh.Namespace)
 		err = r.Create(ctx, deployment)
 		if err != nil {
@@ -29,17 +31,31 @@ func (r *MeshReconciler) mkControl(ctx context.Context, mesh *installv1.Mesh) er
 		r.Log.Error(err, fmt.Sprintf("failed to get appsv1.Deployment for %s: control", mesh.Namespace))
 	}
 
-	// Make service
-	// service := &corev1.ServiceAccountList{}
-	// err := r.Get(ctx, types.NamespacedName{Name: fmt.Sprintf("%s-service", mesh.Name), Namespace: mesh.Namespace}, service)
+	// Check if the service exists; if not, create a new one
+	service := &corev1.Service{}
+	err = r.Get(ctx, types.NamespacedName{Name: "control", Namespace: mesh.Namespace}, service)
+	if err != nil && errors.IsNotFound(err) {
+		service = r.mkControlService(mesh)
+		r.Log.Info("Creating service", "Name", "control", "Namespace", mesh.Namespace)
+		err = r.Create(ctx, service)
+		if err != nil {
+			r.Log.Error(err, fmt.Sprintf("Failed to create service for %s:control", mesh.Namespace))
+			return err
+		}
+	} else if err != nil {
+		r.Log.Error(err, fmt.Sprintf("failed to get service for %s:control", mesh.Namespace))
+	}
 
 	return nil
 }
 
-//mkdeploymentForControl returns a control Deployment object
-func (r *MeshReconciler) mkDeploymentForControl(m *installv1.Mesh) *appsv1.Deployment {
-	ls := labelsForControl("control")
+func (r *MeshReconciler) mkControlDeployment(m *installv1.Mesh) *appsv1.Deployment {
 	replicas := int32(1)
+	labels := map[string]string{
+		"deployment":            "control",
+		"greymatter":            "fabric",
+		"greymatter.io/control": "control",
+	}
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -49,11 +65,11 @@ func (r *MeshReconciler) mkDeploymentForControl(m *installv1.Mesh) *appsv1.Deplo
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: ls,
+				MatchLabels: labels,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: ls,
+					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
 					ImagePullSecrets: []corev1.LocalObjectReference{
@@ -64,7 +80,7 @@ func (r *MeshReconciler) mkDeploymentForControl(m *installv1.Mesh) *appsv1.Deplo
 					Containers: []corev1.Container{{
 						Image:           "docker.greymatter.io/release/gm-control:1.5.3",
 						Name:            "control",
-						ImagePullPolicy: corev1.PullAlways,
+						ImagePullPolicy: corev1.PullIfNotPresent,
 						Env: []corev1.EnvVar{
 							{Name: "GM_CONTROL_API_INSECURE", Value: "true"},
 							{Name: "GM_CONTROL_API_SSL", Value: "true"},
@@ -90,27 +106,25 @@ func (r *MeshReconciler) mkDeploymentForControl(m *installv1.Mesh) *appsv1.Deplo
 	return dep
 }
 
-// func (r *MeshReconciler) mkServiceForControl(m *installv1.Mesh) *corev1.Service {
-// 	ls := labelsForControl(m.Name)
-// 	svc := &corev1.Service{
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name:      fmt.Sprintf("%s-svc", m.Name),
-// 			Namespace: m.Namespace,
-// 			Labels:    ls,
-// 		},
-// 		Spec: corev1.ServiceSpec{
-// 			Ports: []corev1.ServicePort{
-// 				{Port: 50000, Protocol: "TCP", TargetPort: "gprc"},
-// 			},
-// 			Selector: ls,
-// 		},
-// 	}
-// 	ctrl.SetControllerReference(m, svc, r.Scheme)
-// 	return svc
-// }
+func (r *MeshReconciler) mkControlService(mesh *installv1.Mesh) *corev1.Service {
+	labels := map[string]string{
+		"greymatter.io/control": "control",
+	}
 
-//labelsForControl returns the labels for selecting the resources
-// belongs to the given control CR name.
-func labelsForControl(name string) map[string]string {
-	return map[string]string{"greymatter.io": name}
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "control",
+			Namespace: mesh.Namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: labels,
+			Ports: []corev1.ServicePort{
+				{Port: 50000, TargetPort: intstr.FromInt(50000), Protocol: "TCP"},
+			},
+		},
+	}
+
+	ctrl.SetControllerReference(mesh, service, r.Scheme)
+	return service
 }
