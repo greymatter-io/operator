@@ -168,7 +168,7 @@ func (r *MeshReconciler) mkControlAPIService(mesh *installv1.Mesh) *corev1.Servi
 }
 
 func mkMeshObjects(mesh *installv1.Mesh) error {
-	addr := fmt.Sprintf("control-api.%s.svc.cluster.local:5555", mesh.Namespace)
+	addr := fmt.Sprintf("http://control-api.%s.svc.cluster.local:5555", mesh.Namespace)
 	client := meshobjects.NewClient(addr)
 
 	return client.MkMeshObjects(
