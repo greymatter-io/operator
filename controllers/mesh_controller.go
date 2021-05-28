@@ -77,6 +77,9 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	// Control
+	if err := r.mkControl(ctx, mesh); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
 
 	// Edge
 	if err := r.mkEdge(ctx, mesh); err != nil {
