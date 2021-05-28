@@ -173,6 +173,6 @@ func mkMeshObjects(mesh *installv1.Mesh) error {
 
 	return client.MkMeshObjects(
 		[]string{"zone-default-zone"},
-		[]string{"control-api"},
+		[]string{"control-api", "catalog"},
 	)
 }
