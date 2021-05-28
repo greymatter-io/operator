@@ -83,7 +83,7 @@ func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh, gmi gmImages)
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						Env: []corev1.EnvVar{
 							{Name: "GM_CONTROL_API_INSECURE", Value: "true"},
-							{Name: "GM_CONTROL_API_SSL", Value: "true"},
+							{Name: "GM_CONTROL_API_SSL", Value: "false"},
 							{Name: "GM_CONTROL_API_SSLCERT", Value: "/etc/proxy/tls/sidecar/server.crt"},
 							{Name: "GM_CONTROL_API_SSLKEY", Value: "/etc/proxy/tls/sidecar/server.key"},
 							{Name: "GM_CONTROL_CONSOLE_LEVEL", Value: "info"},
