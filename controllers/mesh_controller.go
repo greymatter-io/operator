@@ -22,6 +22,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -42,6 +43,7 @@ type MeshReconciler struct {
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;create;update;patch;delete
+//+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -81,6 +83,11 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{Requeue: true}, err
 	}
 
+	// Ingress
+	if err := r.mkIngress(ctx, mesh); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+
 	// TODO: Update pods status as needed.
 
 	return ctrl.Result{}, nil
@@ -92,5 +99,6 @@ func (r *MeshReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&installv1.Mesh{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		Owns(&extensionsv1beta1.Ingress{}).
 		Complete(r)
 }
