@@ -8,6 +8,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -83,6 +84,16 @@ func (r *MeshReconciler) mkEdgeDeployment(mesh *installv1.Mesh) *appsv1.Deployme
 						Ports: []corev1.ContainerPort{
 							{ContainerPort: 10808, Name: "proxy", Protocol: "TCP"},
 							{ContainerPort: 8081, Name: "metrics", Protocol: "TCP"},
+						},
+						Resources: corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("1"),
+								corev1.ResourceMemory: resource.MustParse("1Gi"),
+							},
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("128Mi"),
+							},
 						},
 					}},
 				},
