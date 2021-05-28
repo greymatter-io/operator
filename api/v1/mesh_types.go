@@ -32,6 +32,11 @@ type MeshSpec struct {
 	// If not specified, the latest version will be installed.
 	// +optional
 	Version *string `json:"version,omitempty"`
+
+	// The name of the secret used for pulling Grey Matter service Docker images.
+	// If not specified, defaults to "docker.secret".
+	// +optional
+	ImagePullSecret *string `json:"image_pull_secret,omitempty"`
 }
 
 // Defines the observed state of a Mesh.

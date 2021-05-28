@@ -36,6 +36,10 @@ spec:
           spec:
             description: Defines the desired state of a Mesh.
             properties:
+              image_pull_secret:
+                description: The name of the secret used for pulling Grey Matter service
+                  Docker images. If not specified, defaults to "docker.secret".
+                type: string
               version:
                 description: Which version of Grey Matter to install. If not specified,
                   the latest version will be installed.
