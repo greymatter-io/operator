@@ -13,10 +13,12 @@ Furthermore, the Operator will spawn a process that will call the Control API to
 
 ## Getting Started
 
-- `make docker-build`
-- `k3d cluster create gm-operator -a 4 -p 30000:10808@loadbalancer`
-- `export KUBECONFIG=$(k3d kubeconfig write gm-operator)`
-- `make deploy`
+1. `make docker-build`
+2. `k3d cluster create gm-operator -a 4 -p 30000:10808@loadbalancer`
+3. `export KUBECONFIG=$(k3d kubeconfig write gm-operator)`
+4. `make deploy`
+5. `kubectl apply -f config/samples/install_v1_mesh.yaml`
+6. `kubectl get mesh sample-mesh -o yaml`
 
 ## Resources
 

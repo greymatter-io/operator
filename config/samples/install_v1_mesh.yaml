@@ -1,7 +1,6 @@
 apiVersion: install.greymatter.io/v1
 kind: Mesh
 metadata:
-  name: mesh-sample
+  name: sample-mesh
 spec:
-  # Add fields here
-  foo: bar
+  version: "1.3"
