@@ -50,6 +50,11 @@ func (r *MeshReconciler) mkEdge(ctx context.Context, mesh *installv1.Mesh, gmi g
 
 func (r *MeshReconciler) mkEdgeDeployment(mesh *installv1.Mesh, gmi gmImages) *appsv1.Deployment {
 	replicas := int32(1)
+
+	meshLabels := map[string]string{
+		"proxy-version": gmi.Proxy,
+	}
+
 	labels := map[string]string{
 		"greymatter.io/control": "edge",
 		"deployment":            "edge",
@@ -60,6 +65,7 @@ func (r *MeshReconciler) mkEdgeDeployment(mesh *installv1.Mesh, gmi gmImages) *a
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "edge",
 			Namespace: mesh.Namespace,
+			Labels:    meshLabels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,

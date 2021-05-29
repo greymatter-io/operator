@@ -34,6 +34,28 @@ func (r *MeshReconciler) mkControlAPI(ctx context.Context, mesh *installv1.Mesh,
 		return err
 	}
 
+	// Compare deployment settings with expected configuration -- TODO extract into separate function
+	meshLabels := deployment.Labels
+	var update bool
+	if meshLabels["control-api-version"] != gmi.ControlAPI {
+		update = true
+		image := fmt.Sprintf("docker.greymatter.io/release/gm-control-api:%s", gmi.ControlAPI)
+		deployment.Spec.Template.Spec.Containers[0].Image = image
+	}
+	if meshLabels["proxy-version"] != gmi.Proxy {
+		update = true
+		image := fmt.Sprintf("docker.greymatter.io/release/gm-proxy:%s", gmi.Proxy)
+		deployment.Spec.Template.Spec.Containers[1].Image = image
+	}
+	if update {
+		r.Log.Info("Updating deployment", "Name", "control-api", "Namespace", mesh.Namespace)
+		err = r.Update(ctx, deployment)
+		if err != nil {
+			r.Log.Error(err, fmt.Sprintf("Failed to update deployment for %s:control-api", mesh.Namespace))
+			return err
+		}
+	}
+
 	// Check if the service exists; if not, create a new one
 	service := &corev1.Service{}
 	err = r.Get(ctx, types.NamespacedName{Name: "control-api", Namespace: mesh.Namespace}, service)
@@ -49,19 +71,17 @@ func (r *MeshReconciler) mkControlAPI(ctx context.Context, mesh *installv1.Mesh,
 		r.Log.Error(err, fmt.Sprintf("failed to get service for %s:control-api", mesh.Namespace))
 	}
 
-	if mesh.Status.Deployed {
-		return nil
-	}
-
-	if err = mkMeshObjects(mesh); err != nil {
-		r.Log.Error(err, "failed to configure mesh")
-	}
-
 	return nil
 }
 
 func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh, gmi gmImages) *appsv1.Deployment {
 	replicas := int32(1)
+
+	meshLabels := map[string]string{
+		"control-api-version": gmi.ControlAPI,
+		"proxy-version":       gmi.Proxy,
+	}
+
 	labels := map[string]string{
 		"deployment":            "control-api",
 		"greymatter":            "fabric",
@@ -72,6 +92,7 @@ func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh, gmi gmImag
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "control-api",
 			Namespace: mesh.Namespace,
+			Labels:    meshLabels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -172,7 +193,7 @@ func mkMeshObjects(mesh *installv1.Mesh) error {
 	client := meshobjects.NewClient(addr)
 
 	return client.MkMeshObjects(
-		[]string{"zone-default-zone"},
+		"zone-default-zone",
 		[]string{"control-api", "catalog"},
 	)
 }

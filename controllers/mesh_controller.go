@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
 )
@@ -106,15 +107,22 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	// Ingress
+	// Ingress - note this is just added for convenience in K3d.
+	// Later we can add ingress options to the Operator.
 	if err := r.mkIngress(ctx, mesh); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	mesh.Status.Deployed = true
-	if err := r.Status().Update(ctx, mesh); err != nil {
-		log.Error(err, "Failed to set mesh status to deployed")
-		return ctrl.Result{Requeue: true}, err
+	// Mesh object configuration
+	if !mesh.Status.Deployed {
+		if err := mkMeshObjects(mesh); err != nil {
+			r.Log.Error(err, "failed to configure mesh")
+		}
+		mesh.Status.Deployed = true
+		if err := r.Status().Update(ctx, mesh); err != nil {
+			log.Error(err, "Failed to set mesh status to deployed")
+			return ctrl.Result{Requeue: true}, err
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -127,5 +135,6 @@ func (r *MeshReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&extensionsv1beta1.Ingress{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 2}).
 		Complete(r)
 }

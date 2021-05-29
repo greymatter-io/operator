@@ -51,6 +51,11 @@ func (r *MeshReconciler) mkControl(ctx context.Context, mesh *installv1.Mesh, gm
 
 func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh, gmi gmImages) *appsv1.Deployment {
 	replicas := int32(1)
+
+	meshLabels := map[string]string{
+		"control-version": gmi.Control,
+	}
+
 	labels := map[string]string{
 		"deployment":            "control",
 		"greymatter":            "fabric",
@@ -61,6 +66,7 @@ func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh, gmi gmImages)
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "control",
 			Namespace: mesh.Namespace,
+			Labels:    meshLabels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,

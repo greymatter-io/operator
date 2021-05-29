@@ -5,25 +5,23 @@ import (
 	"fmt"
 )
 
-func (c *Client) MkMeshObjects(zones, clusters []string) error {
-	for _, zone := range zones {
-		zoneObject := fmt.Sprintf(`{"zone_key":"%s","name":"%s"}`, zone, zone)
-		zoneBytes := json.RawMessage(zoneObject)
-		if err := c.Make("zone", zone, zoneBytes); err != nil {
+func (c *Client) MkMeshObjects(zone string, clusters []string) error {
+	zoneObject := fmt.Sprintf(`{"zone_key":"%s","name":"%s"}`, zone, zone)
+	zoneBytes := json.RawMessage(zoneObject)
+	if err := c.Make("zone", zone, zoneBytes); err != nil {
+		return err
+	}
+
+	if err := c.mkSidecarObjects(zone, "edge"); err != nil {
+		return err
+	}
+
+	for _, cluster := range clusters {
+		if err := c.mkSidecarObjects(zone, cluster); err != nil {
 			return err
 		}
-
-		if err := c.mkSidecarObjects(zone, "edge"); err != nil {
+		if err := c.mkServiceObjects(zone, cluster); err != nil {
 			return err
-		}
-
-		for _, cluster := range clusters {
-			if err := c.mkSidecarObjects(zone, cluster); err != nil {
-				return err
-			}
-			if err := c.mkServiceObjects(zone, cluster); err != nil {
-				return err
-			}
 		}
 	}
 

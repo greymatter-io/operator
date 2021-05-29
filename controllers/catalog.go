@@ -53,6 +53,12 @@ func (r *MeshReconciler) mkCatalog(ctx context.Context, mesh *installv1.Mesh, gm
 
 func (r *MeshReconciler) mkCatalogAPIDeployment(mesh *installv1.Mesh, gmi gmImages) *appsv1.Deployment {
 	replicas := int32(1)
+
+	meshLabels := map[string]string{
+		"catalog-version": gmi.Catalog,
+		"proxy-version":   gmi.Proxy,
+	}
+
 	labels := map[string]string{
 		"deployment":            "catalog",
 		"greymatter":            "fabric",
@@ -63,6 +69,7 @@ func (r *MeshReconciler) mkCatalogAPIDeployment(mesh *installv1.Mesh, gmi gmImag
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "catalog",
 			Namespace: mesh.Namespace,
+			Labels:    meshLabels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
