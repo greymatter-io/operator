@@ -1,9 +1,9 @@
 #!/bin/bash
 
-kubectl create namespace gm-operator-system
+kubectl create namespace gm-operator
 
 kubectl create secret docker-registry docker.secret \
-  -n gm-operator-system \
+  -n gm-operator \
   --docker-server=docker.greymatter.io \
   --docker-username=$NEXUS_USER \
   --docker-password=$NEXUS_PASSWORD \

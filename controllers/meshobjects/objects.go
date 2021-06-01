@@ -116,6 +116,7 @@ func (c *Client) mkServiceObjects(zone, cluster, port string) error {
 		fmt.Sprintf("%s-a", sidecarKey),
 		edgeKey,
 		fmt.Sprintf("/services/%s/latest", cluster),
+		"exact",
 		fmt.Sprintf("/services/%s/latest/", cluster),
 		sidecarKey,
 	); err != nil {
@@ -126,6 +127,7 @@ func (c *Client) mkServiceObjects(zone, cluster, port string) error {
 		fmt.Sprintf("%s-b", sidecarKey),
 		edgeKey,
 		fmt.Sprintf("/services/%s/latest/", cluster),
+		"prefix",
 		"/",
 		sidecarKey,
 	); err != nil {
@@ -136,6 +138,7 @@ func (c *Client) mkServiceObjects(zone, cluster, port string) error {
 		fmt.Sprintf("%s-c", sidecarKey),
 		sidecarKey,
 		"/",
+		"prefix",
 		"/",
 		serviceKey,
 	); err != nil {
@@ -145,7 +148,7 @@ func (c *Client) mkServiceObjects(zone, cluster, port string) error {
 	return nil
 }
 
-func (c *Client) mkRoute(zone, key, dk, path, rewrite, ck string) error {
+func (c *Client) mkRoute(zone, key, dk, path, matchType, rewrite, ck string) error {
 	routeObject := fmt.Sprintf(`{
 		"zone_key":"%s",
 		"route_key":"%s",
