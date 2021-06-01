@@ -1,4 +1,4 @@
-package common
+package gmcore
 
 import (
 	"fmt"
@@ -9,11 +9,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-var versionOneThree = map[GmCore]GmCoreConfig{
+var versionOneThree = map[SvcName]Config{
 	Control: {
-		component: versionAll[Control].component,
-		imageTag:  "1.5.3",
-		mkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
+		Component: base[Control].Component,
+		ImageTag:  "1.5.3",
+		MkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
 			return map[string]string{
 				"GM_CONTROL_API_INSECURE":             "true",
 				"GM_CONTROL_API_SSL":                  "false",
@@ -31,17 +31,17 @@ var versionOneThree = map[GmCore]GmCoreConfig{
 				"GM_CONTROL_KUBERNETES_NAMESPACES":    mesh.Namespace,
 			}
 		},
-		containerPorts: []corev1.ContainerPort{
+		ContainerPorts: []corev1.ContainerPort{
 			{ContainerPort: 50000, Name: "grpc", Protocol: "TCP"},
 		},
-		servicePorts: []corev1.ServicePort{
+		ServicePorts: []corev1.ServicePort{
 			{Port: 50000, TargetPort: intstr.FromInt(50000), Protocol: "TCP"},
 		},
 	},
 	ControlApi: {
-		component: "fabric",
-		imageTag:  "1.5.4",
-		mkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
+		Component: "fabric",
+		ImageTag:  "1.5.4",
+		MkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
 			return map[string]string{
 				"GM_CONTROL_API_ADDRESS":               "0.0.0.0:5555",
 				"GM_CONTROL_API_DISABLE_VERSION_CHECK": "false",
@@ -55,17 +55,17 @@ var versionOneThree = map[GmCore]GmCoreConfig{
 				"GM_CONTROL_API_ZONE_NAME":             "zone-default-zone",
 			}
 		},
-		containerPorts: []corev1.ContainerPort{
+		ContainerPorts: []corev1.ContainerPort{
 			{ContainerPort: 5555, Name: "http", Protocol: "TCP"},
 		},
-		servicePorts: []corev1.ServicePort{
+		ServicePorts: []corev1.ServicePort{
 			{Port: 5555, TargetPort: intstr.FromInt(5555), Protocol: "TCP"},
 		},
 	},
 	Proxy: {
-		component: "fabric",
-		imageTag:  "1.5.1",
-		mkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
+		Component: "fabric",
+		ImageTag:  "1.5.1",
+		MkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
 			return map[string]string{
 				"ENVOY_ADMIN_LOG_PATH": "/dev/stdout",
 				"PROXY_DYNAMIC":        "true",
@@ -75,15 +75,15 @@ var versionOneThree = map[GmCore]GmCoreConfig{
 				"XDS_ZONE":             "zone-default-zone",
 			}
 		},
-		containerPorts: []corev1.ContainerPort{
+		ContainerPorts: []corev1.ContainerPort{
 			{ContainerPort: 10808, Name: "proxy", Protocol: "TCP"},
 			{ContainerPort: 8081, Name: "metrics", Protocol: "TCP"},
 		},
-		servicePorts: []corev1.ServicePort{
+		ServicePorts: []corev1.ServicePort{
 			{Name: "proxy", Port: 10808, Protocol: "TCP"},
 			{Name: "metrics", Port: 8081, Protocol: "TCP"},
 		},
-		resources: &corev1.ResourceRequirements{
+		Resources: &corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("200m"),
 				corev1.ResourceMemory: resource.MustParse("512Mi"),
@@ -95,9 +95,9 @@ var versionOneThree = map[GmCore]GmCoreConfig{
 		},
 	},
 	Catalog: {
-		component: "sense",
-		imageTag:  "1.2.2",
-		mkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
+		Component: "sense",
+		ImageTag:  "1.2.2",
+		MkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
 			return map[string]string{
 				"CONTROL_SERVER_0_ADDRESS":              fmt.Sprintf("control.%s.svc.cluster.local:50000", mesh.Namespace),
 				"CONTROL_SERVER_0_REQUEST_CLUSTER_NAME": "edge",
@@ -105,17 +105,17 @@ var versionOneThree = map[GmCore]GmCoreConfig{
 				"PORT":                                  "9080",
 			}
 		},
-		containerPorts: []corev1.ContainerPort{
+		ContainerPorts: []corev1.ContainerPort{
 			{ContainerPort: 9080, Name: "http", Protocol: "TCP"},
 		},
-		servicePorts: []corev1.ServicePort{
+		ServicePorts: []corev1.ServicePort{
 			{Port: 9080, TargetPort: intstr.FromInt(9080), Protocol: "TCP"},
 		},
 	},
 	JwtSecurity: {
-		component: "fabric",
-		imageTag:  "1.2.0",
-		mkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
+		Component: "fabric",
+		ImageTag:  "1.2.0",
+		MkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
 			return map[string]string{
 				"ENABLE_TLS": "false",
 				"REDIS_DB":   "0",
@@ -124,10 +124,10 @@ var versionOneThree = map[GmCore]GmCoreConfig{
 				"HTTPS_PORT": "3000",
 			}
 		},
-		containerPorts: []corev1.ContainerPort{
+		ContainerPorts: []corev1.ContainerPort{
 			{ContainerPort: 3000, Name: "http", Protocol: "TCP"},
 		},
-		servicePorts: []corev1.ServicePort{
+		ServicePorts: []corev1.ServicePort{
 			{Port: 3000, TargetPort: intstr.FromInt(3000), Protocol: "TCP"},
 		},
 	},

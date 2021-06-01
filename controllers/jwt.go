@@ -55,7 +55,7 @@ func (r *MeshReconciler) mkJwtSecurityDeployment(mesh *installv1.Mesh, gmi gmIma
 
 	meshLabels := map[string]string{
 		"jwt-security-version": gmi.JwtSecurity,
-		"proxy-version":        gmi.Proxy,
+		"sidecar-version":      gmi.Proxy,
 	}
 
 	labels := map[string]string{

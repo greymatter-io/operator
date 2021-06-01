@@ -4,36 +4,43 @@ import (
 	"fmt"
 
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
+	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func MkDeployment(mesh *installv1.Mesh, svc GmCore) (*appsv1.Deployment, error) {
-	replicas := int32(1)
+type DeploymentReconciler struct{}
 
-	versionedConfigs, ok := GmCoreConfigs[mesh.Spec.Version]
-	if !ok {
-		return nil, fmt.Errorf("invalid Mesh.Spec.Version '%s'", mesh.Spec.Version)
+func (dr DeploymentReconciler) Object() client.Object {
+	return &appsv1.Deployment{}
+}
+
+func (dr DeploymentReconciler) Build(mesh *installv1.Mesh, svc gmcore.SvcName) (client.Object, error) {
+	configs := gmcore.Configs(mesh.Spec.Version)
+
+	labels := map[string]string{
+		"greymatter.io/component":       configs[svc].Component,
+		"greymatter.io/service-version": configs[svc].ImageTag,
+		"greymatter.io/control":         string(svc),
+	}
+	if svc != gmcore.Control {
+		labels["greymatter.io/sidecar-version"] = configs[gmcore.Proxy].ImageTag
 	}
 
-	meshLabels := map[string]string{
+	objectLabels := map[string]string{
 		"app.kubernetes.io/name":       string(svc),
-		"app.kubernetes.io/version":    versionedConfigs[svc].imageTag,
+		"app.kubernetes.io/version":    configs[svc].ImageTag,
 		"app.kubernetes.io/part-of":    "greymatter",
 		"app.kubernetes.io/managed-by": "gm-operator",
 		"app.kubernetes.io/created-by": "gm-operator",
 	}
-	if svc != Control {
-		meshLabels["proxy-version"] = versionedConfigs[Proxy].imageTag
+	for k, v := range labels {
+		objectLabels[k] = v
 	}
 
-	labels := map[string]string{
-		"greymatter":            versionedConfigs[svc].component,
-		"greymatter.io/control": string(svc),
-	}
-
-	envsMap := versionedConfigs[svc].mkEnvsMap(mesh)
+	envsMap := configs[svc].MkEnvsMap(mesh)
 	var envs []corev1.EnvVar
 	for k, v := range envsMap {
 		envs = append(envs, corev1.EnvVar{Name: k, Value: v})
@@ -41,19 +48,19 @@ func MkDeployment(mesh *installv1.Mesh, svc GmCore) (*appsv1.Deployment, error) 
 
 	svcContainer := corev1.Container{
 		Name:            string(svc),
-		Image:           fmt.Sprintf("docker.greymatter.io/release/gm-%s:%s", svc, versionedConfigs[svc].imageTag),
+		Image:           fmt.Sprintf("docker.greymatter.io/release/gm-%s:%s", svc, configs[svc].ImageTag),
 		Env:             envs,
-		ImagePullPolicy: ImagePullPolicy,
-		Ports:           versionedConfigs[svc].containerPorts,
+		ImagePullPolicy: gmcore.ImagePullPolicy,
+		Ports:           configs[svc].ContainerPorts,
 	}
-	if versionedConfigs[svc].resources != nil {
-		svcContainer.Resources = *versionedConfigs[svc].resources
+	if configs[svc].Resources != nil {
+		svcContainer.Resources = *configs[svc].Resources
 	}
 
 	containers := []corev1.Container{svcContainer}
 
-	if svc != Control {
-		proxyEnvsMap := versionedConfigs[svc].mkEnvsMap(mesh)
+	if svc != gmcore.Control {
+		proxyEnvsMap := configs[svc].MkEnvsMap(mesh)
 		var proxyEnvs []corev1.EnvVar
 		for k, v := range proxyEnvsMap {
 			proxyEnvs = append(proxyEnvs, corev1.EnvVar{Name: k, Value: v})
@@ -62,20 +69,21 @@ func MkDeployment(mesh *installv1.Mesh, svc GmCore) (*appsv1.Deployment, error) 
 			containers,
 			corev1.Container{
 				Name:            "sidecar",
-				Image:           fmt.Sprintf("docker.greymatter.io/release/gm-proxy:%s", versionedConfigs[Proxy].imageTag),
+				Image:           fmt.Sprintf("docker.greymatter.io/release/gm-proxy:%s", configs[gmcore.Proxy].ImageTag),
 				Env:             proxyEnvs,
-				ImagePullPolicy: ImagePullPolicy,
-				Ports:           versionedConfigs[Proxy].containerPorts,
-				Resources:       *versionedConfigs[Proxy].resources,
+				ImagePullPolicy: gmcore.ImagePullPolicy,
+				Ports:           configs[gmcore.Proxy].ContainerPorts,
+				Resources:       *configs[gmcore.Proxy].Resources,
 			},
 		)
 	}
 
+	replicas := int32(1)
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      string(svc),
 			Namespace: mesh.Namespace,
-			Labels:    meshLabels,
+			Labels:    objectLabels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -90,9 +98,28 @@ func MkDeployment(mesh *installv1.Mesh, svc GmCore) (*appsv1.Deployment, error) 
 		},
 	}
 
-	if svc == Control {
+	if svc == gmcore.Control {
 		deployment.Spec.Template.Spec.ServiceAccountName = "control-pods"
 	}
 
 	return deployment, nil
+}
+
+func (dr DeploymentReconciler) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
+	configs := gmcore.Configs(mesh.Spec.Version)
+
+	svc, err := gmcore.ServiceName(obj.GetName())
+	if err != nil {
+		return false, err
+	}
+
+	labels := obj.GetLabels()
+	if lbl := labels["greymatter.io/service-version"]; lbl != configs[svc].ImageTag {
+		return false, nil
+	}
+	if lbl := labels["greymatter.io/sidecar-version"]; svc != gmcore.Control && lbl != configs[gmcore.Proxy].ImageTag {
+		return false, nil
+	}
+
+	return true, nil
 }

@@ -5,70 +5,24 @@ import (
 	"fmt"
 
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
+	"github.com/bcmendoza/gm-operator/controllers/common"
+	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 	"github.com/bcmendoza/gm-operator/controllers/meshobjects"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *MeshReconciler) mkControlAPI(ctx context.Context, mesh *installv1.Mesh, gmi gmImages) error {
-
-	// Check if the deployment exists; if not, create a new one
-	deployment := &appsv1.Deployment{}
-	err := r.Get(ctx, types.NamespacedName{Name: "control-api", Namespace: mesh.Namespace}, deployment)
-	if err != nil && errors.IsNotFound(err) {
-		deployment = r.mkControlAPIDeployment(mesh, gmi)
-		r.Log.Info("Creating deployment", "Name", "control-api", "Namespace", mesh.Namespace)
-		err = r.Create(ctx, deployment)
-		if err != nil {
-			r.Log.Error(err, fmt.Sprintf("Failed to create deployment for %s:control-api", mesh.Namespace))
-			return err
-		}
-	} else if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to get deployment for %s:control-api", mesh.Namespace))
+func (r *MeshReconciler) mkControlAPI(ctx context.Context, mesh *installv1.Mesh) error {
+	if err := r.reconcile(ctx, mesh, gmcore.ControlApi, common.DeploymentReconciler{}); err != nil {
 		return err
 	}
 
-	// Compare deployment settings with expected configuration -- TODO extract into separate function
-	meshLabels := deployment.Labels
-	var update bool
-	if meshLabels["control-api-version"] != gmi.ControlAPI {
-		update = true
-		image := fmt.Sprintf("docker.greymatter.io/release/gm-control-api:%s", gmi.ControlAPI)
-		deployment.Spec.Template.Spec.Containers[0].Image = image
-	}
-	if meshLabels["proxy-version"] != gmi.Proxy {
-		update = true
-		image := fmt.Sprintf("docker.greymatter.io/release/gm-proxy:%s", gmi.Proxy)
-		deployment.Spec.Template.Spec.Containers[1].Image = image
-	}
-	if update {
-		r.Log.Info("Updating deployment", "Name", "control-api", "Namespace", mesh.Namespace)
-		err = r.Update(ctx, deployment)
-		if err != nil {
-			r.Log.Error(err, fmt.Sprintf("Failed to update deployment for %s:control-api", mesh.Namespace))
-			return err
-		}
-	}
-
-	// Check if the service exists; if not, create a new one
-	service := &corev1.Service{}
-	err = r.Get(ctx, types.NamespacedName{Name: "control-api", Namespace: mesh.Namespace}, service)
-	if err != nil && errors.IsNotFound(err) {
-		service = r.mkControlAPIService(mesh)
-		r.Log.Info("Creating service", "Name", "control-api", "Namespace", mesh.Namespace)
-		err = r.Create(ctx, service)
-		if err != nil {
-			r.Log.Error(err, fmt.Sprintf("Failed to create service for %s:control-api", mesh.Namespace))
-			return err
-		}
-	} else if err != nil {
-		r.Log.Error(err, fmt.Sprintf("failed to get service for %s:control-api", mesh.Namespace))
+	if err := r.reconcile(ctx, mesh, gmcore.ControlApi, common.ServiceReconciler{}); err != nil {
+		return err
 	}
 
 	return nil
@@ -79,7 +33,7 @@ func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh, gmi gmImag
 
 	meshLabels := map[string]string{
 		"control-api-version": gmi.ControlAPI,
-		"proxy-version":       gmi.Proxy,
+		"sidecar-version":     gmi.Proxy,
 	}
 
 	labels := map[string]string{

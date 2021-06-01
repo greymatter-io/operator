@@ -1,13 +1,13 @@
-package common
+package gmcore
 
 import (
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
 )
 
-var versionAll = map[GmCore]GmCoreConfig{
+var base = map[SvcName]Config{
 	Control: {
-		component: "fabric",
-		mkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
+		Component: "fabric",
+		MkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
 			return map[string]string{
 				"GM_CONTROL_API_INSECURE":             "true",
 				"GM_CONTROL_API_SSL":                  "false",

@@ -52,7 +52,7 @@ func (r *MeshReconciler) mkEdgeDeployment(mesh *installv1.Mesh, gmi gmImages) *a
 	replicas := int32(1)
 
 	meshLabels := map[string]string{
-		"proxy-version": gmi.Proxy,
+		"sidecar-version": gmi.Proxy,
 	}
 
 	labels := map[string]string{

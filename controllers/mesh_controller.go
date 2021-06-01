@@ -91,7 +91,7 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	// Control API
-	if err := r.mkControlAPI(ctx, mesh, gmi); err != nil {
+	if err := r.mkControlAPI(ctx, mesh); err != nil {
 		return ctrl.Result{}, err
 	}
 

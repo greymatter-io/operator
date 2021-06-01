@@ -56,7 +56,7 @@ func (r *MeshReconciler) mkCatalogAPIDeployment(mesh *installv1.Mesh, gmi gmImag
 
 	meshLabels := map[string]string{
 		"catalog-version": gmi.Catalog,
-		"proxy-version":   gmi.Proxy,
+		"sidecar-version": gmi.Proxy,
 	}
 
 	labels := map[string]string{
