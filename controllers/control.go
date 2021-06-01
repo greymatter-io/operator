@@ -17,12 +17,6 @@ import (
 
 func (r *MeshReconciler) mkControl(ctx context.Context, mesh *installv1.Mesh, gmi gmImages) error {
 
-	// list := &rbacv1.ClusterRoleList{}
-	// _ = r.List(ctx, list)
-	// for _, cr := range list.Items {
-	// 	fmt.Printf("%#v\n", cr)
-	// }
-
 	// Create RBAC for pod access across cluster, starting with role
 	role := &rbacv1.ClusterRole{}
 	if err := r.Get(ctx, types.NamespacedName{Name: "control-pods"}, role); err != nil && errors.IsNotFound(err) {
@@ -167,7 +161,7 @@ func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh, gmi gmImages)
 							{Name: "GM_CONTROL_API_SSL", Value: "false"},
 							{Name: "GM_CONTROL_API_SSLCERT", Value: "/etc/proxy/tls/sidecar/server.crt"},
 							{Name: "GM_CONTROL_API_SSLKEY", Value: "/etc/proxy/tls/sidecar/server.key"},
-							{Name: "GM_CONTROL_CONSOLE_LEVEL", Value: "info"},
+							{Name: "GM_CONTROL_CONSOLE_LEVEL", Value: "debug"},
 							{Name: "GM_CONTROL_API_KEY", Value: "xxx"},
 							{Name: "GM_CONTROL_API_ZONE_NAME", Value: "zone-default-zone"},
 							{Name: "GM_CONTROL_API_HOST", Value: "control-api:5555"},

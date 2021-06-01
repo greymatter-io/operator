@@ -7,6 +7,7 @@ import (
 	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -32,6 +33,7 @@ func (r *MeshReconciler) reconcile(ctx context.Context, mesh *installv1.Mesh, sv
 			logger.Error(err, "Failed to build struct")
 			return err
 		}
+		ctrl.SetControllerReference(mesh, obj, r.Scheme)
 		logger.Info("Attempting to Create")
 		if err = r.Create(ctx, obj); err != nil {
 			logger.Error(err, "Failed to Create")
