@@ -81,12 +81,9 @@ func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh, gmi gmImages)
 					ImagePullSecrets: []corev1.LocalObjectReference{
 						{Name: *mesh.Spec.ImagePullSecret},
 					},
-					DNSPolicy:     corev1.DNSClusterFirst,
-					RestartPolicy: corev1.RestartPolicyAlways,
 					Containers: []corev1.Container{{
-						Image:           fmt.Sprintf("docker.greymatter.io/release/gm-control:%s", gmi.Control),
-						Name:            "control",
-						ImagePullPolicy: corev1.PullIfNotPresent,
+						Name:  "control",
+						Image: fmt.Sprintf("docker.greymatter.io/release/gm-control:%s", gmi.Control),
 						Env: []corev1.EnvVar{
 							{Name: "GM_CONTROL_API_INSECURE", Value: "true"},
 							{Name: "GM_CONTROL_API_SSL", Value: "false"},
@@ -102,6 +99,10 @@ func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh, gmi gmImages)
 							{Name: "GM_CONTROL_KUBERNETES_CLUSTER_LABEL", Value: "greymatter.io"},
 							{Name: "GM_CONTROL_KUBERNETES_PORT_NAME", Value: "proxy"},
 							{Name: "GM_CONTROL_KUBERNETES_NAMESPACES", Value: mesh.Namespace},
+						},
+						ImagePullPolicy: corev1.PullIfNotPresent,
+						Ports: []corev1.ContainerPort{
+							{ContainerPort: 50000, Name: "grpc", Protocol: "TCP"},
 						},
 					}},
 				},

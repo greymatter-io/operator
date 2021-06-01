@@ -132,9 +132,8 @@ func (r *MeshReconciler) mkEdgeService(mesh *installv1.Mesh) *corev1.Service {
 				{Name: "proxy", Port: 10808, Protocol: "TCP"},
 				{Name: "metrics", Port: 8081, Protocol: "TCP"},
 			},
-			Selector:        labels,
-			SessionAffinity: corev1.ServiceAffinityNone,
-			Type:            corev1.ServiceTypeLoadBalancer,
+			Selector: labels,
+			Type:     corev1.ServiceTypeLoadBalancer,
 		},
 	}
 
