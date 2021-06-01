@@ -3,6 +3,7 @@ package meshobjects
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 func (c *Client) MkMeshObjects(zone string, clusters []string) error {
@@ -16,11 +17,16 @@ func (c *Client) MkMeshObjects(zone string, clusters []string) error {
 		return err
 	}
 
+ClusterLoop:
 	for _, cluster := range clusters {
-		if err := c.mkSidecarObjects(zone, cluster); err != nil {
+		split := strings.Split(cluster, ":")
+		if len(split) != 2 {
+			continue ClusterLoop
+		}
+		if err := c.mkSidecarObjects(zone, split[0]); err != nil {
 			return err
 		}
-		if err := c.mkServiceObjects(zone, cluster); err != nil {
+		if err := c.mkServiceObjects(zone, split[0], split[1]); err != nil {
 			return err
 		}
 	}
@@ -84,7 +90,7 @@ func (c *Client) mkSidecarObjects(zone, cluster string) error {
 	return nil
 }
 
-func (c *Client) mkServiceObjects(zone, cluster string) error {
+func (c *Client) mkServiceObjects(zone, cluster, port string) error {
 	sidecarKey := fmt.Sprintf("%s-%s", zone, cluster)
 	serviceKey := fmt.Sprintf("service-%s", sidecarKey)
 	serviceCluster := fmt.Sprintf("service-%s", cluster)
@@ -93,8 +99,14 @@ func (c *Client) mkServiceObjects(zone, cluster string) error {
 	clusterObject := fmt.Sprintf(`{
 		"zone_key":"%s",
 		"cluster_key":"%s",
-		"name":"%s"
-	}`, zone, serviceKey, serviceCluster)
+		"name":"%s",
+		"instances":[
+			{
+				"host":"127.0.0.1",
+				"port":%s
+			}
+		]
+	}`, zone, serviceKey, serviceCluster, port)
 	clusterBytes := json.RawMessage(clusterObject)
 	if err := c.Make("cluster", serviceCluster, clusterBytes); err != nil {
 		return err

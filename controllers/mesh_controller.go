@@ -23,6 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -42,9 +43,11 @@ type MeshReconciler struct {
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes/finalizers,verbs=update
-//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;create;update;patch;delete
-//+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;create;update;patch;delete
+//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=serviceaccounts;pods,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -69,17 +72,17 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "Failed to get Mesh")
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
-	if mesh.Spec.ImagePullSecret == nil {
+	if mesh.Spec.ImagePullSecret == "" {
 		secret := "docker.secret"
-		mesh.Spec.ImagePullSecret = &secret
+		mesh.Spec.ImagePullSecret = secret
 	}
 
 	var gmi gmImages
-	if mesh.Spec.Version != nil {
-		switch *mesh.Spec.Version {
+	if mesh.Spec.Version != "" {
+		switch mesh.Spec.Version {
 		case "1.2":
 			gmi = gmVersionMap["1.2"]
 		default:
@@ -89,39 +92,42 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	// Control API
 	if err := r.mkControlAPI(ctx, mesh, gmi); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	// Control
 	if err := r.mkControl(ctx, mesh, gmi); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	// Edge
 	if err := r.mkEdge(ctx, mesh, gmi); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	// Catalog
 	if err := r.mkCatalog(ctx, mesh, gmi); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	// Ingress - note this is just added for convenience in K3d.
 	// Later we can add ingress options to the Operator.
 	if err := r.mkIngress(ctx, mesh); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	// Mesh object configuration
 	if !mesh.Status.Deployed {
+		// TODO: Add a ping and if it is non-responsive, return an error
+		// Consider doing a "check if exists and if not create" for each object
 		if err := mkMeshObjects(mesh); err != nil {
 			r.Log.Error(err, "failed to configure mesh")
+			return ctrl.Result{}, err
 		}
 		mesh.Status.Deployed = true
 		if err := r.Status().Update(ctx, mesh); err != nil {
 			log.Error(err, "Failed to set mesh status to deployed")
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -134,6 +140,9 @@ func (r *MeshReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&installv1.Mesh{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		Owns(&corev1.ServiceAccount{}).
+		Owns(&rbacv1.ClusterRole{}).
+		Owns(&rbacv1.ClusterRoleBinding{}).
 		Owns(&extensionsv1beta1.Ingress{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 2}).
 		Complete(r)

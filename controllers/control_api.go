@@ -105,7 +105,7 @@ func (r *MeshReconciler) mkControlAPIDeployment(mesh *installv1.Mesh, gmi gmImag
 				},
 				Spec: corev1.PodSpec{
 					ImagePullSecrets: []corev1.LocalObjectReference{
-						{Name: *mesh.Spec.ImagePullSecret},
+						{Name: mesh.Spec.ImagePullSecret},
 					},
 					Containers: []corev1.Container{
 						{
@@ -194,6 +194,6 @@ func mkMeshObjects(mesh *installv1.Mesh) error {
 
 	return client.MkMeshObjects(
 		"zone-default-zone",
-		[]string{"control-api", "catalog"},
+		[]string{"control-api:5555", "catalog:9080"},
 	)
 }

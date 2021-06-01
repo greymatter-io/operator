@@ -15,17 +15,17 @@ import (
 
 func (r *MeshReconciler) mkIngress(ctx context.Context, mesh *installv1.Mesh) error {
 	ingress := &extensionsv1beta1.Ingress{}
-	err := r.Get(ctx, types.NamespacedName{Name: "edge", Namespace: mesh.Namespace}, ingress)
+	err := r.Get(ctx, types.NamespacedName{Name: "ingress", Namespace: mesh.Namespace}, ingress)
 	if err != nil && errors.IsNotFound(err) {
 		ingress = r.mkIngressObject(mesh)
-		r.Log.Info("Creating ingress", "Name", "edge", "Namespace", mesh.Namespace)
+		r.Log.Info("Creating ingress", "Name", "ingress", "Namespace", mesh.Namespace)
 		err = r.Create(ctx, ingress)
 		if err != nil {
-			r.Log.Error(err, fmt.Sprintf("Failed to create ingress for %s:edge", mesh.Namespace))
+			r.Log.Error(err, fmt.Sprintf("Failed to create ingress for %s:ingress", mesh.Namespace))
 			return err
 		}
 	} else if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to get ingress for %s:edge", mesh.Namespace))
+		r.Log.Error(err, fmt.Sprintf("Failed to get ingress for %s:ingress", mesh.Namespace))
 		return err
 	}
 
@@ -35,7 +35,7 @@ func (r *MeshReconciler) mkIngress(ctx context.Context, mesh *installv1.Mesh) er
 func (r *MeshReconciler) mkIngressObject(mesh *installv1.Mesh) *extensionsv1beta1.Ingress {
 	ingress := &extensionsv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "edge",
+			Name:      "ingress",
 			Namespace: mesh.Namespace,
 			Annotations: map[string]string{
 				"nginx.ingress.kubernetes.io/backend-protocol":   "https",

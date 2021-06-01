@@ -7,6 +7,7 @@ import (
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -16,29 +17,105 @@ import (
 
 func (r *MeshReconciler) mkControl(ctx context.Context, mesh *installv1.Mesh, gmi gmImages) error {
 
+	// list := &rbacv1.ClusterRoleList{}
+	// _ = r.List(ctx, list)
+	// for _, cr := range list.Items {
+	// 	fmt.Printf("%#v\n", cr)
+	// }
+
+	// Create RBAC for pod access across cluster, starting with role
+	role := &rbacv1.ClusterRole{}
+	if err := r.Get(ctx, types.NamespacedName{Name: "control-pods"}, role); err != nil && errors.IsNotFound(err) {
+		role = &rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "control-pods",
+			},
+			Rules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{""},
+					Resources: []string{"pods"},
+					Verbs:     []string{"list"},
+				},
+			},
+		}
+		ctrl.SetControllerReference(mesh, role, r.Scheme)
+		r.Log.Info("Creating clusterrole", "Name", "control-pods")
+		if err := r.Create(ctx, role); err != nil {
+			r.Log.Error(err, fmt.Sprintf("failed to create rbacv1.ClusterRole for %s:control", mesh.Namespace))
+			return err
+		}
+	} else if err != nil {
+		r.Log.Error(err, fmt.Sprintf("failed to get rbacv1.ClusterRole for %s:control", mesh.Namespace))
+	}
+
+	account := &corev1.ServiceAccount{}
+	if err := r.Get(ctx, types.NamespacedName{Name: "control-pods", Namespace: mesh.Namespace}, account); err != nil && errors.IsNotFound(err) {
+		account = &corev1.ServiceAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "control-pods",
+				Namespace: mesh.Namespace,
+			},
+		}
+		ctrl.SetControllerReference(mesh, account, r.Scheme)
+		r.Log.Info("Creating serviceaccount", "Name", "control-pods", "Namespace", mesh.Namespace)
+		if err := r.Create(ctx, account); err != nil {
+			r.Log.Error(err, fmt.Sprintf("failed to create corev1.ServiceAccount for %s:control", mesh.Namespace))
+			return err
+		}
+	} else if err != nil {
+		r.Log.Error(err, fmt.Sprintf("failed to get corev1.ServiceAccount for %s:control", mesh.Namespace))
+	}
+
+	// TODO: The ClusterRoleBinding should be updated with added subjects per namespace; the CRB is only created once!
+	// If another mesh is deployed into another namespace, this will break.
+	binding := &rbacv1.ClusterRoleBinding{}
+	if err := r.Get(ctx, types.NamespacedName{Name: "control-pods"}, binding); err != nil && errors.IsNotFound(err) {
+		binding = &rbacv1.ClusterRoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "control-pods",
+			},
+			Subjects: []rbacv1.Subject{
+				{
+					Kind:      "ServiceAccount",
+					Name:      "control-pods",
+					Namespace: mesh.Namespace,
+				},
+			},
+			RoleRef: rbacv1.RoleRef{
+				APIGroup: "rbac.authorization.k8s.io",
+				Kind:     "ClusterRole",
+				Name:     "control-pods",
+			},
+		}
+		ctrl.SetControllerReference(mesh, binding, r.Scheme)
+		r.Log.Info("Creating clusterrolebinding", "Name", "control-pods", "Namespace", mesh.Namespace)
+		if err := r.Create(ctx, binding); err != nil {
+			r.Log.Error(err, fmt.Sprintf("failed to create rbacv1.ClusterRoleBinding for %s:control", mesh.Namespace))
+			return err
+		}
+	} else if err != nil {
+		r.Log.Error(err, fmt.Sprintf("failed to get rbacv1.ClusterRoleBinding for %s:control", mesh.Namespace))
+	}
+
 	// Check if the deployment exists; if not, create a new one
 	deployment := &appsv1.Deployment{}
-	err := r.Get(ctx, types.NamespacedName{Name: "control", Namespace: mesh.Namespace}, deployment)
-	if err != nil && errors.IsNotFound(err) {
+	if err := r.Get(ctx, types.NamespacedName{Name: "control", Namespace: mesh.Namespace}, deployment); err != nil && errors.IsNotFound(err) {
 		deployment = r.mkControlDeployment(mesh, gmi)
 		r.Log.Info("Creating deployment", "Name", "control", "Namespace", mesh.Namespace)
-		err = r.Create(ctx, deployment)
-		if err != nil {
+		if err := r.Create(ctx, deployment); err != nil {
 			r.Log.Error(err, fmt.Sprintf("failed to create appsv1.Deployment for %s:control", mesh.Namespace))
 			return err
 		}
 	} else if err != nil {
-		r.Log.Error(err, fmt.Sprintf("failed to get appsv1.Deployment for %s: control", mesh.Namespace))
+		r.Log.Error(err, fmt.Sprintf("failed to get appsv1.Deployment for %s:control", mesh.Namespace))
 	}
 
 	// Check if the service exists; if not, create a new one
 	service := &corev1.Service{}
-	err = r.Get(ctx, types.NamespacedName{Name: "control", Namespace: mesh.Namespace}, service)
-	if err != nil && errors.IsNotFound(err) {
+	if err := r.Get(ctx, types.NamespacedName{Name: "control", Namespace: mesh.Namespace}, service); err != nil && errors.IsNotFound(err) {
 		service = r.mkControlService(mesh)
 		r.Log.Info("Creating service", "Name", "control", "Namespace", mesh.Namespace)
-		err = r.Create(ctx, service)
-		if err != nil {
+		if err := r.Create(ctx, service); err != nil {
 			r.Log.Error(err, fmt.Sprintf("Failed to create service for %s:control", mesh.Namespace))
 			return err
 		}
@@ -78,8 +155,9 @@ func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh, gmi gmImages)
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
+					ServiceAccountName: "control-pods",
 					ImagePullSecrets: []corev1.LocalObjectReference{
-						{Name: *mesh.Spec.ImagePullSecret},
+						{Name: mesh.Spec.ImagePullSecret},
 					},
 					Containers: []corev1.Container{{
 						Name:  "control",
@@ -96,7 +174,7 @@ func (r *MeshReconciler) mkControlDeployment(mesh *installv1.Mesh, gmi gmImages)
 							{Name: "GM_CONTROL_CMD", Value: "kubernetes"},
 							{Name: "GM_CONTROL_XDS_RESOLVE_DNS", Value: "true"},
 							{Name: "GM_CONTROL_XDS_ADS_ENABLED", Value: "true"},
-							{Name: "GM_CONTROL_KUBERNETES_CLUSTER_LABEL", Value: "greymatter.io"},
+							{Name: "GM_CONTROL_KUBERNETES_CLUSTER_LABEL", Value: "greymatter.io/control"},
 							{Name: "GM_CONTROL_KUBERNETES_PORT_NAME", Value: "proxy"},
 							{Name: "GM_CONTROL_KUBERNETES_NAMESPACES", Value: mesh.Namespace},
 						},

@@ -12,9 +12,9 @@ import (
 func MkDeployment(mesh *installv1.Mesh, svc GmCore) (*appsv1.Deployment, error) {
 	replicas := int32(1)
 
-	versionedConfigs, ok := GmCoreConfigs[*mesh.Spec.Version]
+	versionedConfigs, ok := GmCoreConfigs[mesh.Spec.Version]
 	if !ok {
-		return nil, fmt.Errorf("invalid Mesh.Spec.Version '%s'", *mesh.Spec.Version)
+		return nil, fmt.Errorf("invalid Mesh.Spec.Version '%s'", mesh.Spec.Version)
 	}
 
 	meshLabels := map[string]string{
@@ -71,7 +71,7 @@ func MkDeployment(mesh *installv1.Mesh, svc GmCore) (*appsv1.Deployment, error) 
 		)
 	}
 
-	return &appsv1.Deployment{
+	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      string(svc),
 			Namespace: mesh.Namespace,
@@ -83,10 +83,16 @@ func MkDeployment(mesh *installv1.Mesh, svc GmCore) (*appsv1.Deployment, error) 
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: labels},
 				Spec: corev1.PodSpec{
-					ImagePullSecrets: []corev1.LocalObjectReference{{Name: *mesh.Spec.ImagePullSecret}},
+					ImagePullSecrets: []corev1.LocalObjectReference{{Name: mesh.Spec.ImagePullSecret}},
 					Containers:       containers,
 				},
 			},
 		},
-	}, nil
+	}
+
+	if svc == Control {
+		deployment.Spec.Template.Spec.ServiceAccountName = "control-pods"
+	}
+
+	return deployment, nil
 }

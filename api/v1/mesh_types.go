@@ -31,12 +31,12 @@ type MeshSpec struct {
 	// Which version of Grey Matter to install.
 	// If not specified, the latest version will be installed.
 	// +optional
-	Version *string `json:"version,omitempty"`
+	Version string `json:"version,omitempty"`
 
 	// The name of the secret used for pulling Grey Matter service Docker images.
 	// If not specified, defaults to "docker.secret".
 	// +optional
-	ImagePullSecret *string `json:"image_pull_secret,omitempty"`
+	ImagePullSecret string `json:"image_pull_secret,omitempty"`
 }
 
 // Defines the observed state of a Mesh.
@@ -58,13 +58,13 @@ type Condition struct {
 	Status string `json:"status"`
 	// A one-word camelCase reason for the condition's last transition
 	// +optional
-	Reason *string `json:"reason,omitempty"`
+	Reason string `json:"reason,omitempty"`
 	// A human-readable message indicating details about last transition
 	// +optional
-	Message *string `json:"message,omitempty"`
+	Message string `json:"message,omitempty"`
 	// The last time the condition transitioned from one status to another
 	// +optional
-	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty"`
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
 }
 
 //+kubebuilder:object:root=true

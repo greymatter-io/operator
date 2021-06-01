@@ -17,6 +17,17 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - serviceaccounts
+  verbs:
+  - create
+  - get
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -28,6 +39,7 @@ rules:
   - list
   - patch
   - update
+  - watch
 - apiGroups:
   - extensions
   resources:
@@ -39,6 +51,7 @@ rules:
   - list
   - patch
   - update
+  - watch
 - apiGroups:
   - install.greymatter.io
   resources:
@@ -65,3 +78,13 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  verbs:
+  - create
+  - get
+  - list
+  - watch

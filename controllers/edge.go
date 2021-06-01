@@ -78,7 +78,7 @@ func (r *MeshReconciler) mkEdgeDeployment(mesh *installv1.Mesh, gmi gmImages) *a
 				},
 				Spec: corev1.PodSpec{
 					ImagePullSecrets: []corev1.LocalObjectReference{
-						{Name: *mesh.Spec.ImagePullSecret},
+						{Name: mesh.Spec.ImagePullSecret},
 					},
 					Containers: []corev1.Container{{
 						Name:            "edge",
