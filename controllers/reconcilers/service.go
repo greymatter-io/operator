@@ -10,9 +10,13 @@ import (
 )
 
 type Service struct {
-	GmService gmcore.Service
-	ObjectKey types.NamespacedName
-	Type      corev1.ServiceType
+	GmService   gmcore.Service
+	ObjectKey   types.NamespacedName
+	ServiceKind corev1.ServiceType
+}
+
+func (s Service) Kind() string {
+	return "Service"
 }
 
 func (s Service) Key() types.NamespacedName {
@@ -23,7 +27,7 @@ func (s Service) Object() client.Object {
 	return &corev1.Service{}
 }
 
-func (s Service) Build(mesh *installv1.Mesh) (client.Object, error) {
+func (s Service) Build(mesh *installv1.Mesh) client.Object {
 	configs := gmcore.Configs(mesh.Spec.Version)
 	svc := s.GmService
 
@@ -63,11 +67,11 @@ func (s Service) Build(mesh *installv1.Mesh) (client.Object, error) {
 		},
 	}
 
-	if s.Type != "" {
-		service.Spec.Type = s.Type
+	if s.ServiceKind != "" {
+		service.Spec.Type = s.ServiceKind
 	}
 
-	return service, nil
+	return service
 }
 
 func (s Service) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {

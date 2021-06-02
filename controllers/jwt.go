@@ -14,13 +14,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *MeshReconciler) mkJwtSecurity(ctx context.Context, mesh *installv1.Mesh, gmi gmImages) error {
+func (r *MeshReconciler) mkJwtSecurity(ctx context.Context, mesh *installv1.Mesh) error {
 
 	// Check if the deployment exists; if not, create a new one
 	deployment := &appsv1.Deployment{}
 	err := r.Get(ctx, types.NamespacedName{Name: "jwt-security", Namespace: mesh.Namespace}, deployment)
 	if err != nil && errors.IsNotFound(err) {
-		deployment = r.mkJwtSecurityDeployment(mesh, gmi)
+		deployment = r.mkJwtSecurityDeployment(mesh)
 		r.Log.Info("Creating deployment", "Name", "jwt-security", "Namespace", mesh.Namespace)
 		err = r.Create(ctx, deployment)
 		if err != nil {
@@ -50,12 +50,12 @@ func (r *MeshReconciler) mkJwtSecurity(ctx context.Context, mesh *installv1.Mesh
 	return nil
 }
 
-func (r *MeshReconciler) mkJwtSecurityDeployment(mesh *installv1.Mesh, gmi gmImages) *appsv1.Deployment {
+func (r *MeshReconciler) mkJwtSecurityDeployment(mesh *installv1.Mesh) *appsv1.Deployment {
 	replicas := int32(1)
 
 	meshLabels := map[string]string{
-		"jwt-security-version": gmi.JwtSecurity,
-		"sidecar-version":      gmi.Proxy,
+		"jwt-security-version": "1.2.0",
+		"sidecar-version":      "1.5.1",
 	}
 
 	labels := map[string]string{

@@ -12,6 +12,10 @@ type ClusterRole struct {
 	Name string
 }
 
+func (cr ClusterRole) Kind() string {
+	return "ClusterRole"
+}
+
 func (cr ClusterRole) Key() types.NamespacedName {
 	return types.NamespacedName{Name: cr.Name}
 }
@@ -20,7 +24,7 @@ func (cr ClusterRole) Object() client.Object {
 	return &rbacv1.ClusterRole{}
 }
 
-func (cr ClusterRole) Build(mesh *installv1.Mesh) (client.Object, error) {
+func (cr ClusterRole) Build(mesh *installv1.Mesh) client.Object {
 	return &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{Name: cr.Name},
 		Rules: []rbacv1.PolicyRule{
@@ -30,7 +34,7 @@ func (cr ClusterRole) Build(mesh *installv1.Mesh) (client.Object, error) {
 				Verbs:     []string{"list"},
 			},
 		},
-	}, nil
+	}
 }
 
 func (cr ClusterRole) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {

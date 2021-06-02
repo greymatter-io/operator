@@ -12,6 +12,10 @@ type ClusterRoleBinding struct {
 	Name string
 }
 
+func (crb ClusterRoleBinding) Kind() string {
+	return "ClusterRoleBinding"
+}
+
 func (crb ClusterRoleBinding) Key() types.NamespacedName {
 	return types.NamespacedName{Name: crb.Name}
 }
@@ -20,7 +24,7 @@ func (crb ClusterRoleBinding) Object() client.Object {
 	return &rbacv1.ClusterRoleBinding{}
 }
 
-func (crb ClusterRoleBinding) Build(mesh *installv1.Mesh) (client.Object, error) {
+func (crb ClusterRoleBinding) Build(mesh *installv1.Mesh) client.Object {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{Name: crb.Name},
 		Subjects: []rbacv1.Subject{
@@ -35,7 +39,7 @@ func (crb ClusterRoleBinding) Build(mesh *installv1.Mesh) (client.Object, error)
 			Kind:     "ClusterRole",
 			Name:     crb.Name,
 		},
-	}, nil
+	}
 }
 
 func (crb ClusterRoleBinding) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {

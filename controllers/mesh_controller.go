@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -40,9 +41,12 @@ import (
 // MeshReconciler reconciles a Mesh object
 type MeshReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log         logr.Logger
+	Scheme      *runtime.Scheme
+	ObjectCache meshobjects.Cache
 }
+
+type reconcileId string
 
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes/status,verbs=get;update;patch
@@ -63,6 +67,7 @@ type MeshReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	ctx = context.WithValue(ctx, reconcileId("id"), uuid.New().String())
 	log := r.Log.WithValues("mesh", req.NamespacedName)
 
 	// Fetch the Mesh object
@@ -86,95 +91,74 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		mesh.Spec.ImagePullSecret = secret
 	}
 
-	var gmi gmImages
-	if mesh.Spec.Version != "" {
-		switch mesh.Spec.Version {
-		case "1.2":
-			gmi = gmVersionMap["1.2"]
-		default:
-			gmi = gmVersionMap["1.3"]
-		}
-	}
-
 	// Control API
 	key := types.NamespacedName{Name: string(gmcore.ControlApi), Namespace: mesh.Namespace}
-	requeue, err := r.reconcile(ctx, mesh, reconcilers.Deployment{GmService: gmcore.ControlApi, ObjectKey: key})
+	err := r.reconcile(ctx, mesh, reconcilers.Deployment{GmService: gmcore.ControlApi, ObjectKey: key})
 	if err != nil {
 		return ctrl.Result{}, err
-	} else if requeue {
-		return ctrl.Result{Requeue: true}, nil
 	}
-	requeue, err = r.reconcile(ctx, mesh, reconcilers.Service{GmService: gmcore.ControlApi, ObjectKey: key})
+	err = r.reconcile(ctx, mesh, reconcilers.Service{GmService: gmcore.ControlApi, ObjectKey: key})
 	if err != nil {
 		return ctrl.Result{}, err
-	} else if requeue {
-		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Control
 	name := "control-pods"
-	requeue, err = r.reconcile(ctx, mesh, reconcilers.ClusterRole{Name: name})
+	err = r.reconcile(ctx, mesh, reconcilers.ClusterRole{Name: name})
 	if err != nil {
 		return ctrl.Result{}, err
-	} else if requeue {
-		return ctrl.Result{Requeue: true}, nil
 	}
 	sarKey := types.NamespacedName{Name: name, Namespace: mesh.Namespace}
-	requeue, err = r.reconcile(ctx, mesh, reconcilers.ServiceAccount{ObjectKey: sarKey})
+	err = r.reconcile(ctx, mesh, reconcilers.ServiceAccount{ObjectKey: sarKey})
 	if err != nil {
 		return ctrl.Result{}, err
-	} else if requeue {
-		return ctrl.Result{Requeue: true}, nil
 	}
 	// TODO: The ClusterRoleBinding should be updated with added subjects per namespace.
 	// If another mesh is deployed into another namespace, this will break.
-	requeue, err = r.reconcile(ctx, mesh, reconcilers.ClusterRoleBinding{Name: name})
+	err = r.reconcile(ctx, mesh, reconcilers.ClusterRoleBinding{Name: name})
 	if err != nil {
 		return ctrl.Result{}, err
-	} else if requeue {
-		return ctrl.Result{Requeue: true}, nil
 	}
 	key = types.NamespacedName{Name: string(gmcore.Control), Namespace: mesh.Namespace}
-	requeue, err = r.reconcile(ctx, mesh, reconcilers.Deployment{GmService: gmcore.Control, ObjectKey: key})
+	err = r.reconcile(ctx, mesh, reconcilers.Deployment{GmService: gmcore.Control, ObjectKey: key})
 	if err != nil {
 		return ctrl.Result{}, err
-	} else if requeue {
-		return ctrl.Result{Requeue: true}, nil
 	}
-	requeue, err = r.reconcile(ctx, mesh, reconcilers.Service{GmService: gmcore.Control, ObjectKey: key})
+	err = r.reconcile(ctx, mesh, reconcilers.Service{GmService: gmcore.Control, ObjectKey: key})
 	if err != nil {
 		return ctrl.Result{}, err
-	} else if requeue {
-		return ctrl.Result{Requeue: true}, nil
+	}
+
+	// Catalog
+	key = types.NamespacedName{Name: string(gmcore.Catalog), Namespace: mesh.Namespace}
+	err = r.reconcile(ctx, mesh, reconcilers.Deployment{GmService: gmcore.Catalog, ObjectKey: key})
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	err = r.reconcile(ctx, mesh, reconcilers.Service{GmService: gmcore.Catalog, ObjectKey: key})
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// Edge
 	key = types.NamespacedName{Name: "edge", Namespace: mesh.Namespace}
-	requeue, err = r.reconcile(ctx, mesh, reconcilers.Deployment{GmService: gmcore.Proxy, ObjectKey: key})
+	err = r.reconcile(ctx, mesh, reconcilers.Deployment{GmService: gmcore.Proxy, ObjectKey: key})
 	if err != nil {
 		return ctrl.Result{}, err
-	} else if requeue {
-		return ctrl.Result{Requeue: true}, nil
 	}
-	requeue, err = r.reconcile(ctx, mesh, reconcilers.Service{
-		GmService: gmcore.Proxy,
-		ObjectKey: key,
-		Type:      corev1.ServiceTypeLoadBalancer,
+	err = r.reconcile(ctx, mesh, reconcilers.Service{
+		GmService:   gmcore.Proxy,
+		ObjectKey:   key,
+		ServiceKind: corev1.ServiceTypeLoadBalancer,
 	})
 	if err != nil {
 		return ctrl.Result{}, err
-	} else if requeue {
-		return ctrl.Result{Requeue: true}, nil
 	}
 
-	// Catalog
-	if err := r.mkCatalog(ctx, mesh, gmi); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Ingress - note this is just added for convenience in K3d.
-	// Later we can add ingress options to the Operator.
-	if err := r.mkIngress(ctx, mesh); err != nil {
+	// Ingress
+	key = types.NamespacedName{Name: "ingress", Namespace: mesh.Namespace}
+	err = r.reconcile(ctx, mesh, reconcilers.Ingress{ObjectKey: key})
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 

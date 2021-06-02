@@ -11,21 +11,16 @@ import (
 
 var versionOneThree = map[Service]Config{
 	Control: {
-		Component: base[Control].Component,
+		Component: "fabric",
 		ImageTag:  "1.5.3",
 		MkEnvsMap: func(mesh *installv1.Mesh, name string) map[string]string {
 			return map[string]string{
 				"GM_CONTROL_API_INSECURE":             "true",
 				"GM_CONTROL_API_SSL":                  "false",
-				"GM_CONTROL_API_SSLCERT":              "/etc/proxy/tls/sidecar/server.crt",
-				"GM_CONTROL_API_SSLKEY":               "/etc/proxy/tls/sidecar/server.key",
 				"GM_CONTROL_CONSOLE_LEVEL":            "info",
-				"GM_CONTROL_API_KEY":                  "xxx",
 				"GM_CONTROL_API_ZONE_NAME":            "zone-default-zone",
 				"GM_CONTROL_API_HOST":                 "control-api:5555",
 				"GM_CONTROL_CMD":                      "kubernetes",
-				"GM_CONTROL_XDS_RESOLVE_DNS":          "true",
-				"GM_CONTROL_XDS_ADS_ENABLED":          "true",
 				"GM_CONTROL_KUBERNETES_CLUSTER_LABEL": "greymatter.io/control",
 				"GM_CONTROL_KUBERNETES_PORT_NAME":     "proxy",
 				"GM_CONTROL_KUBERNETES_NAMESPACES":    mesh.Namespace,
@@ -43,16 +38,14 @@ var versionOneThree = map[Service]Config{
 		ImageTag:  "1.5.4",
 		MkEnvsMap: func(mesh *installv1.Mesh, name string) map[string]string {
 			return map[string]string{
-				"GM_CONTROL_API_ADDRESS":               "0.0.0.0:5555",
-				"GM_CONTROL_API_DISABLE_VERSION_CHECK": "false",
-				"GM_CONTROL_API_LOG_LEVEL":             "debug",
-				"GM_CONTROL_API_PERSISTER_TYPE":        "null",
-				"GM_CONTROL_API_EXPERIMENTS":           "true",
-				"GM_CONTROL_API_BASE_URL":              "/services/control-api/latest/v1.0/",
-				"GM_CONTROL_API_USE_TLS":               "false",
-				"GM_CONTROL_API_ORG_KEY":               "deciphernow",
-				"GM_CONTROL_API_ZONE_KEY":              "zone-default-zone",
-				"GM_CONTROL_API_ZONE_NAME":             "zone-default-zone",
+				"GM_CONTROL_API_ADDRESS":        "0.0.0.0:5555",
+				"GM_CONTROL_API_LOG_LEVEL":      "info",
+				"GM_CONTROL_API_PERSISTER_TYPE": "null",
+				"GM_CONTROL_API_EXPERIMENTS":    "true",
+				"GM_CONTROL_API_BASE_URL":       "/services/control-api/latest/v1.0/",
+				"GM_CONTROL_API_USE_TLS":        "false",
+				"GM_CONTROL_API_ZONE_KEY":       "zone-default-zone",
+				"GM_CONTROL_API_ZONE_NAME":      "zone-default-zone",
 			}
 		},
 		ContainerPorts: []corev1.ContainerPort{
@@ -99,7 +92,7 @@ var versionOneThree = map[Service]Config{
 		ImageTag:  "1.2.2",
 		MkEnvsMap: func(mesh *installv1.Mesh, name string) map[string]string {
 			return map[string]string{
-				"CONTROL_SERVER_0_ADDRESS":              fmt.Sprintf("control.%s.svc.cluster.local:50000", mesh.Namespace),
+				"CONTROL_SERVER_0_ADDRESS":              fmt.Sprintf("control.%s.svc:50000", mesh.Namespace),
 				"CONTROL_SERVER_0_REQUEST_CLUSTER_NAME": "edge",
 				"CONTROL_SERVER_0_ZONE_NAME":            "zone-default-zone",
 				"PORT":                                  "9080",

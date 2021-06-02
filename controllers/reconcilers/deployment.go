@@ -17,6 +17,10 @@ type Deployment struct {
 	ObjectKey types.NamespacedName
 }
 
+func (d Deployment) Kind() string {
+	return "Deployment"
+}
+
 func (d Deployment) Key() types.NamespacedName {
 	return d.ObjectKey
 }
@@ -25,7 +29,7 @@ func (d Deployment) Object() client.Object {
 	return &appsv1.Deployment{}
 }
 
-func (d Deployment) Build(mesh *installv1.Mesh) (client.Object, error) {
+func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 	configs := gmcore.Configs(mesh.Spec.Version)
 	svc := d.GmService
 
@@ -120,7 +124,7 @@ func (d Deployment) Build(mesh *installv1.Mesh) (client.Object, error) {
 		deployment.Spec.Template.Spec.ServiceAccountName = "control-pods"
 	}
 
-	return deployment, nil
+	return deployment
 }
 
 func (d Deployment) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
