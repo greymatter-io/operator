@@ -1,4 +1,4 @@
-package common
+package reconcilers
 
 import (
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
@@ -9,41 +9,39 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ServiceReconciler struct {
+type Service struct {
+	GmService gmcore.Service
 	ObjectKey types.NamespacedName
+	Type      corev1.ServiceType
 }
 
-func (sr ServiceReconciler) Key() types.NamespacedName {
-	return sr.ObjectKey
+func (s Service) Key() types.NamespacedName {
+	return s.ObjectKey
 }
 
-func (sr ServiceReconciler) Object() client.Object {
+func (s Service) Object() client.Object {
 	return &corev1.Service{}
 }
 
-func (sr ServiceReconciler) Build(mesh *installv1.Mesh) (client.Object, error) {
+func (s Service) Build(mesh *installv1.Mesh) (client.Object, error) {
 	configs := gmcore.Configs(mesh.Spec.Version)
-
-	svc, err := gmcore.ServiceName(sr.ObjectKey.Name)
-	if err != nil {
-		return nil, err
-	}
+	svc := s.GmService
 
 	matchLabels := map[string]string{
-		"greymatter.io/control": string(svc),
+		"greymatter.io/control": s.ObjectKey.Name,
 	}
 
 	labels := map[string]string{
-		"greymatter.io/control":         string(svc),
+		"greymatter.io/control":         s.ObjectKey.Name,
 		"greymatter.io/component":       configs[svc].Component,
 		"greymatter.io/service-version": configs[svc].ImageTag,
 	}
-	if svc != gmcore.Control {
+	if svc != gmcore.Control && s.ObjectKey.Name != "edge" {
 		labels["greymatter.io/sidecar-version"] = configs[gmcore.Proxy].ImageTag
 	}
 
 	objectLabels := map[string]string{
-		"app.kubernetes.io/name":       string(svc),
+		"app.kubernetes.io/name":       s.ObjectKey.Name,
 		"app.kubernetes.io/version":    configs[svc].ImageTag,
 		"app.kubernetes.io/part-of":    "greymatter",
 		"app.kubernetes.io/managed-by": "gm-operator",
@@ -55,7 +53,7 @@ func (sr ServiceReconciler) Build(mesh *installv1.Mesh) (client.Object, error) {
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      string(svc),
+			Name:      s.ObjectKey.Name,
 			Namespace: mesh.Namespace,
 			Labels:    objectLabels,
 		},
@@ -65,22 +63,24 @@ func (sr ServiceReconciler) Build(mesh *installv1.Mesh) (client.Object, error) {
 		},
 	}
 
+	if s.Type != "" {
+		service.Spec.Type = s.Type
+	}
+
 	return service, nil
 }
 
-func (sr ServiceReconciler) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
+func (s Service) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
 	configs := gmcore.Configs(mesh.Spec.Version)
-
-	svc, err := gmcore.ServiceName(obj.GetName())
-	if err != nil {
-		return false, err
-	}
+	svc := s.GmService
 
 	labels := obj.GetLabels()
 	if lbl := labels["greymatter.io/service-version"]; lbl != configs[svc].ImageTag {
 		return false, nil
 	}
-	if lbl := labels["greymatter.io/sidecar-version"]; svc != gmcore.Control && lbl != configs[gmcore.Proxy].ImageTag {
+	if lbl := labels["greymatter.io/sidecar-version"]; svc != gmcore.Control &&
+		s.ObjectKey.Name != "edge" &&
+		lbl != configs[gmcore.Proxy].ImageTag {
 		return false, nil
 	}
 

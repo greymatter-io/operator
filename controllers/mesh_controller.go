@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -26,10 +27,14 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
+	"github.com/bcmendoza/gm-operator/controllers/gmcore"
+	"github.com/bcmendoza/gm-operator/controllers/meshobjects"
+	"github.com/bcmendoza/gm-operator/controllers/reconcilers"
 )
 
 // MeshReconciler reconciles a Mesh object
@@ -44,7 +49,7 @@ type MeshReconciler struct {
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=serviceaccounts;pods,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=core,resources=serviceaccounts;secrets;pods,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
@@ -74,6 +79,8 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, err
 	}
 
+	// For now add defaults here.
+	// Later this can be added to a mutating webhook.
 	if mesh.Spec.ImagePullSecret == "" {
 		secret := "docker.secret"
 		mesh.Spec.ImagePullSecret = secret
@@ -90,18 +97,74 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	// Control API
-	if err := r.mkControlAPI(ctx, mesh); err != nil {
+	key := types.NamespacedName{Name: string(gmcore.ControlApi), Namespace: mesh.Namespace}
+	requeue, err := r.reconcile(ctx, mesh, reconcilers.Deployment{GmService: gmcore.ControlApi, ObjectKey: key})
+	if err != nil {
 		return ctrl.Result{}, err
+	} else if requeue {
+		return ctrl.Result{Requeue: true}, nil
+	}
+	requeue, err = r.reconcile(ctx, mesh, reconcilers.Service{GmService: gmcore.ControlApi, ObjectKey: key})
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if requeue {
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Control
-	if err := r.mkControl(ctx, mesh); err != nil {
+	name := "control-pods"
+	requeue, err = r.reconcile(ctx, mesh, reconcilers.ClusterRole{Name: name})
+	if err != nil {
 		return ctrl.Result{}, err
+	} else if requeue {
+		return ctrl.Result{Requeue: true}, nil
+	}
+	sarKey := types.NamespacedName{Name: name, Namespace: mesh.Namespace}
+	requeue, err = r.reconcile(ctx, mesh, reconcilers.ServiceAccount{ObjectKey: sarKey})
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if requeue {
+		return ctrl.Result{Requeue: true}, nil
+	}
+	// TODO: The ClusterRoleBinding should be updated with added subjects per namespace.
+	// If another mesh is deployed into another namespace, this will break.
+	requeue, err = r.reconcile(ctx, mesh, reconcilers.ClusterRoleBinding{Name: name})
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if requeue {
+		return ctrl.Result{Requeue: true}, nil
+	}
+	key = types.NamespacedName{Name: string(gmcore.Control), Namespace: mesh.Namespace}
+	requeue, err = r.reconcile(ctx, mesh, reconcilers.Deployment{GmService: gmcore.Control, ObjectKey: key})
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if requeue {
+		return ctrl.Result{Requeue: true}, nil
+	}
+	requeue, err = r.reconcile(ctx, mesh, reconcilers.Service{GmService: gmcore.Control, ObjectKey: key})
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if requeue {
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Edge
-	if err := r.mkEdge(ctx, mesh, gmi); err != nil {
+	key = types.NamespacedName{Name: "edge", Namespace: mesh.Namespace}
+	requeue, err = r.reconcile(ctx, mesh, reconcilers.Deployment{GmService: gmcore.Proxy, ObjectKey: key})
+	if err != nil {
 		return ctrl.Result{}, err
+	} else if requeue {
+		return ctrl.Result{Requeue: true}, nil
+	}
+	requeue, err = r.reconcile(ctx, mesh, reconcilers.Service{
+		GmService: gmcore.Proxy,
+		ObjectKey: key,
+		Type:      corev1.ServiceTypeLoadBalancer,
+	})
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if requeue {
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Catalog
@@ -117,10 +180,14 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	// Mesh object configuration
 	// TODO: Add a ping; if non-responsive, start over
-	// TODO: Track the status of each object
+	// TODO: Track the status of each object LOCALLY and store in mesh CR
 	if !mesh.Status.Deployed {
-		// TODO: Do a "check if exists and if not create" for each object
-		if err := mkMeshObjects(mesh); err != nil {
+		addr := fmt.Sprintf("http://control-api.%s.svc:5555", mesh.Namespace)
+		client := meshobjects.NewClient(addr)
+		if err := client.MkMeshObjects(
+			"zone-default-zone",
+			[]string{"control-api:5555", "catalog:9080"},
+		); err != nil {
 			r.Log.Error(err, "failed to configure mesh")
 			return ctrl.Result{}, err
 		}
@@ -141,6 +208,7 @@ func (r *MeshReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ServiceAccount{}).
+		Owns(&corev1.Secret{}).
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Owns(&extensionsv1beta1.Ingress{}).

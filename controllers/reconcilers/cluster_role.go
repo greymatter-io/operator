@@ -1,4 +1,4 @@
-package common
+package reconcilers
 
 import (
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
@@ -8,19 +8,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ClusterRoleReconciler struct {
+type ClusterRole struct {
 	Name string
 }
 
-func (cr ClusterRoleReconciler) Key() types.NamespacedName {
+func (cr ClusterRole) Key() types.NamespacedName {
 	return types.NamespacedName{Name: cr.Name}
 }
 
-func (cr ClusterRoleReconciler) Object() client.Object {
+func (cr ClusterRole) Object() client.Object {
 	return &rbacv1.ClusterRole{}
 }
 
-func (cr ClusterRoleReconciler) Build(mesh *installv1.Mesh) (client.Object, error) {
+func (cr ClusterRole) Build(mesh *installv1.Mesh) (client.Object, error) {
 	return &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{Name: cr.Name},
 		Rules: []rbacv1.PolicyRule{
@@ -33,6 +33,6 @@ func (cr ClusterRoleReconciler) Build(mesh *installv1.Mesh) (client.Object, erro
 	}, nil
 }
 
-func (cr ClusterRoleReconciler) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
+func (cr ClusterRole) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
 	return true, nil
 }

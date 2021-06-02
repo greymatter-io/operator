@@ -1,53 +1,36 @@
 package gmcore
 
 import (
-	"fmt"
-
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
-type SvcName string
+type Service string
 
 const (
-	ControlApi  SvcName = "control-api"
-	Control     SvcName = "control"
-	Proxy       SvcName = "proxy"
-	Catalog     SvcName = "catalog"
-	JwtSecurity SvcName = "jwt-security"
+	ControlApi  Service = "control-api"
+	Control     Service = "control"
+	Proxy       Service = "proxy"
+	Catalog     Service = "catalog"
+	JwtSecurity Service = "jwt-security"
 )
-
-var serviceNames = map[string]SvcName{
-	"control-api":  ControlApi,
-	"control":      Control,
-	"proxy":        Proxy,
-	"catalog":      Catalog,
-	"jwt-security": JwtSecurity,
-}
-
-func ServiceName(s string) (SvcName, error) {
-	if svcName, ok := serviceNames[s]; ok {
-		return svcName, nil
-	}
-	return "", fmt.Errorf("%s is not a valid Grey Matter core service name", s)
-}
 
 type Config struct {
 	Component      string
 	ImageTag       string
-	MkEnvsMap      func(*installv1.Mesh, SvcName) map[string]string
+	MkEnvsMap      func(*installv1.Mesh, string) map[string]string
 	ContainerPorts []corev1.ContainerPort
 	ServicePorts   []corev1.ServicePort
 	Resources      *corev1.ResourceRequirements
 }
 
-var configs = map[string]map[SvcName]Config{
+var configs = map[string]map[Service]Config{
 	"latest": versionOneThree,
 	"1.3":    versionOneThree,
 	"1.2":    versionOneTwo,
 }
 
-func Configs(gmVersion string) map[SvcName]Config {
+func Configs(gmVersion string) map[Service]Config {
 	if cs, ok := configs[gmVersion]; ok {
 		return cs
 	}

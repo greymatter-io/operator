@@ -4,10 +4,10 @@ import (
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
 )
 
-var base = map[SvcName]Config{
+var base = map[Service]Config{
 	Control: {
 		Component: "fabric",
-		MkEnvsMap: func(mesh *installv1.Mesh, svc SvcName) map[string]string {
+		MkEnvsMap: func(mesh *installv1.Mesh, name string) map[string]string {
 			return map[string]string{
 				"GM_CONTROL_API_INSECURE":             "true",
 				"GM_CONTROL_API_SSL":                  "false",

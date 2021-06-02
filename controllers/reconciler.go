@@ -22,7 +22,7 @@ type reconciler interface {
 	Reconciled(*installv1.Mesh, client.Object) (bool, error)
 }
 
-func (r *MeshReconciler) reconcile(ctx context.Context, mesh *installv1.Mesh, rec reconciler) error {
+func (r *MeshReconciler) reconcile(ctx context.Context, mesh *installv1.Mesh, rec reconciler) (bool, error) {
 	obj := rec.Object()
 	key := rec.Key()
 
@@ -35,35 +35,34 @@ func (r *MeshReconciler) reconcile(ctx context.Context, mesh *installv1.Mesh, re
 		obj, err = rec.Build(mesh)
 		if err != nil {
 			logger.Error(err, "Failed to build struct")
-			return err
+			return false, err
 		}
 		ctrl.SetControllerReference(mesh, obj, r.Scheme)
 		logger.Info("Attempting to Create")
 		if err = r.Create(ctx, obj); err != nil {
 			logger.Error(err, "Failed to Create")
-			return err
+			return false, err
 		}
 		logger.Info("Created")
-		return nil
+		return true, nil
 	} else if err != nil {
 		logger.Error(err, "Failed to Get")
-		return err
+		return false, err
 	}
 
 	ok, err := rec.Reconciled(mesh, obj)
 	if err != nil {
 		logger.Error(err, "Failed to determine reconciliation status")
-		return err
+		return false, err
 	}
 	if ok {
-		return nil
+		return false, nil
 	}
 
 	logger.Info("Attempting to Update")
 	if err := r.Update(ctx, obj); err != nil {
 		logger.Error(err, "Failed to Update")
-		return err
+		return false, err
 	}
-
-	return nil
+	return true, nil
 }

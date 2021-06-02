@@ -9,11 +9,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-var versionOneTwo = map[SvcName]Config{
+var versionOneTwo = map[Service]Config{
 	Control: {
 		Component: "fabric",
 		ImageTag:  "1.4.2",
-		MkEnvsMap: func(mesh *installv1.Mesh, svc SvcName) map[string]string {
+		MkEnvsMap: func(mesh *installv1.Mesh, name string) map[string]string {
 			return map[string]string{
 				"GM_CONTROL_API_INSECURE":             "true",
 				"GM_CONTROL_API_SSL":                  "false",
@@ -41,7 +41,7 @@ var versionOneTwo = map[SvcName]Config{
 	ControlApi: {
 		Component: "fabric",
 		ImageTag:  "1.4.1",
-		MkEnvsMap: func(mesh *installv1.Mesh, svc SvcName) map[string]string {
+		MkEnvsMap: func(mesh *installv1.Mesh, name string) map[string]string {
 			return map[string]string{
 				"GM_CONTROL_API_ADDRESS":               "0.0.0.0:5555",
 				"GM_CONTROL_API_DISABLE_VERSION_CHECK": "false",
@@ -65,11 +65,11 @@ var versionOneTwo = map[SvcName]Config{
 	Proxy: {
 		Component: "fabric",
 		ImageTag:  "1.4.0",
-		MkEnvsMap: func(mesh *installv1.Mesh, svc SvcName) map[string]string {
+		MkEnvsMap: func(mesh *installv1.Mesh, name string) map[string]string {
 			return map[string]string{
 				"ENVOY_ADMIN_LOG_PATH": "/dev/stdout",
 				"PROXY_DYNAMIC":        "true",
-				"XDS_CLUSTER":          string(svc),
+				"XDS_CLUSTER":          name,
 				"XDS_HOST":             fmt.Sprintf("control.%s.svc", mesh.Namespace),
 				"XDS_PORT":             "50000",
 				"XDS_ZONE":             "zone-default-zone",
@@ -97,7 +97,7 @@ var versionOneTwo = map[SvcName]Config{
 	Catalog: {
 		Component: "sense",
 		ImageTag:  "1.0.7",
-		MkEnvsMap: func(mesh *installv1.Mesh, svc SvcName) map[string]string {
+		MkEnvsMap: func(mesh *installv1.Mesh, name string) map[string]string {
 			return map[string]string{
 				"CONTROL_SERVER_0_ADDRESS":              fmt.Sprintf("control.%s.svc.cluster.local:50000", mesh.Namespace),
 				"CONTROL_SERVER_0_REQUEST_CLUSTER_NAME": "edge",
@@ -115,7 +115,7 @@ var versionOneTwo = map[SvcName]Config{
 	JwtSecurity: {
 		Component: "fabric",
 		ImageTag:  "1.1.1",
-		MkEnvsMap: func(mesh *installv1.Mesh, svc SvcName) map[string]string {
+		MkEnvsMap: func(mesh *installv1.Mesh, name string) map[string]string {
 			return map[string]string{
 				"ENABLE_TLS": "false",
 				"REDIS_DB":   "0",
