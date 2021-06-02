@@ -12,8 +12,11 @@ import (
 )
 
 type reconciler interface {
+	// Returns an object that implements the client.Object interface (e.g. *appsv1.Deployment, *corev1.Service).
 	Object() client.Object
+	// Builds a new client.Object with configuration passed from *installv1.Mesh and a SvcName identifier.
 	Build(*installv1.Mesh, gmcore.SvcName) (client.Object, error)
+	// Compares the state of a client.Object with its configuration specified by a Mesh object.
 	Reconciled(*installv1.Mesh, client.Object) (bool, error)
 }
 

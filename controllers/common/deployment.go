@@ -20,13 +20,17 @@ func (dr DeploymentReconciler) Object() client.Object {
 func (dr DeploymentReconciler) Build(mesh *installv1.Mesh, svc gmcore.SvcName) (client.Object, error) {
 	configs := gmcore.Configs(mesh.Spec.Version)
 
-	labels := map[string]string{
+	matchLabels := map[string]string{
+		"greymatter.io/control": string(svc),
+	}
+
+	podLabels := map[string]string{
+		"greymatter.io/control":         string(svc),
 		"greymatter.io/component":       configs[svc].Component,
 		"greymatter.io/service-version": configs[svc].ImageTag,
-		"greymatter.io/control":         string(svc),
 	}
 	if svc != gmcore.Control {
-		labels["greymatter.io/sidecar-version"] = configs[gmcore.Proxy].ImageTag
+		podLabels["greymatter.io/sidecar-version"] = configs[gmcore.Proxy].ImageTag
 	}
 
 	objectLabels := map[string]string{
@@ -36,21 +40,21 @@ func (dr DeploymentReconciler) Build(mesh *installv1.Mesh, svc gmcore.SvcName) (
 		"app.kubernetes.io/managed-by": "gm-operator",
 		"app.kubernetes.io/created-by": "gm-operator",
 	}
-	for k, v := range labels {
+	for k, v := range podLabels {
 		objectLabels[k] = v
 	}
 
-	envsMap := configs[svc].MkEnvsMap(mesh)
+	envsMap := configs[svc].MkEnvsMap(mesh, svc)
 	var envs []corev1.EnvVar
 	for k, v := range envsMap {
 		envs = append(envs, corev1.EnvVar{Name: k, Value: v})
 	}
 
 	svcContainer := corev1.Container{
-		Name:            string(svc),
+		Name:            "service",
 		Image:           fmt.Sprintf("docker.greymatter.io/release/gm-%s:%s", svc, configs[svc].ImageTag),
 		Env:             envs,
-		ImagePullPolicy: gmcore.ImagePullPolicy,
+		ImagePullPolicy: corev1.PullIfNotPresent,
 		Ports:           configs[svc].ContainerPorts,
 	}
 	if configs[svc].Resources != nil {
@@ -60,7 +64,7 @@ func (dr DeploymentReconciler) Build(mesh *installv1.Mesh, svc gmcore.SvcName) (
 	containers := []corev1.Container{svcContainer}
 
 	if svc != gmcore.Control {
-		proxyEnvsMap := configs[svc].MkEnvsMap(mesh)
+		proxyEnvsMap := configs[gmcore.Proxy].MkEnvsMap(mesh, svc)
 		var proxyEnvs []corev1.EnvVar
 		for k, v := range proxyEnvsMap {
 			proxyEnvs = append(proxyEnvs, corev1.EnvVar{Name: k, Value: v})
@@ -71,7 +75,7 @@ func (dr DeploymentReconciler) Build(mesh *installv1.Mesh, svc gmcore.SvcName) (
 				Name:            "sidecar",
 				Image:           fmt.Sprintf("docker.greymatter.io/release/gm-proxy:%s", configs[gmcore.Proxy].ImageTag),
 				Env:             proxyEnvs,
-				ImagePullPolicy: gmcore.ImagePullPolicy,
+				ImagePullPolicy: corev1.PullIfNotPresent,
 				Ports:           configs[gmcore.Proxy].ContainerPorts,
 				Resources:       *configs[gmcore.Proxy].Resources,
 			},
@@ -87,9 +91,9 @@ func (dr DeploymentReconciler) Build(mesh *installv1.Mesh, svc gmcore.SvcName) (
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{MatchLabels: labels},
+			Selector: &metav1.LabelSelector{MatchLabels: matchLabels},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				ObjectMeta: metav1.ObjectMeta{Labels: podLabels},
 				Spec: corev1.PodSpec{
 					ImagePullSecrets: []corev1.LocalObjectReference{{Name: mesh.Spec.ImagePullSecret}},
 					Containers:       containers,

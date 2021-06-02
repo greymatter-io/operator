@@ -23,7 +23,6 @@ func (c *Client) Ping() error {
 		break
 	}
 	if err != nil {
-		log.Printf("failed to ping Control API: %s", err.Error())
 		return errors.New("ping")
 	}
 
@@ -40,6 +39,26 @@ func (c *Client) Make(kind, key string, object json.RawMessage) error {
 	log.Printf("Created %s '%s'", kind, key)
 
 	return nil
+}
+
+func (c *Client) GetOrMake(kind, key string, object json.RawMessage) error {
+	getUrl := fmt.Sprintf("%s/%s/%s", c.addr, kind, key)
+
+	body, err := c.do(http.MethodGet, getUrl, nil)
+	if err != nil {
+		return err
+	}
+
+	bodyMap, err := traversal.GetMapFromRawMessage(body)
+	if err != nil {
+		return fmt.Errorf("traversal.GetMapFromRawMessage: %w", err)
+	}
+
+	if _, ok := bodyMap["result"]; ok {
+		return nil
+	}
+
+	return c.Make(kind, key, object)
 }
 
 func (c *Client) Change(kind, key string, changes map[string]json.RawMessage) error {

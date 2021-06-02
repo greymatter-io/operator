@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
 )
@@ -117,9 +116,10 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	// Mesh object configuration
+	// TODO: Add a ping; if non-responsive, start over
+	// TODO: Track the status of each object
 	if !mesh.Status.Deployed {
-		// TODO: Add a ping and if it is non-responsive, return an error
-		// Consider doing a "check if exists and if not create" for each object
+		// TODO: Do a "check if exists and if not create" for each object
 		if err := mkMeshObjects(mesh); err != nil {
 			r.Log.Error(err, "failed to configure mesh")
 			return ctrl.Result{}, err
@@ -144,6 +144,5 @@ func (r *MeshReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Owns(&extensionsv1beta1.Ingress{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 2}).
 		Complete(r)
 }

@@ -141,3 +141,11 @@ bundle: manifests kustomize
 .PHONY: bundle-build ## Build the bundle image.
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+##@ Ops
+
+sample: ## Make a sample mesh
+	kubectl apply -f config/samples/install_v1_mesh.yaml
+
+remove-sample: ## Remove the sample mesh
+	kubectl delete -f config/samples/install_v1_mesh.yaml

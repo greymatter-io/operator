@@ -17,10 +17,14 @@ func (sr ServiceReconciler) Object() client.Object {
 func (sr ServiceReconciler) Build(mesh *installv1.Mesh, svc gmcore.SvcName) (client.Object, error) {
 	configs := gmcore.Configs(mesh.Spec.Version)
 
+	matchLabels := map[string]string{
+		"greymatter.io/control": string(svc),
+	}
+
 	labels := map[string]string{
+		"greymatter.io/control":         string(svc),
 		"greymatter.io/component":       configs[svc].Component,
 		"greymatter.io/service-version": configs[svc].ImageTag,
-		"greymatter.io/control":         string(svc),
 	}
 	if svc != gmcore.Control {
 		labels["greymatter.io/sidecar-version"] = configs[gmcore.Proxy].ImageTag
@@ -44,7 +48,7 @@ func (sr ServiceReconciler) Build(mesh *installv1.Mesh, svc gmcore.SvcName) (cli
 			Labels:    objectLabels,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: objectLabels,
+			Selector: matchLabels,
 			Ports:    configs[svc].ServicePorts,
 		},
 	}

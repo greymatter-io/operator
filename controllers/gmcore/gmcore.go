@@ -32,12 +32,10 @@ func ServiceName(s string) (SvcName, error) {
 	return "", fmt.Errorf("%s is not a valid Grey Matter core service name", s)
 }
 
-const ImagePullPolicy = corev1.PullIfNotPresent
-
 type Config struct {
 	Component      string
 	ImageTag       string
-	MkEnvsMap      func(*installv1.Mesh) map[string]string
+	MkEnvsMap      func(*installv1.Mesh, SvcName) map[string]string
 	ContainerPorts []corev1.ContainerPort
 	ServicePorts   []corev1.ServicePort
 	Resources      *corev1.ResourceRequirements

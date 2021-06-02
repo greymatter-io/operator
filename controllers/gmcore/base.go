@@ -7,7 +7,7 @@ import (
 var base = map[SvcName]Config{
 	Control: {
 		Component: "fabric",
-		MkEnvsMap: func(mesh *installv1.Mesh) map[string]string {
+		MkEnvsMap: func(mesh *installv1.Mesh, svc SvcName) map[string]string {
 			return map[string]string{
 				"GM_CONTROL_API_INSECURE":             "true",
 				"GM_CONTROL_API_SSL":                  "false",

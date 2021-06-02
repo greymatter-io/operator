@@ -9,7 +9,7 @@ import (
 func (c *Client) MkMeshObjects(zone string, clusters []string) error {
 	zoneObject := fmt.Sprintf(`{"zone_key":"%s","name":"%s"}`, zone, zone)
 	zoneBytes := json.RawMessage(zoneObject)
-	if err := c.Make("zone", zone, zoneBytes); err != nil {
+	if err := c.GetOrMake("zone", zone, zoneBytes); err != nil {
 		return err
 	}
 
@@ -39,7 +39,7 @@ func (c *Client) mkSidecarObjects(zone, cluster string) error {
 
 	domainObject := fmt.Sprintf(`{"zone_key":"%s","domain_key":"%s","name":"*","port":10808}`, zone, key)
 	domainBytes := json.RawMessage(domainObject)
-	if err := c.Make("domain", key, domainBytes); err != nil {
+	if err := c.GetOrMake("domain", key, domainBytes); err != nil {
 		return err
 	}
 
@@ -65,7 +65,7 @@ func (c *Client) mkSidecarObjects(zone, cluster string) error {
 		}
 	}`, zone, key, key, cluster)
 	listenerBytes := json.RawMessage(listenerObject)
-	if err := c.Make("listener", key, listenerBytes); err != nil {
+	if err := c.GetOrMake("listener", key, listenerBytes); err != nil {
 		return err
 	}
 
@@ -77,13 +77,13 @@ func (c *Client) mkSidecarObjects(zone, cluster string) error {
 		"name":"%s"
 	}`, zone, key, key, key, cluster)
 	proxyBytes := json.RawMessage(proxyObject)
-	if err := c.Make("proxy", key, proxyBytes); err != nil {
+	if err := c.GetOrMake("proxy", key, proxyBytes); err != nil {
 		return err
 	}
 
 	clusterObject := fmt.Sprintf(`{"zone_key":"%s","cluster_key":"%s","name":"%s"}`, zone, key, cluster)
 	clusterBytes := json.RawMessage(clusterObject)
-	if err := c.Make("cluster", key, clusterBytes); err != nil {
+	if err := c.GetOrMake("cluster", key, clusterBytes); err != nil {
 		return err
 	}
 
@@ -108,7 +108,7 @@ func (c *Client) mkServiceObjects(zone, cluster, port string) error {
 		]
 	}`, zone, serviceKey, serviceCluster, port)
 	clusterBytes := json.RawMessage(clusterObject)
-	if err := c.Make("cluster", serviceCluster, clusterBytes); err != nil {
+	if err := c.GetOrMake("cluster", serviceCluster, clusterBytes); err != nil {
 		return err
 	}
 
@@ -155,7 +155,7 @@ func (c *Client) mkRoute(zone, key, dk, path, matchType, rewrite, ck string) err
 		"domain_key":"%s",
 		"route_match": {
 			"path": "%s",
-			"match_type": "prefix"
+			"match_type": "%s"
 		},
 		"prefix_rewrite":"%s",
 		"rules": [
@@ -170,9 +170,9 @@ func (c *Client) mkRoute(zone, key, dk, path, matchType, rewrite, ck string) err
 				}
 			}
 		]
-	}`, zone, key, dk, path, rewrite, ck)
+	}`, zone, key, dk, path, matchType, rewrite, ck)
 	routeBytes := json.RawMessage(routeObject)
-	if err := c.Make("route", key, routeBytes); err != nil {
+	if err := c.GetOrMake("route", key, routeBytes); err != nil {
 		return err
 	}
 
