@@ -95,7 +95,7 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	// Control
-	if err := r.mkControl(ctx, mesh, gmi); err != nil {
+	if err := r.mkControl(ctx, mesh); err != nil {
 		return ctrl.Result{}, err
 	}
 

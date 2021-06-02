@@ -20,7 +20,7 @@ var base = map[SvcName]Config{
 				"GM_CONTROL_CMD":                      "kubernetes",
 				"GM_CONTROL_XDS_RESOLVE_DNS":          "true",
 				"GM_CONTROL_XDS_ADS_ENABLED":          "true",
-				"GM_CONTROL_KUBERNETES_CLUSTER_LABEL": "greymatter.io",
+				"GM_CONTROL_KUBERNETES_CLUSTER_LABEL": "greymatter.io/control",
 				"GM_CONTROL_KUBERNETES_PORT_NAME":     "proxy",
 				"GM_CONTROL_KUBERNETES_NAMESPACES":    mesh.Namespace,
 			}

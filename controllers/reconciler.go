@@ -4,7 +4,6 @@ import (
 	"context"
 
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
-	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -12,26 +11,28 @@ import (
 )
 
 type reconciler interface {
+	// Returns the object key used to retrieve the object from the Kubernetes cluster.
+	// If the object is cluster-scoped, the 'Namespace' field is an empty string.
+	Key() types.NamespacedName
 	// Returns an object that implements the client.Object interface (e.g. *appsv1.Deployment, *corev1.Service).
 	Object() client.Object
-	// Builds a new client.Object with configuration passed from *installv1.Mesh and a SvcName identifier.
-	Build(*installv1.Mesh, gmcore.SvcName) (client.Object, error)
+	// Builds a new client.Object with configuration passed from a *installv1.Mesh.
+	Build(*installv1.Mesh) (client.Object, error)
 	// Compares the state of a client.Object with its configuration specified by a Mesh object.
 	Reconciled(*installv1.Mesh, client.Object) (bool, error)
 }
 
-func (r *MeshReconciler) reconcile(ctx context.Context, mesh *installv1.Mesh, svc gmcore.SvcName, rec reconciler) error {
+func (r *MeshReconciler) reconcile(ctx context.Context, mesh *installv1.Mesh, rec reconciler) error {
 	obj := rec.Object()
+	key := rec.Key()
 
-	logger := r.Log.
-		WithName(obj.GetObjectKind().GroupVersionKind().String()).
-		WithValues("Name", string(svc)).
-		WithValues("Namespace", mesh.Namespace)
-
-	key := types.NamespacedName{Name: string(svc), Namespace: mesh.Namespace}
+	logger := r.Log.WithValues("Name", key.Name)
+	if key.Namespace != "" {
+		logger = logger.WithValues("Namespace", key.Namespace)
+	}
 
 	if err := r.Get(ctx, key, obj); err != nil && errors.IsNotFound(err) {
-		obj, err = rec.Build(mesh, svc)
+		obj, err = rec.Build(mesh)
 		if err != nil {
 			logger.Error(err, "Failed to build struct")
 			return err

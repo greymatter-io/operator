@@ -8,17 +8,29 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type DeploymentReconciler struct{}
+type DeploymentReconciler struct {
+	ObjectKey types.NamespacedName
+}
+
+func (dr DeploymentReconciler) Key() types.NamespacedName {
+	return dr.ObjectKey
+}
 
 func (dr DeploymentReconciler) Object() client.Object {
 	return &appsv1.Deployment{}
 }
 
-func (dr DeploymentReconciler) Build(mesh *installv1.Mesh, svc gmcore.SvcName) (client.Object, error) {
+func (dr DeploymentReconciler) Build(mesh *installv1.Mesh) (client.Object, error) {
 	configs := gmcore.Configs(mesh.Spec.Version)
+
+	svc, err := gmcore.ServiceName(dr.ObjectKey.Name)
+	if err != nil {
+		return nil, err
+	}
 
 	matchLabels := map[string]string{
 		"greymatter.io/control": string(svc),

@@ -144,8 +144,18 @@ bundle-build:
 
 ##@ Ops
 
+k3d: ## Make a K3d cluster
+	k3d cluster create gm-operator -a 1 -p 30001:10808@loadbalancer
+
 sample: ## Make a sample mesh
 	kubectl apply -f config/samples/install_v1_mesh.yaml
 
 remove-sample: ## Remove the sample mesh
 	kubectl delete -f config/samples/install_v1_mesh.yaml
+
+refresh: docker-build ## Refresh the deployed docker image
+	k3d image import --cluster gm-operator $(IMG)
+	kubectl delete pod -n gm-operator -l control-plane=operator
+
+destroy: ## Destroy the K3d cluster
+	k3d cluster delete gm-operator

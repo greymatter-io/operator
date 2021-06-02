@@ -5,17 +5,29 @@ import (
 	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ServiceReconciler struct{}
+type ServiceReconciler struct {
+	ObjectKey types.NamespacedName
+}
+
+func (sr ServiceReconciler) Key() types.NamespacedName {
+	return sr.ObjectKey
+}
 
 func (sr ServiceReconciler) Object() client.Object {
 	return &corev1.Service{}
 }
 
-func (sr ServiceReconciler) Build(mesh *installv1.Mesh, svc gmcore.SvcName) (client.Object, error) {
+func (sr ServiceReconciler) Build(mesh *installv1.Mesh) (client.Object, error) {
 	configs := gmcore.Configs(mesh.Spec.Version)
+
+	svc, err := gmcore.ServiceName(sr.ObjectKey.Name)
+	if err != nil {
+		return nil, err
+	}
 
 	matchLabels := map[string]string{
 		"greymatter.io/control": string(svc),
