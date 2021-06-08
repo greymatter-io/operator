@@ -62,3 +62,7 @@ func (i Ingress) Build(mesh *installv1.Mesh) client.Object {
 func (i Ingress) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
 	return true, nil
 }
+
+func (i Ingress) Mutate(mesh *installv1.Mesh, obj client.Object) client.Object {
+	return obj
+}

@@ -90,3 +90,7 @@ func (s Service) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, erro
 
 	return true, nil
 }
+
+func (s Service) Mutate(mesh *installv1.Mesh, obj client.Object) client.Object {
+	return obj
+}

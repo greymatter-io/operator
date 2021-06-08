@@ -43,5 +43,25 @@ func (crb ClusterRoleBinding) Build(mesh *installv1.Mesh) client.Object {
 }
 
 func (crb ClusterRoleBinding) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
-	return true, nil
+	binding := obj.(*rbacv1.ClusterRoleBinding)
+
+	for _, subject := range binding.Subjects {
+		if subject.Name == crb.Name && subject.Namespace == mesh.Namespace {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (crb ClusterRoleBinding) Mutate(mesh *installv1.Mesh, obj client.Object) client.Object {
+	binding := obj.(*rbacv1.ClusterRoleBinding)
+
+	binding.Subjects = append(binding.Subjects, rbacv1.Subject{
+		Kind:      "ServiceAccount",
+		Name:      crb.Name,
+		Namespace: mesh.Namespace,
+	})
+
+	return binding
 }

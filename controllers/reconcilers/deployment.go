@@ -143,3 +143,7 @@ func (d Deployment) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, e
 
 	return true, nil
 }
+
+func (d Deployment) Mutate(mesh *installv1.Mesh, obj client.Object) client.Object {
+	return obj
+}

@@ -40,3 +40,7 @@ func (cr ClusterRole) Build(mesh *installv1.Mesh) client.Object {
 func (cr ClusterRole) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
 	return true, nil
 }
+
+func (cr ClusterRole) Mutate(mesh *installv1.Mesh, obj client.Object) client.Object {
+	return obj
+}

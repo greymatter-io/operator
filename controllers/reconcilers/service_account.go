@@ -36,3 +36,7 @@ func (sa ServiceAccount) Build(mesh *installv1.Mesh) client.Object {
 func (sa ServiceAccount) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
 	return true, nil
 }
+
+func (sa ServiceAccount) Mutate(mesh *installv1.Mesh, obj client.Object) client.Object {
+	return obj
+}

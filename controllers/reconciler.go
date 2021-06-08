@@ -22,6 +22,8 @@ type reconciler interface {
 	Build(*installv1.Mesh) client.Object
 	// Compares the state of a client.Object with its configuration specified by a Mesh object.
 	Reconciled(*installv1.Mesh, client.Object) (bool, error)
+	// Mutates an existing client.Object with configuration passed from a *installv1.Mesh
+	Mutate(*installv1.Mesh, client.Object) client.Object
 }
 
 func (r *MeshReconciler) reconcile(ctx context.Context, mesh *installv1.Mesh, rec reconciler) error {
@@ -59,6 +61,7 @@ func (r *MeshReconciler) reconcile(ctx context.Context, mesh *installv1.Mesh, re
 		return nil
 	}
 
+	obj = rec.Mutate(mesh, obj)
 	if err := r.Update(ctx, obj); err != nil {
 		logger.Error(err, "Update Failed")
 		return err
