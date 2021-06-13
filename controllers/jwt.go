@@ -14,6 +14,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
+// NOTE: This file follows an older pattern and will be replaced during the next frackday.
+
 func (r *MeshReconciler) mkJwtSecurity(ctx context.Context, mesh *installv1.Mesh) error {
 
 	// Check if the deployment exists; if not, create a new one

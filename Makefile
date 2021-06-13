@@ -145,7 +145,7 @@ bundle-build:
 ##@ Ops
 
 k3d: ## Make a K3d cluster
-	k3d cluster create gm-operator -a 1 -p 30001:10808@loadbalancer
+	k3d cluster create gm-operator -a 1 -p 30000:10808@loadbalancer
 	export KUBECONFIG=$(k3d kubeconfig write gm-operator)
 
 sample: ## Make a sample mesh
