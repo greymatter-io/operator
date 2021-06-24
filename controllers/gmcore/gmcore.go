@@ -19,6 +19,7 @@ const (
 
 type config struct {
 	Component      string
+	Directory      string
 	ImageTag       string
 	Envs           envsOpts
 	ContainerPorts []corev1.ContainerPort
@@ -29,7 +30,6 @@ type config struct {
 var versions = map[string]configs{
 	"latest": versionOneThree,
 	"1.3":    versionOneThree,
-	"1.2":    versionOneTwo,
 }
 
 func Base() configs {

@@ -4,9 +4,9 @@ import (
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
 )
 
-var versionOneTwo = configs{
+var versionOneSixBeta = configs{
 	Control: {
-		ImageTag: "1.4.2",
+		ImageTag: "1.5.3",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, _ *installv1.Mesh, _ string) map[string]string {
 				return map[string]string{
@@ -16,7 +16,7 @@ var versionOneTwo = configs{
 		),
 	},
 	ControlApi: {
-		ImageTag: "1.4.1",
+		ImageTag: "1.5.4",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, _ *installv1.Mesh, _ string) map[string]string {
 				return map[string]string{
@@ -26,7 +26,7 @@ var versionOneTwo = configs{
 		),
 	},
 	Proxy: {
-		ImageTag: "1.4.0",
+		ImageTag: "1.5.1",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, _ *installv1.Mesh, _ string) map[string]string {
 				return map[string]string{
@@ -36,7 +36,7 @@ var versionOneTwo = configs{
 		),
 	},
 	Catalog: {
-		ImageTag: "1.0.7",
+		ImageTag: "1.2.2",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, _ *installv1.Mesh, _ string) map[string]string {
 				return map[string]string{
@@ -46,7 +46,7 @@ var versionOneTwo = configs{
 		),
 	},
 	JwtSecurity: {
-		ImageTag: "1.1.1",
+		ImageTag: "1.2.0",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, _ *installv1.Mesh, _ string) map[string]string {
 				return map[string]string{

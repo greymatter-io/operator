@@ -30,6 +30,7 @@ func (s Service) Object() client.Object {
 func (s Service) Build(mesh *installv1.Mesh) client.Object {
 	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := s.GmService
+	svcCfg := configs[svc]
 
 	matchLabels := map[string]string{
 		"greymatter.io/control": s.ObjectKey.Name,
@@ -37,8 +38,8 @@ func (s Service) Build(mesh *installv1.Mesh) client.Object {
 
 	labels := map[string]string{
 		"greymatter.io/control":         s.ObjectKey.Name,
-		"greymatter.io/component":       configs[svc].Component,
-		"greymatter.io/service-version": configs[svc].ImageTag,
+		"greymatter.io/component":       svcCfg.Component,
+		"greymatter.io/service-version": svcCfg.ImageTag,
 	}
 	if svc != gmcore.Control && s.ObjectKey.Name != "edge" {
 		labels["greymatter.io/sidecar-version"] = configs[gmcore.Proxy].ImageTag
@@ -46,7 +47,7 @@ func (s Service) Build(mesh *installv1.Mesh) client.Object {
 
 	objectLabels := map[string]string{
 		"app.kubernetes.io/name":       s.ObjectKey.Name,
-		"app.kubernetes.io/version":    configs[svc].ImageTag,
+		"app.kubernetes.io/version":    svcCfg.ImageTag,
 		"app.kubernetes.io/part-of":    "greymatter",
 		"app.kubernetes.io/managed-by": "gm-operator",
 		"app.kubernetes.io/created-by": "gm-operator",
@@ -63,7 +64,7 @@ func (s Service) Build(mesh *installv1.Mesh) client.Object {
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: matchLabels,
-			Ports:    configs[svc].ServicePorts,
+			Ports:    svcCfg.ServicePorts,
 		},
 	}
 
@@ -77,9 +78,10 @@ func (s Service) Build(mesh *installv1.Mesh) client.Object {
 func (s Service) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
 	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := s.GmService
+	svcCfg := configs[svc]
 
 	labels := obj.GetLabels()
-	if lbl := labels["greymatter.io/service-version"]; lbl != configs[svc].ImageTag {
+	if lbl := labels["greymatter.io/service-version"]; lbl != svcCfg.ImageTag {
 		return false, nil
 	}
 	if lbl := labels["greymatter.io/sidecar-version"]; svc != gmcore.Control &&

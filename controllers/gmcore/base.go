@@ -12,6 +12,7 @@ import (
 var base = configs{
 	Control: {
 		Component: "fabric",
+		Directory: "release",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, mesh *installv1.Mesh, _ string) map[string]string {
 				return map[string]string{
@@ -118,7 +119,6 @@ var base = configs{
 					"REDIS_DB":   "0",
 					"REDIS_HOST": fmt.Sprintf("jwt-redis.%s.svc", mesh.Namespace),
 					"REDIS_PORT": "6379",
-					"HTTPS_PORT": "3000",
 				}
 			},
 		),

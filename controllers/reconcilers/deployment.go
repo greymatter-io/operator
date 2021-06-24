@@ -32,6 +32,7 @@ func (d Deployment) Object() client.Object {
 func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := d.GmService
+	svcCfg := configs[svc]
 
 	matchLabels := map[string]string{
 		"greymatter.io/control": d.ObjectKey.Name,
@@ -39,8 +40,8 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 
 	podLabels := map[string]string{
 		"greymatter.io/control":         d.ObjectKey.Name,
-		"greymatter.io/component":       configs[svc].Component,
-		"greymatter.io/service-version": configs[svc].ImageTag,
+		"greymatter.io/component":       svcCfg.Component,
+		"greymatter.io/service-version": svcCfg.ImageTag,
 	}
 	if svc != gmcore.Control && d.ObjectKey.Name != "edge" {
 		podLabels["greymatter.io/sidecar-version"] = configs[gmcore.Proxy].ImageTag
@@ -48,7 +49,7 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 
 	objectLabels := map[string]string{
 		"app.kubernetes.io/name":       d.ObjectKey.Name,
-		"app.kubernetes.io/version":    configs[svc].ImageTag,
+		"app.kubernetes.io/version":    svcCfg.ImageTag,
 		"app.kubernetes.io/part-of":    "greymatter",
 		"app.kubernetes.io/managed-by": "gm-operator",
 		"app.kubernetes.io/created-by": "gm-operator",
@@ -59,13 +60,13 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 
 	svcContainer := corev1.Container{
 		Name:            "service",
-		Image:           fmt.Sprintf("docker.greymatter.io/release/gm-%s:%s", svc, configs[svc].ImageTag),
-		Env:             configs[svc].Envs.Configure(mesh, d.ObjectKey.Name),
+		Image:           fmt.Sprintf("docker.greymatter.io/%s/gm-%s:%s", svcCfg.Directory, svc, svcCfg.ImageTag),
+		Env:             svcCfg.Envs.Configure(mesh, d.ObjectKey.Name),
 		ImagePullPolicy: corev1.PullIfNotPresent,
-		Ports:           configs[svc].ContainerPorts,
+		Ports:           svcCfg.ContainerPorts,
 	}
-	if configs[svc].Resources != nil {
-		svcContainer.Resources = *configs[svc].Resources
+	if svcCfg.Resources != nil {
+		svcContainer.Resources = *svcCfg.Resources
 	}
 
 	var containers []corev1.Container
@@ -119,9 +120,10 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 func (d Deployment) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
 	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := d.GmService
+	svcCfg := configs[svc]
 
 	labels := obj.GetLabels()
-	if lbl := labels["greymatter.io/service-version"]; lbl != configs[svc].ImageTag {
+	if lbl := labels["greymatter.io/service-version"]; lbl != svcCfg.ImageTag {
 		return false, nil
 	}
 	if lbl := labels["greymatter.io/sidecar-version"]; svc != gmcore.Control &&

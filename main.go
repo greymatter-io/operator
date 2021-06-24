@@ -90,7 +90,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.MeshReconciler{
+	if err = (&controllers.MeshController{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Mesh"),
 		Scheme: mgr.GetScheme(),
