@@ -38,6 +38,9 @@ import (
 	"github.com/bcmendoza/gm-operator/controllers/reconcilers"
 )
 
+// alias used to identify operation context for each Reconcile call
+type reconcileId string
+
 // MeshReconciler reconciles a Mesh object
 type MeshReconciler struct {
 	client.Client
@@ -46,7 +49,10 @@ type MeshReconciler struct {
 	ObjectCache meshobjects.Cache
 }
 
-type reconcileId string
+/*
+	Specify RBAC cluster role rules to generate when running `make manifests`.
+	This updates /config/rbac/role.yaml
+*/
 
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes/status,verbs=get;update;patch
@@ -59,10 +65,9 @@ type reconcileId string
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Mesh object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
+// It compares the state specified by the Mesh object against the actual state
+// of the namespace and creates/updates all deployments, services, roles, ingresses,
+// mesh objects, etc. to the desired Mesh object configuration.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
@@ -113,8 +118,6 @@ func (r *MeshReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	// TODO: The ClusterRoleBinding should be updated with added subjects per namespace.
-	// If another mesh is deployed into another namespace, this will break.
 	err = r.reconcile(ctx, mesh, reconcilers.ClusterRoleBinding{Name: name})
 	if err != nil {
 		return ctrl.Result{}, err
