@@ -30,7 +30,7 @@ func (d Deployment) Object() client.Object {
 }
 
 func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
-	configs := gmcore.Configs(mesh.Spec.Version)
+	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := d.GmService
 
 	matchLabels := map[string]string{
@@ -57,16 +57,10 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 		objectLabels[k] = v
 	}
 
-	envsMap := configs[svc].MkEnvsMap(mesh, d.ObjectKey.Name)
-	var envs []corev1.EnvVar
-	for k, v := range envsMap {
-		envs = append(envs, corev1.EnvVar{Name: k, Value: v})
-	}
-
 	svcContainer := corev1.Container{
 		Name:            "service",
 		Image:           fmt.Sprintf("docker.greymatter.io/release/gm-%s:%s", svc, configs[svc].ImageTag),
-		Env:             envs,
+		Env:             configs[svc].Envs.Configure(mesh, d.ObjectKey.Name),
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Ports:           configs[svc].ContainerPorts,
 	}
@@ -81,15 +75,10 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 	}
 
 	if svc != gmcore.Control {
-		proxyEnvsMap := configs[gmcore.Proxy].MkEnvsMap(mesh, d.ObjectKey.Name)
-		var proxyEnvs []corev1.EnvVar
-		for k, v := range proxyEnvsMap {
-			proxyEnvs = append(proxyEnvs, corev1.EnvVar{Name: k, Value: v})
-		}
 		proxyContainer := corev1.Container{
 			Name:            "sidecar",
 			Image:           fmt.Sprintf("docker.greymatter.io/release/gm-proxy:%s", configs[gmcore.Proxy].ImageTag),
-			Env:             proxyEnvs,
+			Env:             configs[gmcore.Proxy].Envs.Configure(mesh, d.ObjectKey.Name),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Ports:           configs[gmcore.Proxy].ContainerPorts,
 			Resources:       *configs[gmcore.Proxy].Resources,
@@ -128,7 +117,7 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 }
 
 func (d Deployment) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
-	configs := gmcore.Configs(mesh.Spec.Version)
+	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := d.GmService
 
 	labels := obj.GetLabels()

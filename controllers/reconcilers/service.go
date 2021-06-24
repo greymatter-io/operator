@@ -28,7 +28,7 @@ func (s Service) Object() client.Object {
 }
 
 func (s Service) Build(mesh *installv1.Mesh) client.Object {
-	configs := gmcore.Configs(mesh.Spec.Version)
+	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := s.GmService
 
 	matchLabels := map[string]string{
@@ -75,7 +75,7 @@ func (s Service) Build(mesh *installv1.Mesh) client.Object {
 }
 
 func (s Service) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
-	configs := gmcore.Configs(mesh.Spec.Version)
+	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := s.GmService
 
 	labels := obj.GetLabels()
