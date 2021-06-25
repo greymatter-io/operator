@@ -45,6 +45,7 @@ type MeshController struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+	Cache  *meshobjects.Cache
 }
 
 // Used to provide context for operations in a given Reconcile call
@@ -136,6 +137,13 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	// Check for meshobjects that do not yet exist in Control API
+	// If all meshobjects exist, exit early
+	apiObjects := controller.Cache.Missing(mesh.Name)
+	if len(apiObjects) == 0 {
+		return ctrl.Result{}, nil
+	}
+
 	// Ping Control API and wait until responsive.
 	log.Info("Waiting for Control API server...")
 	addr := fmt.Sprintf("http://control-api.%s.svc:5555", mesh.Namespace)
@@ -150,15 +158,19 @@ PING_LOOP:
 		}
 	}
 
+	// Don't log errors here and for other meshobject failures, just requeue to re-attempt
 	if err := api.MkZone(mesh.Name); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, nil
 	}
+	controller.Cache.AddZone(mesh.Name)
+
 	if err := api.MkProxy(mesh.Name, string(gmcore.ControlApi)); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkService(mesh.Name, string(gmcore.ControlApi), "5555"); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, nil
 	}
+	controller.Cache.AddService(mesh.Name, string(gmcore.ControlApi))
 
 	// Control
 	roleName := "control-pods"
@@ -202,8 +214,9 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, "edge"); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, nil
 	}
+	controller.Cache.AddSidecar(mesh.Name, "edge")
 
 	// Catalog
 	key = types.NamespacedName{Name: string(gmcore.Catalog), Namespace: mesh.Namespace}
@@ -214,11 +227,12 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.Catalog)); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkService(mesh.Name, string(gmcore.Catalog), "9080"); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, nil
 	}
+	controller.Cache.AddService(mesh.Name, string(gmcore.Catalog))
 
 	// Dashboard
 	key = types.NamespacedName{Name: string(gmcore.Dashboard), Namespace: mesh.Namespace}
@@ -229,11 +243,12 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.Dashboard)); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkService(mesh.Name, string(gmcore.Dashboard), "1337"); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, nil
 	}
+	controller.Cache.AddService(mesh.Name, string(gmcore.Dashboard))
 
 	// JWT Security
 	if len(mesh.Spec.Users) > 0 {
@@ -257,11 +272,12 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.JwtSecurity)); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkService(mesh.Name, string(gmcore.JwtSecurity), "3000"); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, nil
 	}
+	controller.Cache.AddService(mesh.Name, string(gmcore.JwtSecurity))
 
 	// Ingress
 	key = types.NamespacedName{Name: "ingress", Namespace: mesh.Namespace}
