@@ -1,49 +1,29 @@
 package meshobjects
 
 import (
-	"encoding/json"
 	"fmt"
-	"strings"
 )
 
-func (c *Client) MkMeshObjects(zone string, clusters []string) error {
-	zoneObject := fmt.Sprintf(`{"zone_key":"%s","name":"%s"}`, zone, zone)
-	zoneBytes := json.RawMessage(zoneObject)
-	if err := c.GetOrMake("zone", zone, zoneBytes); err != nil {
-		return err
-	}
-
-	if err := c.mkSidecarObjects(zone, "edge"); err != nil {
-		return err
-	}
-
-ClusterLoop:
-	for _, cluster := range clusters {
-		split := strings.Split(cluster, ":")
-		if len(split) != 2 {
-			continue ClusterLoop
-		}
-		if err := c.mkSidecarObjects(zone, split[0]); err != nil {
-			return err
-		}
-		if err := c.mkServiceObjects(zone, split[0], split[1]); err != nil {
-			return err
-		}
-	}
-
-	return nil
+func (c *Client) MkZone(zoneKey string) error {
+	template := `{"zone_key":"%s","name":"%s"}`
+	return c.GetOrMake("zone", zoneKey, raw(template, zoneKey, zoneKey))
 }
 
-func (c *Client) mkSidecarObjects(zone, cluster string) error {
-	key := fmt.Sprintf("%s-%s", zone, cluster)
+func (c *Client) MkProxy(zoneKey, clusterName string) error {
+	key := fmt.Sprintf("%s.%s", zoneKey, clusterName)
 
-	domainObject := fmt.Sprintf(`{"zone_key":"%s","domain_key":"%s","name":"*","port":10808}`, zone, key)
-	domainBytes := json.RawMessage(domainObject)
-	if err := c.GetOrMake("domain", key, domainBytes); err != nil {
+	domain := `{
+		"zone_key":"%s",
+		"domain_key":"%s",
+		"name":"*",
+		"port":10808
+	}`
+	object := raw(domain, zoneKey, key)
+	if err := c.GetOrMake("domain", key, object); err != nil {
 		return err
 	}
 
-	listenerObject := fmt.Sprintf(`{
+	listener := `{
 		"zone_key":"%s",
 		"listener_key":"%s",
 		"domain_keys":["%s"],
@@ -63,40 +43,44 @@ func (c *Client) mkSidecarObjects(zone, cluster string) error {
 				"metrics_key_function": "none"
 			}
 		}
-	}`, zone, key, key, cluster)
-	listenerBytes := json.RawMessage(listenerObject)
-	if err := c.GetOrMake("listener", key, listenerBytes); err != nil {
+	}`
+	object = raw(listener, zoneKey, key, key, clusterName)
+	if err := c.GetOrMake("listener", key, object); err != nil {
 		return err
 	}
 
-	proxyObject := fmt.Sprintf(`{
+	proxy := `{
 		"zone_key":"%s",
 		"proxy_key":"%s",
 		"domain_keys":["%s"],
 		"listener_keys":["%s"],
 		"name":"%s"
-	}`, zone, key, key, key, cluster)
-	proxyBytes := json.RawMessage(proxyObject)
-	if err := c.GetOrMake("proxy", key, proxyBytes); err != nil {
+	}`
+	object = raw(proxy, zoneKey, key, key, key, clusterName)
+	if err := c.GetOrMake("proxy", key, object); err != nil {
 		return err
 	}
 
-	clusterObject := fmt.Sprintf(`{"zone_key":"%s","cluster_key":"%s","name":"%s"}`, zone, key, cluster)
-	clusterBytes := json.RawMessage(clusterObject)
-	if err := c.GetOrMake("cluster", key, clusterBytes); err != nil {
+	cluster := `{
+		"zone_key":"%s",
+		"cluster_key":"%s",
+		"name":"%s"
+	}`
+	object = raw(cluster, zoneKey, key, clusterName)
+	if err := c.GetOrMake("cluster", key, object); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (c *Client) mkServiceObjects(zone, cluster, port string) error {
-	sidecarKey := fmt.Sprintf("%s-%s", zone, cluster)
-	serviceKey := fmt.Sprintf("service-%s", sidecarKey)
-	serviceCluster := fmt.Sprintf("service-%s", cluster)
-	edgeKey := fmt.Sprintf("%s-edge", zone)
+func (c *Client) MkService(zoneKey, clusterName, port string) error {
+	sidecarKey := fmt.Sprintf("%s.%s", zoneKey, clusterName)
+	serviceKey := fmt.Sprintf("%s.service", sidecarKey)
+	serviceClusterName := fmt.Sprintf("%s.service", clusterName)
+	edgeKey := fmt.Sprintf("%s.edge", zoneKey)
 
-	clusterObject := fmt.Sprintf(`{
+	cluster := `{
 		"zone_key":"%s",
 		"cluster_key":"%s",
 		"name":"%s",
@@ -106,27 +90,29 @@ func (c *Client) mkServiceObjects(zone, cluster, port string) error {
 				"port":%s
 			}
 		]
-	}`, zone, serviceKey, serviceCluster, port)
-	clusterBytes := json.RawMessage(clusterObject)
-	if err := c.GetOrMake("cluster", serviceCluster, clusterBytes); err != nil {
+	}`
+	object := raw(cluster, zoneKey, serviceKey, serviceClusterName, port)
+	if err := c.GetOrMake("cluster", serviceKey, object); err != nil {
 		return err
 	}
 
-	if err := c.mkRoute(zone,
-		fmt.Sprintf("%s-a", sidecarKey),
+	if err := c.mkRoute(
+		zoneKey,
+		sidecarKey+".a",
 		edgeKey,
-		fmt.Sprintf("/services/%s/latest", cluster),
+		fmt.Sprintf("/services/%s/latest", clusterName),
 		"exact",
-		fmt.Sprintf("/services/%s/latest/", cluster),
+		fmt.Sprintf("/services/%s/latest/", clusterName),
 		sidecarKey,
 	); err != nil {
 		return err
 	}
 
-	if err := c.mkRoute(zone,
-		fmt.Sprintf("%s-b", sidecarKey),
+	if err := c.mkRoute(
+		zoneKey,
+		sidecarKey+".b",
 		edgeKey,
-		fmt.Sprintf("/services/%s/latest/", cluster),
+		fmt.Sprintf("/services/%s/latest/", clusterName),
 		"prefix",
 		"/",
 		sidecarKey,
@@ -134,8 +120,9 @@ func (c *Client) mkServiceObjects(zone, cluster, port string) error {
 		return err
 	}
 
-	if err := c.mkRoute(zone,
-		fmt.Sprintf("%s-c", sidecarKey),
+	if err := c.mkRoute(
+		zoneKey,
+		sidecarKey+".c",
 		sidecarKey,
 		"/",
 		"prefix",
@@ -148,8 +135,8 @@ func (c *Client) mkServiceObjects(zone, cluster, port string) error {
 	return nil
 }
 
-func (c *Client) mkRoute(zone, key, dk, path, matchType, rewrite, ck string) error {
-	routeObject := fmt.Sprintf(`{
+func (c *Client) mkRoute(zoneKey, routeKey, domainKey, path, matchType, rewrite, clusterKey string) error {
+	template := `{
 		"zone_key":"%s",
 		"route_key":"%s",
 		"domain_key":"%s",
@@ -170,11 +157,7 @@ func (c *Client) mkRoute(zone, key, dk, path, matchType, rewrite, ck string) err
 				}
 			}
 		]
-	}`, zone, key, dk, path, matchType, rewrite, ck)
-	routeBytes := json.RawMessage(routeObject)
-	if err := c.GetOrMake("route", key, routeBytes); err != nil {
-		return err
-	}
-
-	return nil
+	}`
+	object := raw(template, zoneKey, routeKey, domainKey, path, matchType, rewrite, clusterKey)
+	return c.GetOrMake("route", routeKey, object)
 }

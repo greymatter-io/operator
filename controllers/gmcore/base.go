@@ -20,7 +20,7 @@ var base = configs{
 					"GM_CONTROL_API_INSECURE":             "true",
 					"GM_CONTROL_API_SSL":                  "false",
 					"GM_CONTROL_CONSOLE_LEVEL":            "info",
-					"GM_CONTROL_API_ZONE_NAME":            "zone-default-zone",
+					"GM_CONTROL_API_ZONE_NAME":            mesh.Name,
 					"GM_CONTROL_API_HOST":                 "control-api:5555",
 					"GM_CONTROL_CMD":                      "kubernetes",
 					"GM_CONTROL_KUBERNETES_CLUSTER_LABEL": "greymatter.io/control",
@@ -40,7 +40,7 @@ var base = configs{
 		Component: "fabric",
 		Directory: "release",
 		Envs: mkEnvOpts(
-			func(_ map[string]string, _ *v1.Mesh, _ string) map[string]string {
+			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
 				return map[string]string{
 					"GM_CONTROL_API_ADDRESS":        "0.0.0.0:5555",
 					"GM_CONTROL_API_LOG_LEVEL":      "info",
@@ -48,8 +48,8 @@ var base = configs{
 					"GM_CONTROL_API_EXPERIMENTS":    "true",
 					"GM_CONTROL_API_BASE_URL":       "/services/control-api/latest/v1.0/",
 					"GM_CONTROL_API_USE_TLS":        "false",
-					"GM_CONTROL_API_ZONE_KEY":       "zone-default-zone",
-					"GM_CONTROL_API_ZONE_NAME":      "zone-default-zone",
+					"GM_CONTROL_API_ZONE_KEY":       mesh.Name,
+					"GM_CONTROL_API_ZONE_NAME":      mesh.Name,
 				}
 			},
 		),
@@ -71,7 +71,7 @@ var base = configs{
 					"XDS_CLUSTER":          clusterName,
 					"XDS_HOST":             fmt.Sprintf("control.%s.svc", mesh.Namespace),
 					"XDS_PORT":             "50000",
-					"XDS_ZONE":             "zone-default-zone",
+					"XDS_ZONE":             mesh.Name,
 				}
 			},
 		),
@@ -102,7 +102,7 @@ var base = configs{
 				return map[string]string{
 					"CONTROL_SERVER_0_ADDRESS":              fmt.Sprintf("control.%s.svc:50000", mesh.Namespace),
 					"CONTROL_SERVER_0_REQUEST_CLUSTER_NAME": "edge",
-					"CONTROL_SERVER_0_ZONE_NAME":            "zone-default-zone",
+					"CONTROL_SERVER_0_ZONE_NAME":            mesh.Name,
 					"PORT":                                  "9080",
 				}
 			},

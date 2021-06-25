@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -135,8 +136,29 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	// TODO: Ping Control API here and wait until responsive.
-	// Then when installing each service, create necessary mesh configs.
+	// Ping Control API and wait until responsive.
+	log.Info("Waiting for Control API server...")
+	addr := fmt.Sprintf("http://control-api.%s.svc:5555", mesh.Namespace)
+	api := meshobjects.NewClient(addr)
+
+PING_LOOP:
+	for {
+		if err := api.Ping(); err != nil {
+			time.Sleep(time.Second * 3)
+		} else {
+			break PING_LOOP
+		}
+	}
+
+	if err := api.MkZone(mesh.Name); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := api.MkProxy(mesh.Name, string(gmcore.ControlApi)); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := api.MkService(mesh.Name, string(gmcore.ControlApi), "5555"); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	// Control
 	roleName := "control-pods"
@@ -167,12 +189,34 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	// Edge
+	key = types.NamespacedName{Name: "edge", Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.Proxy, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := apply(ctx, controller, mesh, reconcilers.Service{
+		GmService:   gmcore.Proxy,
+		ObjectKey:   key,
+		ServiceKind: corev1.ServiceTypeLoadBalancer,
+	}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := api.MkProxy(mesh.Name, "edge"); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Catalog
 	key = types.NamespacedName{Name: string(gmcore.Catalog), Namespace: mesh.Namespace}
 	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 	if err := apply(ctx, controller, mesh, reconcilers.Service{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := api.MkProxy(mesh.Name, string(gmcore.Catalog)); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := api.MkService(mesh.Name, string(gmcore.Catalog), "9080"); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -197,17 +241,10 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 	if err := apply(ctx, controller, mesh, reconcilers.Service{GmService: gmcore.JwtSecurity, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
-
-	// Edge
-	key = types.NamespacedName{Name: "edge", Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.Proxy, ObjectKey: key}); err != nil {
+	if err := api.MkProxy(mesh.Name, string(gmcore.JwtSecurity)); err != nil {
 		return ctrl.Result{}, err
 	}
-	if err := apply(ctx, controller, mesh, reconcilers.Service{
-		GmService:   gmcore.Proxy,
-		ObjectKey:   key,
-		ServiceKind: corev1.ServiceTypeLoadBalancer,
-	}); err != nil {
+	if err := api.MkService(mesh.Name, string(gmcore.JwtSecurity), "3000"); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -217,21 +254,7 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	// Mesh object configuration
 	if !mesh.Status.Deployed {
-		addr := fmt.Sprintf("http://control-api.%s.svc:5555", mesh.Namespace)
-		api := meshobjects.NewClient(addr)
-		if err := api.MkMeshObjects(
-			"zone-default-zone",
-			[]string{
-				fmt.Sprintf("%s:%s", gmcore.ControlApi, "5555"),
-				fmt.Sprintf("%s:%s", gmcore.Catalog, "9080"),
-				fmt.Sprintf("%s:%s", gmcore.JwtSecurity, "3000"),
-			},
-		); err != nil {
-			controller.Log.Error(err, "failed to configure mesh")
-			return ctrl.Result{}, err
-		}
 		mesh.Status.Deployed = true
 		if err := controller.Status().Update(ctx, mesh); err != nil {
 			log.Error(err, "Failed to set mesh status to deployed")

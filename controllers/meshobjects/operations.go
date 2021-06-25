@@ -97,7 +97,5 @@ func (c *Client) Change(kind, key string, changes map[string]json.RawMessage) er
 		return err
 	}
 
-	log.Printf("Updated %s '%s'", kind, key)
-
 	return nil
 }
