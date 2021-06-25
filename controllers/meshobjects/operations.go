@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dougfort/traversal"
@@ -36,7 +37,7 @@ func (c *Client) Make(kind, key string, object json.RawMessage) error {
 		return err
 	}
 
-	log.Printf("Created %s '%s'", kind, key)
+	log.Printf("Created %s with key '%s'", strings.Title(kind), key)
 
 	return nil
 }
