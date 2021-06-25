@@ -111,6 +111,9 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	// TODO: Ping Control API here and wait until responsive.
+	// Then when installing each service, create necessary mesh configs.
+
 	// Control
 	roleName := "control-pods"
 	if err := apply(ctx, controller, mesh, reconcilers.ClusterRole{
@@ -197,9 +200,9 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		if err := api.MkMeshObjects(
 			"zone-default-zone",
 			[]string{
-				fmt.Sprintf("%s:%s", gmcore.ControlApi, ":5555"),
-				fmt.Sprintf("%s:%s", gmcore.Catalog, ":9080"),
-				fmt.Sprintf("%s:%s", gmcore.JwtSecurity, ":3000"),
+				fmt.Sprintf("%s:%s", gmcore.ControlApi, "5555"),
+				fmt.Sprintf("%s:%s", gmcore.Catalog, "9080"),
+				fmt.Sprintf("%s:%s", gmcore.JwtSecurity, "3000"),
 			},
 		); err != nil {
 			controller.Log.Error(err, "failed to configure mesh")
