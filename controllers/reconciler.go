@@ -17,7 +17,7 @@ type reconciler interface {
 	// Returns the object key used to retrieve the object from the Kubernetes cluster.
 	// If the object is cluster-scoped, the 'Namespace' field is an empty string.
 	Key() types.NamespacedName
-	// Returns an object that implements the client.Object interface (e.g. *appsv1.Deployment, *corev1.Service).
+	// Returns an object that implements the client.Object interface (e.g. *appsv1.Deployment).
 	Object() client.Object
 	// Builds a new client.Object with configuration passed from a *v1.Mesh.
 	Build(*v1.Mesh) client.Object
