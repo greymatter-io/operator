@@ -41,17 +41,12 @@ import (
 // MeshController reconciles a Mesh object
 type MeshController struct {
 	client.Client
-	Log         logr.Logger
-	Scheme      *runtime.Scheme
-	ObjectCache meshobjects.Cache
+	Log    logr.Logger
+	Scheme *runtime.Scheme
 }
 
-// identifies context for each Reconcile call
-type reconcileID string
-
-const recID reconcileID = "id"
-
-var id uint
+// Used to provide context for operations in a given Reconcile call
+var reconcileID uint
 
 /*
 	Specify RBAC cluster role rules to generate when running `make manifests`.
@@ -76,8 +71,8 @@ var id uint
 // For more details, check Reconcile and its result:
 // https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx = context.WithValue(ctx, recID, id)
-	id++
+	ctx = context.WithValue(ctx, struct{}{}, reconcileID)
+	reconcileID++
 
 	log := controller.Log.WithValues("mesh", req.NamespacedName)
 

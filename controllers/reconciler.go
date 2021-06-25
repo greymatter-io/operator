@@ -31,7 +31,7 @@ func apply(ctx context.Context, controller *MeshController, mesh *v1.Mesh, r rec
 	key := r.Key()
 
 	logger := controller.Log.
-		WithValues("ReconcileID", ctx.Value(recID)).
+		WithValues("ReconcileID", ctx.Value(struct{}{})).
 		WithValues("Kind", r.Kind()).
 		WithValues("Name", key.Name)
 	if key.Namespace != "" {
