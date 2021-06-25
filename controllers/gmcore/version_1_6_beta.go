@@ -8,10 +8,10 @@ var versionOneSixBeta = configs{
 		ImageTag:  "1.6.0-dev",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
-				overlays := map[string]string{
-					// todo: Add overlays here
+				patches := map[string]string{
+					// todo: Add patches here
 				}
-				for k, v := range overlays {
+				for k, v := range patches {
 					envs[k] = v
 				}
 				return envs
@@ -23,10 +23,10 @@ var versionOneSixBeta = configs{
 		ImageTag:  "1.6.0-dev",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
-				overlays := map[string]string{
-					// todo: Add overlays here
+				patches := map[string]string{
+					// todo: Add patches here
 				}
-				for k, v := range overlays {
+				for k, v := range patches {
 					envs[k] = v
 				}
 				return envs
@@ -38,10 +38,10 @@ var versionOneSixBeta = configs{
 		ImageTag:  "1.6.1-dev",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
-				overlays := map[string]string{
-					// todo: Add overlays here
+				patches := map[string]string{
+					// todo: Add patches here
 				}
-				for k, v := range overlays {
+				for k, v := range patches {
 					envs[k] = v
 				}
 				return envs
@@ -53,10 +53,10 @@ var versionOneSixBeta = configs{
 		ImageTag:  "latest",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
-				overlays := map[string]string{
-					// todo: Add overlays here
+				patches := map[string]string{
+					// todo: Add patches here
 				}
-				for k, v := range overlays {
+				for k, v := range patches {
 					envs[k] = v
 				}
 				return envs
@@ -68,10 +68,10 @@ var versionOneSixBeta = configs{
 		ImageTag:  "latest",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
-				overlays := map[string]string{
-					// todo: Add overlays here
+				patches := map[string]string{
+					// todo: Add patches here
 				}
-				for k, v := range overlays {
+				for k, v := range patches {
 					envs[k] = v
 				}
 				return envs

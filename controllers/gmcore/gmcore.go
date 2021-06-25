@@ -30,39 +30,43 @@ type config struct {
 }
 
 var versions = map[string]configs{
-	"latest": versionOneThree,
-	"1.3":    versionOneThree,
+	"latest":   versionOneSixBeta,
+	"1.6-beta": versionOneSixBeta,
+	"1.3":      versionOneThree,
 }
 
 func Base() configs {
 	return base
 }
 
-func (cs configs) Overlay(gmVersion string) configs {
-	overlays, ok := versions[gmVersion]
+func (cs configs) Patch(gmVersion string) configs {
+	patches, ok := versions[gmVersion]
 	if !ok {
-		overlays = versions["latest"]
+		patches = versions["latest"]
 	}
 
 	for svc, cfg := range cs {
-		if overlay, ok := overlays[svc]; ok {
-			if overlay.Component != "" {
-				cfg.Component = overlay.Component
+		if patch, ok := patches[svc]; ok {
+			if patch.Component != "" {
+				cfg.Component = patch.Component
 			}
-			if overlay.ImageTag != "" {
-				cfg.ImageTag = overlay.ImageTag
+			if patch.ImageTag != "" {
+				cfg.ImageTag = patch.ImageTag
 			}
-			if cfg.Envs != nil && overlay.Envs != nil {
-				cfg.Envs = append(cfg.Envs, overlay.Envs...)
+			if cfg.Envs != nil && patch.Envs != nil {
+				cfg.Envs = append(cfg.Envs, patch.Envs...)
 			}
-			if overlay.ContainerPorts != nil {
-				cfg.ContainerPorts = overlay.ContainerPorts
+			if patch.ContainerPorts != nil {
+				cfg.ContainerPorts = patch.ContainerPorts
 			}
-			if overlay.ServicePorts != nil {
-				cfg.ServicePorts = overlay.ServicePorts
+			if patch.ServicePorts != nil {
+				cfg.ServicePorts = patch.ServicePorts
 			}
-			if overlay.Resources != nil {
-				cfg.Resources = overlay.Resources
+			if patch.Resources != nil {
+				cfg.Resources = patch.Resources
+			}
+			if patch.VolumeMounts != nil {
+				cfg.VolumeMounts = patch.VolumeMounts
 			}
 			cs[svc] = cfg
 		}

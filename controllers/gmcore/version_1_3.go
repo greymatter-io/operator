@@ -7,10 +7,10 @@ var versionOneThree = configs{
 		ImageTag: "1.5.3",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
-				overlays := map[string]string{
-					// todo: Add overlays here
+				patches := map[string]string{
+					// todo: Add patches here
 				}
-				for k, v := range overlays {
+				for k, v := range patches {
 					envs[k] = v
 				}
 				return envs
@@ -21,10 +21,10 @@ var versionOneThree = configs{
 		ImageTag: "1.5.4",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
-				overlays := map[string]string{
-					// todo: Add overlays here
+				patches := map[string]string{
+					// todo: Add patches here
 				}
-				for k, v := range overlays {
+				for k, v := range patches {
 					envs[k] = v
 				}
 				return envs
@@ -35,10 +35,10 @@ var versionOneThree = configs{
 		ImageTag: "1.5.1",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
-				overlays := map[string]string{
-					// todo: Add overlays here
+				patches := map[string]string{
+					// todo: Add patches here
 				}
-				for k, v := range overlays {
+				for k, v := range patches {
 					envs[k] = v
 				}
 				return envs
@@ -49,10 +49,10 @@ var versionOneThree = configs{
 		ImageTag: "1.2.2",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
-				overlays := map[string]string{
-					// todo: Add overlays here
+				patches := map[string]string{
+					// todo: Add patches here
 				}
-				for k, v := range overlays {
+				for k, v := range patches {
 					envs[k] = v
 				}
 				return envs
@@ -63,10 +63,10 @@ var versionOneThree = configs{
 		ImageTag: "1.2.0",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
-				overlays := map[string]string{
-					// todo: Add overlays here
+				patches := map[string]string{
+					// todo: Add patches here
 				}
-				for k, v := range overlays {
+				for k, v := range patches {
 					envs[k] = v
 				}
 				return envs

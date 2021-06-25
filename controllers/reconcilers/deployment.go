@@ -31,7 +31,7 @@ func (d Deployment) Object() client.Object {
 }
 
 func (d Deployment) Build(mesh *v1.Mesh) client.Object {
-	configs := gmcore.Base().Overlay(mesh.Spec.Version)
+	configs := gmcore.Base().Patch(mesh.Spec.Version)
 	svc := d.GmService
 	svcCfg := configs[svc]
 	proxyCfg := configs[gmcore.Proxy]
@@ -138,7 +138,7 @@ func (d Deployment) Build(mesh *v1.Mesh) client.Object {
 }
 
 func (d Deployment) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
-	configs := gmcore.Base().Overlay(mesh.Spec.Version)
+	configs := gmcore.Base().Patch(mesh.Spec.Version)
 	svc := d.GmService
 	svcCfg := configs[svc]
 

@@ -4,6 +4,7 @@ metadata:
   name: sample-mesh
 spec:
   version: "1.3"
+  imagePullSecret: docker.secret
   users:
     - label: "CN=greymatter,OU=Engineering,O=Decipher Technology Studios,L=Alexandria,ST=Virginia,C=US"
       values:
