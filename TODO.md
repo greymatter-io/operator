@@ -1,8 +1,8 @@
 ## 6/25/21
 
-- [ ] Dashboard
+- [ ] Add Dashboard deployment, service
+- [ ] Add 1.3 configurations
+- [ ] Ping Control API until responsive and then configure meshobjects
 - [ ] Catalog entries via env vars in GM version 1.3
-- [ ] mesh-redis used by JWT Security, Control API, and Catalog
-- [ ] Store a meshobjects cache for tracking which objects are created
-- [ ] Add 1.6-beta
+- [ ] Add 1.6-beta configurations
 - [ ] Catalog entries via seed file in GM version 1.6-beta
