@@ -33,6 +33,7 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := d.GmService
 	svcCfg := configs[svc]
+	proxyCfg := configs[gmcore.Proxy]
 
 	matchLabels := map[string]string{
 		"greymatter.io/control": d.ObjectKey.Name,
@@ -44,7 +45,7 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 		"greymatter.io/service-version": svcCfg.ImageTag,
 	}
 	if svc != gmcore.Control && d.ObjectKey.Name != "edge" {
-		podLabels["greymatter.io/sidecar-version"] = configs[gmcore.Proxy].ImageTag
+		podLabels["greymatter.io/sidecar-version"] = proxyCfg.ImageTag
 	}
 
 	objectLabels := map[string]string{
@@ -68,6 +69,9 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 	if svcCfg.Resources != nil {
 		svcContainer.Resources = *svcCfg.Resources
 	}
+	if svcCfg.VolumeMounts != nil {
+		svcContainer.VolumeMounts = svcCfg.VolumeMounts
+	}
 
 	var containers []corev1.Container
 
@@ -78,11 +82,11 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 	if svc != gmcore.Control {
 		proxyContainer := corev1.Container{
 			Name:            "sidecar",
-			Image:           fmt.Sprintf("docker.greymatter.io/release/gm-proxy:%s", configs[gmcore.Proxy].ImageTag),
-			Env:             configs[gmcore.Proxy].Envs.Configure(mesh, d.ObjectKey.Name),
+			Image:           fmt.Sprintf("docker.greymatter.io/release/gm-proxy:%s", proxyCfg.ImageTag),
+			Env:             proxyCfg.Envs.Configure(mesh, d.ObjectKey.Name),
 			ImagePullPolicy: corev1.PullIfNotPresent,
-			Ports:           configs[gmcore.Proxy].ContainerPorts,
-			Resources:       *configs[gmcore.Proxy].Resources,
+			Ports:           proxyCfg.ContainerPorts,
+			Resources:       *proxyCfg.Resources,
 		}
 		if d.ObjectKey.Name == "edge" {
 			proxyContainer.Name = "edge"
@@ -108,6 +112,21 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 				},
 			},
 		},
+	}
+
+	if svc == gmcore.JwtSecurity && svcCfg.VolumeMounts != nil {
+		defaultMode := int32(420)
+		deployment.Spec.Template.Spec.Volumes = []corev1.Volume{
+			{
+				Name: "jwt-users",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "jwt-users"},
+						DefaultMode:          &defaultMode,
+					},
+				},
+			},
+		}
 	}
 
 	if svc == gmcore.Control {

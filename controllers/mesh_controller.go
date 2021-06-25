@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -144,15 +145,18 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// JWT Security
-	smKey := types.NamespacedName{Name: "jwt-users", Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, reconcilers.ConfigMap{
-		ObjectKey: smKey,
-		// Data: map[string]string{
-		// 	"users.json": fmt.Sprintf(`|
-		// 		%s`, string(mesh.Spec.Users)),
-		// },
-	}); err != nil {
-		return ctrl.Result{}, err
+	if len(mesh.Spec.Users) > 0 {
+		users, err := json.Marshal(mesh.Spec.Users)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		smKey := types.NamespacedName{Name: "jwt-users", Namespace: mesh.Namespace}
+		if err := apply(ctx, controller, mesh, reconcilers.ConfigMap{
+			ObjectKey: smKey,
+			Data:      map[string]string{"users.json": string(users)},
+		}); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 	key = types.NamespacedName{Name: string(gmcore.JwtSecurity), Namespace: mesh.Namespace}
 	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.JwtSecurity, ObjectKey: key}); err != nil {
@@ -187,7 +191,11 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		api := meshobjects.NewClient(addr)
 		if err := api.MkMeshObjects(
 			"zone-default-zone",
-			[]string{"control-api:5555", "catalog:9080"},
+			[]string{
+				fmt.Sprintf("%s:%s", gmcore.ControlApi, ":5555"),
+				fmt.Sprintf("%s:%s", gmcore.Catalog, ":9080"),
+				fmt.Sprintf("%s:%s", gmcore.JwtSecurity, ":3000"),
+			},
 		); err != nil {
 			controller.Log.Error(err, "failed to configure mesh")
 			return ctrl.Result{}, err

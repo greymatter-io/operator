@@ -24,6 +24,7 @@ type config struct {
 	Envs           envsOpts
 	ContainerPorts []corev1.ContainerPort
 	ServicePorts   []corev1.ServicePort
+	VolumeMounts   []corev1.VolumeMount
 	Resources      *corev1.ResourceRequirements
 }
 

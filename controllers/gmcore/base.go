@@ -37,6 +37,7 @@ var base = configs{
 	},
 	ControlApi: {
 		Component: "fabric",
+		Directory: "release",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, _ *installv1.Mesh, _ string) map[string]string {
 				return map[string]string{
@@ -60,6 +61,7 @@ var base = configs{
 	},
 	Proxy: {
 		Component: "fabric",
+		Directory: "release",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, mesh *installv1.Mesh, clusterName string) map[string]string {
 				return map[string]string{
@@ -93,6 +95,7 @@ var base = configs{
 	},
 	Catalog: {
 		Component: "sense",
+		Directory: "release",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, mesh *installv1.Mesh, _ string) map[string]string {
 				return map[string]string{
@@ -112,13 +115,13 @@ var base = configs{
 	},
 	JwtSecurity: {
 		Component: "fabric",
+		Directory: "release",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, mesh *installv1.Mesh, _ string) map[string]string {
 				return map[string]string{
-					"ENABLE_TLS": "false",
-					"REDIS_DB":   "0",
-					"REDIS_HOST": fmt.Sprintf("jwt-redis.%s.svc", mesh.Namespace),
-					"REDIS_PORT": "6379",
+					"JWT_API_KEY": "key",
+					"PRIVATE_KEY": "key",
+					"HTTP_PORT":   "3000",
 				}
 			},
 		),
@@ -127,6 +130,9 @@ var base = configs{
 		},
 		ServicePorts: []corev1.ServicePort{
 			{Port: 3000, TargetPort: intstr.FromInt(3000), Protocol: "TCP"},
+		},
+		VolumeMounts: []corev1.VolumeMount{
+			{MountPath: "/gm-jwt-security/etc", Name: "jwt-users"},
 		},
 	},
 }
