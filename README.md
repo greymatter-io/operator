@@ -10,11 +10,10 @@ This assumes you have at least Go 1.15, K3d, and kubectl installed.
 2. Build the Docker image: `make docker-build`
 3. Make a K3d cluster: `make k3d`
 4. Import the Docker image into K3d: `make k3d-import`
-5. Store your Grey Matter LDAP credentials in the environment variables `NEXUS_USER` and `NEXUS_PASSWORD` and then run the create script to create a secret for pulling Docker images: `./create-docker-secret.sh`
 
-*NOTE: The Docker secret is created in the `default` namespace for now, although later on we'd want to create it in the `gm-operator` namespace so that the Operator can re-create the secret in each namespace where a Mesh CR is deployed.*
+Prior to deploying, store your Grey Matter LDAP credentials in the environment variables `NEXUS_USER` and `NEXUS_PASSWORD`. These will be used to create a secret for pulling Docker images.
 
-Then to deploy:
+To deploy:
 
 1. Deploy to the K3d cluster: `make deploy`.
 2. Create a Mesh CR: `make sample`

@@ -27,6 +27,7 @@ import (
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -91,14 +92,42 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// For now add defaults here.
-	// Later this can be added to a mutating webhook.
+	// Later this can be added to a mutating webhook for v1.Mesh.
 	if mesh.Spec.ImagePullSecret == "" {
-		secret := "docker.secret"
-		mesh.Spec.ImagePullSecret = secret
+		mesh.Spec.ImagePullSecret = "docker.secret"
+	}
+
+	// Get the secret within this gm-operator namespace and re-create it in the mesh namesapce
+	key := types.NamespacedName{Name: mesh.Spec.ImagePullSecret, Namespace: "gm-operator"}
+	operatorSecret := &corev1.Secret{}
+	if err := controller.Get(ctx, key, operatorSecret); err != nil && errors.IsNotFound(err) {
+		// If the secret does not exist, return and don't requeue.
+		// No resources will be created without a valid ImagePullSecret.
+		log.Error(err, "Failed to get secret %s in gm-operator namespace", mesh.Spec.ImagePullSecret)
+		return ctrl.Result{}, err
+	}
+	if err := apply(ctx, controller, mesh, reconcilers.Secret{
+		ObjectKey: types.NamespacedName{Name: mesh.Spec.ImagePullSecret, Namespace: mesh.Namespace},
+		ObjectLiteral: &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      mesh.Spec.ImagePullSecret,
+				Namespace: mesh.Namespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/name":       mesh.Spec.ImagePullSecret,
+					"app.kubernetes.io/part-of":    "greymatter",
+					"app.kubernetes.io/managed-by": "gm-operator",
+					"app.kubernetes.io/created-by": "gm-operator",
+				},
+			},
+			Type: operatorSecret.Type,
+			Data: operatorSecret.Data,
+		},
+	}); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// Control API
-	key := types.NamespacedName{Name: string(gmcore.ControlApi), Namespace: mesh.Namespace}
+	key = types.NamespacedName{Name: string(gmcore.ControlApi), Namespace: mesh.Namespace}
 	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.ControlApi, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
