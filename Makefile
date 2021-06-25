@@ -152,10 +152,10 @@ k3d-import: # Import the Docker image into K3d
 	k3d image import --cluster gm-operator $(IMG)
 
 sample: ## Make a sample mesh
-	kubectl apply -f config/samples/install_v1_mesh.yaml
+	kubectl apply -f config/samples/v1_mesh.yaml
 
 remove-sample: ## Remove the sample mesh
-	kubectl delete -f config/samples/install_v1_mesh.yaml
+	kubectl delete -f config/samples/v1_mesh.yaml
 
 refresh: docker-build k3d-import ## Refresh the deployed docker image
 	kubectl delete pod -n gm-operator -l control-plane=operator

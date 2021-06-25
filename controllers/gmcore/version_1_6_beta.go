@@ -1,15 +1,13 @@
 package gmcore
 
-import (
-	installv1 "github.com/bcmendoza/gm-operator/api/v1"
-)
+import v1 "github.com/bcmendoza/gm-operator/api/v1"
 
 var versionOneSixBeta = configs{
 	Control: {
 		Directory: "development",
 		ImageTag:  "1.6.0-dev",
 		Envs: mkEnvOpts(
-			func(envs map[string]string, _ *installv1.Mesh, _ string) map[string]string {
+			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				overlays := map[string]string{
 					// todo: Add overlays here
 				}
@@ -24,7 +22,7 @@ var versionOneSixBeta = configs{
 		Directory: "development",
 		ImageTag:  "1.6.0-dev",
 		Envs: mkEnvOpts(
-			func(envs map[string]string, _ *installv1.Mesh, _ string) map[string]string {
+			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				overlays := map[string]string{
 					// todo: Add overlays here
 				}
@@ -39,7 +37,7 @@ var versionOneSixBeta = configs{
 		Directory: "development",
 		ImageTag:  "1.6.1-dev",
 		Envs: mkEnvOpts(
-			func(envs map[string]string, _ *installv1.Mesh, _ string) map[string]string {
+			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				overlays := map[string]string{
 					// todo: Add overlays here
 				}
@@ -54,7 +52,7 @@ var versionOneSixBeta = configs{
 		Directory: "development",
 		ImageTag:  "latest",
 		Envs: mkEnvOpts(
-			func(envs map[string]string, _ *installv1.Mesh, _ string) map[string]string {
+			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				overlays := map[string]string{
 					// todo: Add overlays here
 				}
@@ -69,7 +67,7 @@ var versionOneSixBeta = configs{
 		Directory: "development",
 		ImageTag:  "latest",
 		Envs: mkEnvOpts(
-			func(envs map[string]string, _ *installv1.Mesh, _ string) map[string]string {
+			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				overlays := map[string]string{
 					// todo: Add overlays here
 				}

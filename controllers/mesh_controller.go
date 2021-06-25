@@ -33,7 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	installv1 "github.com/bcmendoza/gm-operator/api/v1"
+	v1 "github.com/bcmendoza/gm-operator/api/v1"
 	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 	"github.com/bcmendoza/gm-operator/controllers/meshobjects"
 	"github.com/bcmendoza/gm-operator/controllers/reconcilers"
@@ -55,9 +55,9 @@ type MeshController struct {
 	This updates /config/rbac/role.yaml
 */
 
-//+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes/finalizers,verbs=update
+//+kubebuilder:rbac:groups=greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=greymatter.io,resources=meshes/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=greymatter.io,resources=meshes/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services;configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=serviceaccounts;secrets;pods,verbs=get;list;watch;create
@@ -77,7 +77,7 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 	log := controller.Log.WithValues("mesh", req.NamespacedName)
 
 	// Fetch the Mesh object
-	mesh := &installv1.Mesh{}
+	mesh := &v1.Mesh{}
 	if err := controller.Get(ctx, req.NamespacedName, mesh); err != nil {
 		if errors.IsNotFound(err) {
 			// Mesh object not found, could have been deleted after reconcile request.
@@ -213,7 +213,7 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 // SetupWithManager sets up the controller with the Manager.
 func (controller *MeshController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&installv1.Mesh{}).
+		For(&v1.Mesh{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ConfigMap{}).

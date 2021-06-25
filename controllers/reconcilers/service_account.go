@@ -1,7 +1,7 @@
 package reconcilers
 
 import (
-	installv1 "github.com/bcmendoza/gm-operator/api/v1"
+	v1 "github.com/bcmendoza/gm-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -24,7 +24,7 @@ func (sa ServiceAccount) Object() client.Object {
 	return &corev1.ServiceAccount{}
 }
 
-func (sa ServiceAccount) Build(mesh *installv1.Mesh) client.Object {
+func (sa ServiceAccount) Build(mesh *v1.Mesh) client.Object {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      sa.ObjectKey.Name,
@@ -33,10 +33,10 @@ func (sa ServiceAccount) Build(mesh *installv1.Mesh) client.Object {
 	}
 }
 
-func (sa ServiceAccount) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
+func (sa ServiceAccount) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
 	return true, nil
 }
 
-func (sa ServiceAccount) Mutate(mesh *installv1.Mesh, obj client.Object) client.Object {
+func (sa ServiceAccount) Mutate(mesh *v1.Mesh, obj client.Object) client.Object {
 	return obj
 }

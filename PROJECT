@@ -11,7 +11,7 @@ resources:
     namespaced: true
   controller: true
   domain: greymatter.io
-  group: install
+  group: ""
   kind: Mesh
   path: github.com/bcmendoza/gm-operator/api/v1
   version: v1

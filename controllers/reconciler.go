@@ -3,7 +3,7 @@ package controllers
 import (
 	"context"
 
-	installv1 "github.com/bcmendoza/gm-operator/api/v1"
+	v1 "github.com/bcmendoza/gm-operator/api/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -18,15 +18,15 @@ type reconciler interface {
 	Key() types.NamespacedName
 	// Returns an object that implements the client.Object interface (e.g. *appsv1.Deployment, *corev1.Service).
 	Object() client.Object
-	// Builds a new client.Object with configuration passed from a *installv1.Mesh.
-	Build(*installv1.Mesh) client.Object
+	// Builds a new client.Object with configuration passed from a *v1.Mesh.
+	Build(*v1.Mesh) client.Object
 	// Compares the state of a client.Object with its configuration specified by a Mesh object.
-	Reconciled(*installv1.Mesh, client.Object) (bool, error)
-	// Mutates an existing client.Object with configuration passed from a *installv1.Mesh
-	Mutate(*installv1.Mesh, client.Object) client.Object
+	Reconciled(*v1.Mesh, client.Object) (bool, error)
+	// Mutates an existing client.Object with configuration passed from a *v1.Mesh
+	Mutate(*v1.Mesh, client.Object) client.Object
 }
 
-func apply(ctx context.Context, controller *MeshController, mesh *installv1.Mesh, r reconciler) error {
+func apply(ctx context.Context, controller *MeshController, mesh *v1.Mesh, r reconciler) error {
 	key := r.Key()
 
 	logger := controller.Log.

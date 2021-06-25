@@ -1,7 +1,7 @@
 package reconcilers
 
 import (
-	installv1 "github.com/bcmendoza/gm-operator/api/v1"
+	v1 "github.com/bcmendoza/gm-operator/api/v1"
 	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +27,7 @@ func (s Service) Object() client.Object {
 	return &corev1.Service{}
 }
 
-func (s Service) Build(mesh *installv1.Mesh) client.Object {
+func (s Service) Build(mesh *v1.Mesh) client.Object {
 	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := s.GmService
 	svcCfg := configs[svc]
@@ -75,7 +75,7 @@ func (s Service) Build(mesh *installv1.Mesh) client.Object {
 	return service
 }
 
-func (s Service) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
+func (s Service) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
 	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := s.GmService
 	svcCfg := configs[svc]
@@ -93,6 +93,6 @@ func (s Service) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, erro
 	return true, nil
 }
 
-func (s Service) Mutate(mesh *installv1.Mesh, obj client.Object) client.Object {
+func (s Service) Mutate(mesh *v1.Mesh, obj client.Object) client.Object {
 	return obj
 }

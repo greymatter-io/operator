@@ -1,7 +1,7 @@
 package gmcore
 
 import (
-	installv1 "github.com/bcmendoza/gm-operator/api/v1"
+	v1 "github.com/bcmendoza/gm-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -72,13 +72,13 @@ func (cs configs) Overlay(gmVersion string) configs {
 
 type envsOpts []envsOpt
 
-type envsOpt func(map[string]string, *installv1.Mesh, string) map[string]string
+type envsOpt func(map[string]string, *v1.Mesh, string) map[string]string
 
 func mkEnvOpts(opt envsOpt) envsOpts {
 	return envsOpts{opt}
 }
 
-func (eb envsOpts) Configure(mesh *installv1.Mesh, clusterName string) []corev1.EnvVar {
+func (eb envsOpts) Configure(mesh *v1.Mesh, clusterName string) []corev1.EnvVar {
 	envsMap := make(map[string]string)
 	for _, fn := range eb {
 		envsMap = fn(envsMap, mesh, clusterName)

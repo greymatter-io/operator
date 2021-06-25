@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: meshes.install.greymatter.io
+  name: meshes.greymatter.io
 spec:
-  group: install.greymatter.io
+  group: greymatter.io
   names:
     kind: Mesh
     listKind: MeshList

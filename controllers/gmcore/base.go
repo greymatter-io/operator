@@ -3,7 +3,7 @@ package gmcore
 import (
 	"fmt"
 
-	installv1 "github.com/bcmendoza/gm-operator/api/v1"
+	v1 "github.com/bcmendoza/gm-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -14,7 +14,7 @@ var base = configs{
 		Component: "fabric",
 		Directory: "release",
 		Envs: mkEnvOpts(
-			func(_ map[string]string, mesh *installv1.Mesh, _ string) map[string]string {
+			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
 				return map[string]string{
 					"GM_CONTROL_API_INSECURE":             "true",
 					"GM_CONTROL_API_SSL":                  "false",
@@ -39,7 +39,7 @@ var base = configs{
 		Component: "fabric",
 		Directory: "release",
 		Envs: mkEnvOpts(
-			func(_ map[string]string, _ *installv1.Mesh, _ string) map[string]string {
+			func(_ map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				return map[string]string{
 					"GM_CONTROL_API_ADDRESS":        "0.0.0.0:5555",
 					"GM_CONTROL_API_LOG_LEVEL":      "info",
@@ -63,7 +63,7 @@ var base = configs{
 		Component: "fabric",
 		Directory: "release",
 		Envs: mkEnvOpts(
-			func(_ map[string]string, mesh *installv1.Mesh, clusterName string) map[string]string {
+			func(_ map[string]string, mesh *v1.Mesh, clusterName string) map[string]string {
 				return map[string]string{
 					"ENVOY_ADMIN_LOG_PATH": "/dev/stdout",
 					"PROXY_DYNAMIC":        "true",
@@ -97,7 +97,7 @@ var base = configs{
 		Component: "sense",
 		Directory: "release",
 		Envs: mkEnvOpts(
-			func(_ map[string]string, mesh *installv1.Mesh, _ string) map[string]string {
+			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
 				return map[string]string{
 					"CONTROL_SERVER_0_ADDRESS":              fmt.Sprintf("control.%s.svc:50000", mesh.Namespace),
 					"CONTROL_SERVER_0_REQUEST_CLUSTER_NAME": "edge",
@@ -117,11 +117,13 @@ var base = configs{
 		Component: "fabric",
 		Directory: "release",
 		Envs: mkEnvOpts(
-			func(_ map[string]string, mesh *installv1.Mesh, _ string) map[string]string {
+			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
 				return map[string]string{
-					"JWT_API_KEY": "key",
-					"PRIVATE_KEY": "key",
+					// TODO: add these to secret
+					"JWT_API_KEY": "MTIzCg==",
+					"PRIVATE_KEY": "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1JSGNBZ0VCQkVJQkhRY01yVUh5ZEFFelNnOU1vQWxneFF1a3lqQTROL2laa21ETVIvdFRkVmg3U3hNYk8xVE4KeXdzRkJDdTYvZEZXTE5rUDJGd1FFQmtqREpRZU9mc3hKZWlnQndZRks0RUVBQ09oZ1lrRGdZWUFCQUJEWklJeAp6a082cWpkWmF6ZG1xWFg1dnRFcWtodzlkcVREeTN6d0JkcXBRUmljWDRlS2lZUUQyTTJkVFJtWk0yZE9FRHh1Clhja0hzcVMxZDNtWHBpcDh2UUZHTWJCM1hRVm9DZWN0SUlLMkczRUlwWmhGZFNGdG1sa2t5U1N4angzcS9UcloKaVlRTjhJakpPbUNueUdXZ1VWUkdERURiNWlZdkZXc3dpSkljSWYyOGVRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=",
 					"HTTP_PORT":   "3000",
+					"ENABLE_TLS":  "false",
 				}
 			},
 		),

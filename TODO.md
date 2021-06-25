@@ -6,3 +6,4 @@
 - [ ] Catalog entries via env vars in GM version 1.3
 - [ ] Add 1.6-beta configurations
 - [ ] Catalog entries via seed file in GM version 1.6-beta
+- [ ] Allow gm-operator to re-create docker.secret in each namespace

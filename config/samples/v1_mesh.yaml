@@ -1,4 +1,4 @@
-apiVersion: install.greymatter.io/v1
+apiVersion: greymatter.io/v1
 kind: Mesh
 metadata:
   name: sample-mesh

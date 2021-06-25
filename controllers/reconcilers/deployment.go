@@ -3,7 +3,7 @@ package reconcilers
 import (
 	"fmt"
 
-	installv1 "github.com/bcmendoza/gm-operator/api/v1"
+	v1 "github.com/bcmendoza/gm-operator/api/v1"
 	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,7 +29,7 @@ func (d Deployment) Object() client.Object {
 	return &appsv1.Deployment{}
 }
 
-func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
+func (d Deployment) Build(mesh *v1.Mesh) client.Object {
 	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := d.GmService
 	svcCfg := configs[svc]
@@ -136,7 +136,7 @@ func (d Deployment) Build(mesh *installv1.Mesh) client.Object {
 	return deployment
 }
 
-func (d Deployment) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, error) {
+func (d Deployment) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
 	configs := gmcore.Base().Overlay(mesh.Spec.Version)
 	svc := d.GmService
 	svcCfg := configs[svc]
@@ -154,6 +154,6 @@ func (d Deployment) Reconciled(mesh *installv1.Mesh, obj client.Object) (bool, e
 	return true, nil
 }
 
-func (d Deployment) Mutate(mesh *installv1.Mesh, obj client.Object) client.Object {
+func (d Deployment) Mutate(mesh *v1.Mesh, obj client.Object) client.Object {
 	return obj
 }
