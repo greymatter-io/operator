@@ -145,20 +145,15 @@ var base = configs{
 		Envs: mkEnvOpts(
 			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
 				return map[string]string{
-					"BASE_URL":                     "/services/dashboard/istio/",
+					"BASE_URL":                     "/services/dashboard/latest/",
 					"CONFIG_SERVER":                "/services/control-api/latest/v1.0",
 					"DISABLE_PROMETHEUS_ROUTES_UI": "false",
 					"ENABLE_INLINE_DOCS":           "true",
 					"FABRIC_SERVER":                "/services/catalog/latest/",
 					"OBJECTIVES_SERVER":            "/services/slo/latest/",
-					"PROMETHEUS_SERVER":            "/services/prometheus/latest/api/v1/",
 					"REQUEST_TIMEOUT":              "50000",
-					"SERVER_SSL_CA":                "/certs/ca.crt",
-					"SERVER_SSL_CERT":              "/certs/server.crt",
 					"SERVER_SSL_ENABLED":           "false",
-					"SERVER_SSL_KEY":               "/certs/server.key",
-					"USE_PROMETHEUS":               "true",
-					"AD_SERVER":                    "/services/lad/latest/",
+					"USE_PROMETHEUS":               "false",
 				}
 			},
 		),
