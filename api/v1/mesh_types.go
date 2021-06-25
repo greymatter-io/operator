@@ -60,7 +60,7 @@ type MeshStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Whether the mesh was deployed or not.
-	Deployed bool `json:"deployed"`
+	// Deployed bool `json:"deployed"`
 
 	// TODO
 	// Conditions []Condition `json:"conditions"`

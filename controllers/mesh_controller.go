@@ -254,14 +254,6 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 
-	if !mesh.Status.Deployed {
-		mesh.Status.Deployed = true
-		if err := controller.Status().Update(ctx, mesh); err != nil {
-			log.Error(err, "Failed to set mesh status to deployed")
-			return ctrl.Result{}, err
-		}
-	}
-
 	return ctrl.Result{}, nil
 }
 
