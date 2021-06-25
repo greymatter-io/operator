@@ -96,28 +96,43 @@ func (c *Client) MkService(zoneKey, clusterName, port string) error {
 		return err
 	}
 
-	if err := c.mkRoute(
-		zoneKey,
-		sidecarKey+".a",
-		edgeKey,
-		fmt.Sprintf("/services/%s/latest", clusterName),
-		"exact",
-		fmt.Sprintf("/services/%s/latest/", clusterName),
-		sidecarKey,
-	); err != nil {
-		return err
-	}
+	switch clusterName {
+	case "dashboard":
+		if err := c.mkRoute(
+			zoneKey,
+			sidecarKey+".a",
+			edgeKey,
+			"/",
+			"prefix",
+			"",
+			sidecarKey,
+		); err != nil {
+			return err
+		}
+	default:
+		if err := c.mkRoute(
+			zoneKey,
+			sidecarKey+".a",
+			edgeKey,
+			fmt.Sprintf("/services/%s/latest", clusterName),
+			"exact",
+			fmt.Sprintf("/services/%s/latest/", clusterName),
+			sidecarKey,
+		); err != nil {
+			return err
+		}
 
-	if err := c.mkRoute(
-		zoneKey,
-		sidecarKey+".b",
-		edgeKey,
-		fmt.Sprintf("/services/%s/latest/", clusterName),
-		"prefix",
-		"/",
-		sidecarKey,
-	); err != nil {
-		return err
+		if err := c.mkRoute(
+			zoneKey,
+			sidecarKey+".b",
+			edgeKey,
+			fmt.Sprintf("/services/%s/latest/", clusterName),
+			"prefix",
+			"/",
+			sidecarKey,
+		); err != nil {
+			return err
+		}
 	}
 
 	if err := c.mkRoute(

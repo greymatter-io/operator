@@ -16,6 +16,7 @@ const (
 	Proxy       Service = "proxy"
 	Catalog     Service = "catalog"
 	JwtSecurity Service = "jwt-security"
+	Dashboard   Service = "dashboard"
 )
 
 type config struct {

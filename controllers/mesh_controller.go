@@ -220,6 +220,21 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 
+	// Dashboard
+	key = types.NamespacedName{Name: string(gmcore.Dashboard), Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.Dashboard, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := apply(ctx, controller, mesh, reconcilers.Service{GmService: gmcore.Dashboard, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := api.MkProxy(mesh.Name, string(gmcore.Dashboard)); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := api.MkService(mesh.Name, string(gmcore.Dashboard), "1337"); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// JWT Security
 	if len(mesh.Spec.Users) > 0 {
 		users, err := json.Marshal(mesh.Spec.Users)

@@ -78,4 +78,19 @@ var versionOneSixBeta = configs{
 			},
 		),
 	},
+	Dashboard: {
+		Directory: "development",
+		ImageTag:  "latest",
+		Envs: mkEnvOpts(
+			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
+				patches := map[string]string{
+					// todo: Add patches here
+				}
+				for k, v := range patches {
+					envs[k] = v
+				}
+				return envs
+			},
+		),
+	},
 }
