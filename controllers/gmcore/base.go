@@ -139,4 +139,29 @@ var base = configs{
 			{MountPath: "/gm-jwt-security/etc", Name: "jwt-users"},
 		},
 	},
+	Dashboard: {
+		Component: "sense",
+		Directory: "release",
+		Envs: mkEnvOpts(
+			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
+				return map[string]string{
+					"BASE_URL":                     "/services/dashboard/latest/",
+					"CONFIG_SERVER":                "/services/control-api/latest/v1.0",
+					"DISABLE_PROMETHEUS_ROUTES_UI": "false",
+					"ENABLE_INLINE_DOCS":           "true",
+					"FABRIC_SERVER":                "/services/catalog/latest/",
+					"OBJECTIVES_SERVER":            "/services/slo/latest/",
+					"REQUEST_TIMEOUT":              "50000",
+					"SERVER_SSL_ENABLED":           "false",
+					"USE_PROMETHEUS":               "false",
+				}
+			},
+		),
+		ContainerPorts: []corev1.ContainerPort{
+			{ContainerPort: 1337, Name: "http", Protocol: "TCP"},
+		},
+		ServicePorts: []corev1.ServicePort{
+			{Port: 1337, TargetPort: intstr.FromInt(1337), Protocol: "TCP"},
+		},
+	},
 }
