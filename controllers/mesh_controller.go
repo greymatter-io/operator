@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	"github.com/google/uuid"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -39,9 +38,6 @@ import (
 	"github.com/bcmendoza/gm-operator/controllers/reconcilers"
 )
 
-// alias used to identify operation context for each Reconcile call
-type reconcileId string
-
 // MeshController reconciles a Mesh object
 type MeshController struct {
 	client.Client
@@ -49,6 +45,13 @@ type MeshController struct {
 	Scheme      *runtime.Scheme
 	ObjectCache meshobjects.Cache
 }
+
+// identifies context for each Reconcile call
+type reconcileID string
+
+const recID reconcileID = "id"
+
+var id uint
 
 /*
 	Specify RBAC cluster role rules to generate when running `make manifests`.
@@ -73,7 +76,9 @@ type MeshController struct {
 // For more details, check Reconcile and its result:
 // https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx = context.WithValue(ctx, reconcileId("id"), uuid.New().String())
+	ctx = context.WithValue(ctx, recID, id)
+	id++
+
 	log := controller.Log.WithValues("mesh", req.NamespacedName)
 
 	// Fetch the Mesh object

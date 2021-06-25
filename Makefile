@@ -162,3 +162,11 @@ refresh: docker-build k3d-import ## Refresh the deployed docker image
 
 destroy: ## Destroy the K3d cluster
 	k3d cluster delete gm-operator
+
+##@ Misc
+
+PKG 	:= github.com/bcmendoza/gm-operator
+GOFILES		= $(shell find . -type f -name '*.go' -not -path "./vendor/*")
+
+format: ## Formats the project
+	@goimports -local $(PKG) -w -l $(GOFILES)

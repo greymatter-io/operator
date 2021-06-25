@@ -3,11 +3,12 @@ package controllers
 import (
 	"context"
 
-	v1 "github.com/bcmendoza/gm-operator/api/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	v1 "github.com/bcmendoza/gm-operator/api/v1"
 )
 
 type reconciler interface {
@@ -30,7 +31,7 @@ func apply(ctx context.Context, controller *MeshController, mesh *v1.Mesh, r rec
 	key := r.Key()
 
 	logger := controller.Log.
-		WithValues("ReconcileID", ctx.Value(reconcileId("id"))).
+		WithValues("ReconcileID", ctx.Value(recID)).
 		WithValues("Kind", r.Kind()).
 		WithValues("Name", key.Name)
 	if key.Namespace != "" {

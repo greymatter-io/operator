@@ -1,8 +1,9 @@
 package gmcore
 
 import (
-	v1 "github.com/bcmendoza/gm-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
+
+	v1 "github.com/bcmendoza/gm-operator/api/v1"
 )
 
 type configs map[Service]config

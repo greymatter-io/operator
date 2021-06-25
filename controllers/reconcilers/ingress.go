@@ -1,12 +1,13 @@
 package reconcilers
 
 import (
-	v1 "github.com/bcmendoza/gm-operator/api/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	v1 "github.com/bcmendoza/gm-operator/api/v1"
 )
 
 type Ingress struct {
