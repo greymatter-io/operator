@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type reconciler interface {
@@ -17,19 +17,19 @@ type reconciler interface {
 	// If the object is cluster-scoped, the 'Namespace' field is an empty string.
 	Key() types.NamespacedName
 	// Returns an object that implements the client.Object interface (e.g. *appsv1.Deployment, *corev1.Service).
-	Object() ctrlclient.Object
-	// Builds a new ctrlclient.Object with configuration passed from a *installv1.Mesh.
-	Build(*installv1.Mesh) ctrlclient.Object
-	// Compares the state of a ctrlclient.Object with its configuration specified by a Mesh object.
-	Reconciled(*installv1.Mesh, ctrlclient.Object) (bool, error)
-	// Mutates an existing ctrlclient.Object with configuration passed from a *installv1.Mesh
-	Mutate(*installv1.Mesh, ctrlclient.Object) ctrlclient.Object
+	Object() client.Object
+	// Builds a new client.Object with configuration passed from a *installv1.Mesh.
+	Build(*installv1.Mesh) client.Object
+	// Compares the state of a client.Object with its configuration specified by a Mesh object.
+	Reconciled(*installv1.Mesh, client.Object) (bool, error)
+	// Mutates an existing client.Object with configuration passed from a *installv1.Mesh
+	Mutate(*installv1.Mesh, client.Object) client.Object
 }
 
-func reconcile(ctx context.Context, client *MeshController, r reconciler, mesh *installv1.Mesh) error {
+func apply(ctx context.Context, controller *MeshController, mesh *installv1.Mesh, r reconciler) error {
 	key := r.Key()
 
-	logger := client.Log.
+	logger := controller.Log.
 		WithValues("ReconcileID", ctx.Value(reconcileId("id"))).
 		WithValues("Kind", r.Kind()).
 		WithValues("Name", key.Name)
@@ -38,10 +38,10 @@ func reconcile(ctx context.Context, client *MeshController, r reconciler, mesh *
 	}
 
 	obj := r.Object()
-	if err := client.Get(ctx, key, obj); err != nil && errors.IsNotFound(err) {
+	if err := controller.Get(ctx, key, obj); err != nil && errors.IsNotFound(err) {
 		obj = r.Build(mesh)
-		ctrl.SetControllerReference(mesh, obj, client.Scheme)
-		if err = client.Create(ctx, obj); err != nil {
+		ctrl.SetControllerReference(mesh, obj, controller.Scheme)
+		if err = controller.Create(ctx, obj); err != nil {
 			logger.Error(err, "Create Failed")
 			return err
 		}
@@ -62,7 +62,7 @@ func reconcile(ctx context.Context, client *MeshController, r reconciler, mesh *
 	}
 
 	obj = r.Mutate(mesh, obj)
-	if err := client.Update(ctx, obj); err != nil {
+	if err := controller.Update(ctx, obj); err != nil {
 		logger.Error(err, "Update Failed")
 		return err
 	}

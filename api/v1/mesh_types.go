@@ -37,6 +37,21 @@ type MeshSpec struct {
 	// If not specified, defaults to "docker.secret".
 	// +optional
 	ImagePullSecret string `json:"image_pull_secret,omitempty"`
+
+	// A list of JWT users to add to the JWT Security service. For example:
+	// - label: CN=greymatter,OU=Engineering,O=Decipher Technology Studios,L=Alexandria,ST=Virginia,C=US
+	//	 values:
+	//     email: ["engineering@greymatter.io"]
+	//     org: ["www.greymatter.io"]
+	//     privilege: ["root"]
+	// +optional
+	Users []*User `json:"users,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type User struct {
+	Label  string              `json:"label"`
+	Values map[string][]string `json:"values"`
 }
 
 // Defines the observed state of a Mesh.

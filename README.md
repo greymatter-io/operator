@@ -8,12 +8,11 @@ This assumes you have at least Go 1.15, K3d, and kubectl installed.
 
 1. Download Go dependencies: `go mod vendor`
 2. Build the Docker image: `make docker-build`
-3. Push the Docker image to Nexus: `make docker-push`
-4. Make a K3d cluster: `make k3d`
-5. Set your `KUBECONFIG` to it: `export KUBECONFIG=$(k3d kubeconfig write gm-operator)`
-6. Store your Grey Matter LDAP credentials in the environment variables `NEXUS_USER` and `NEXUS_PASSWORD` and then run the create script to create a secret for pulling Docker images: `./create-docker-secret.sh`
+3. Make a K3d cluster: `make k3d`
+4. Import the Docker image into K3d: `make k3d-import`
+5. Store your Grey Matter LDAP credentials in the environment variables `NEXUS_USER` and `NEXUS_PASSWORD` and then run the create script to create a secret for pulling Docker images: `./create-docker-secret.sh`
 
-*NOTE: The Docker secret is created in the `default` namespace for now, although later on we'd want to create it in the `gm-operator-system` namespace so that the Operator can re-create the secret in each namespace where a Mesh CR is deployed.*
+*NOTE: The Docker secret is created in the `default` namespace for now, although later on we'd want to create it in the `gm-operator` namespace so that the Operator can re-create the secret in each namespace where a Mesh CR is deployed.*
 
 Then to deploy:
 
@@ -33,7 +32,7 @@ To clean up:
 
 ### Scaffolding
 
-Grey Matter Operator makes use of a tool called [controller-gen] for scaffolding the Mesh CRD (Custom Resource Definition) in code as well as the code that registers it. It is used in this project via two commands:
+Grey Matter Operator makes use of a tool called [controller-gen](https://github.com/kubernetes-sigs/controller-tools) for scaffolding the Mesh CRD (Custom Resource Definition) in code as well as the code that registers it. It is used in this project via two commands:
 - `make generate`: Generates code used to implement a Kubernetes object. This enables Mesh CR objects to be managed entities in the Kubernetes API.
 - `make manifests`: Generates configuration used to deploy Grey Matter Operator and the Mesh CRD into a Kubernetes cluster.
   
@@ -49,6 +48,7 @@ Grey Matter Operator makes use of a tool called [controller-gen] for scaffolding
 
 ## Resources
 
+- [Kubebuilder](https://book.kubebuilder.io/introduction.html)
 - [Operator Framework: Go Operator Tutorial](https://sdk.operatorframework.io/docs/building-operators/golang/tutorial/)
 - [Operator SDK Installation](https://sdk.operatorframework.io/docs/building-operators/golang/installation/)
 - [Operator Manager Overview](https://book.kubebuilder.io/cronjob-tutorial/empty-main.html)

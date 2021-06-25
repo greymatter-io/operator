@@ -21,17 +21,7 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
-  - secrets
-  - serviceaccounts
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
+  - configmaps
   - services
   verbs:
   - create
@@ -40,6 +30,17 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - secrets
+  - serviceaccounts
+  verbs:
+  - create
+  - get
+  - list
   - watch
 - apiGroups:
   - extensions

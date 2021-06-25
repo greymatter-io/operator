@@ -30,7 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	installv1 "github.com/bcmendoza/gm-operator/api/v1"
 	"github.com/bcmendoza/gm-operator/controllers/gmcore"
@@ -43,7 +43,7 @@ type reconcileId string
 
 // MeshController reconciles a Mesh object
 type MeshController struct {
-	ctrlclient.Client
+	client.Client
 	Log         logr.Logger
 	Scheme      *runtime.Scheme
 	ObjectCache meshobjects.Cache
@@ -58,7 +58,7 @@ type MeshController struct {
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=install.greymatter.io,resources=meshes/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=services;configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=serviceaccounts;secrets;pods,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
@@ -71,13 +71,13 @@ type MeshController struct {
 //
 // For more details, check Reconcile and its result:
 // https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
-func (client *MeshController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = context.WithValue(ctx, reconcileId("id"), uuid.New().String())
-	log := client.Log.WithValues("mesh", req.NamespacedName)
+	log := controller.Log.WithValues("mesh", req.NamespacedName)
 
 	// Fetch the Mesh object
 	mesh := &installv1.Mesh{}
-	if err := client.Get(ctx, req.NamespacedName, mesh); err != nil {
+	if err := controller.Get(ctx, req.NamespacedName, mesh); err != nil {
 		if errors.IsNotFound(err) {
 			// Mesh object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
@@ -98,81 +98,86 @@ func (client *MeshController) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	// Control API
 	key := types.NamespacedName{Name: string(gmcore.ControlApi), Namespace: mesh.Namespace}
-	err := reconcile(ctx, client, reconcilers.Deployment{GmService: gmcore.ControlApi, ObjectKey: key}, mesh)
-	if err != nil {
+	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.ControlApi, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
-	err = reconcile(ctx, client, reconcilers.Service{GmService: gmcore.ControlApi, ObjectKey: key}, mesh)
-	if err != nil {
+	if err := apply(ctx, controller, mesh, reconcilers.Service{GmService: gmcore.ControlApi, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// Control
-	name := "control-pods"
-	err = reconcile(ctx, client, reconcilers.ClusterRole{Name: name}, mesh)
-	if err != nil {
+	roleName := "control-pods"
+	if err := apply(ctx, controller, mesh, reconcilers.ClusterRole{
+		Name: roleName,
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods"},
+				Verbs:     []string{"list"},
+			},
+		},
+	}); err != nil {
 		return ctrl.Result{}, err
 	}
-	sarKey := types.NamespacedName{Name: name, Namespace: mesh.Namespace}
-	err = reconcile(ctx, client, reconcilers.ServiceAccount{ObjectKey: sarKey}, mesh)
-	if err != nil {
+	saKey := types.NamespacedName{Name: roleName, Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, reconcilers.ServiceAccount{ObjectKey: saKey}); err != nil {
 		return ctrl.Result{}, err
 	}
-	err = reconcile(ctx, client, reconcilers.ClusterRoleBinding{Name: name}, mesh)
-	if err != nil {
+	if err := apply(ctx, controller, mesh, reconcilers.ClusterRoleBinding{Name: roleName}); err != nil {
 		return ctrl.Result{}, err
 	}
 	key = types.NamespacedName{Name: string(gmcore.Control), Namespace: mesh.Namespace}
-	err = reconcile(ctx, client, reconcilers.Deployment{GmService: gmcore.Control, ObjectKey: key}, mesh)
-	if err != nil {
+	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.Control, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
-	err = reconcile(ctx, client, reconcilers.Service{GmService: gmcore.Control, ObjectKey: key}, mesh)
-	if err != nil {
+	if err := apply(ctx, controller, mesh, reconcilers.Service{GmService: gmcore.Control, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// Catalog
 	key = types.NamespacedName{Name: string(gmcore.Catalog), Namespace: mesh.Namespace}
-	err = reconcile(ctx, client, reconcilers.Deployment{GmService: gmcore.Catalog, ObjectKey: key}, mesh)
-	if err != nil {
+	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
-	err = reconcile(ctx, client, reconcilers.Service{GmService: gmcore.Catalog, ObjectKey: key}, mesh)
-	if err != nil {
+	if err := apply(ctx, controller, mesh, reconcilers.Service{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// JWT Security
-	key = types.NamespacedName{Name: string(gmcore.JwtSecurity), Namespace: mesh.Namespace}
-	err = reconcile(ctx, client, reconcilers.Deployment{GmService: gmcore.JwtSecurity, ObjectKey: key}, mesh)
-	if err != nil {
+	smKey := types.NamespacedName{Name: "jwt-users", Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, reconcilers.ConfigMap{
+		ObjectKey: smKey,
+		// Data: map[string]string{
+		// 	"users.json": fmt.Sprintf(`|
+		// 		%s`, string(mesh.Spec.Users)),
+		// },
+	}); err != nil {
 		return ctrl.Result{}, err
 	}
-	err = reconcile(ctx, client, reconcilers.Service{GmService: gmcore.JwtSecurity, ObjectKey: key}, mesh)
-	if err != nil {
+	key = types.NamespacedName{Name: string(gmcore.JwtSecurity), Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.JwtSecurity, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := apply(ctx, controller, mesh, reconcilers.Service{GmService: gmcore.JwtSecurity, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// Edge
 	key = types.NamespacedName{Name: "edge", Namespace: mesh.Namespace}
-	err = reconcile(ctx, client, reconcilers.Deployment{GmService: gmcore.Proxy, ObjectKey: key}, mesh)
-	if err != nil {
+	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.Proxy, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
-	err = reconcile(ctx, client, reconcilers.Service{
+	if err := apply(ctx, controller, mesh, reconcilers.Service{
 		GmService:   gmcore.Proxy,
 		ObjectKey:   key,
 		ServiceKind: corev1.ServiceTypeLoadBalancer,
-	}, mesh)
-	if err != nil {
+	}); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// Ingress
 	key = types.NamespacedName{Name: "ingress", Namespace: mesh.Namespace}
-	err = reconcile(ctx, client, reconcilers.Ingress{ObjectKey: key}, mesh)
-	if err != nil {
+	if err := apply(ctx, controller, mesh, reconcilers.Ingress{ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -184,11 +189,11 @@ func (client *MeshController) Reconcile(ctx context.Context, req ctrl.Request) (
 			"zone-default-zone",
 			[]string{"control-api:5555", "catalog:9080"},
 		); err != nil {
-			client.Log.Error(err, "failed to configure mesh")
+			controller.Log.Error(err, "failed to configure mesh")
 			return ctrl.Result{}, err
 		}
 		mesh.Status.Deployed = true
-		if err := client.Status().Update(ctx, mesh); err != nil {
+		if err := controller.Status().Update(ctx, mesh); err != nil {
 			log.Error(err, "Failed to set mesh status to deployed")
 			return ctrl.Result{}, err
 		}
@@ -198,15 +203,16 @@ func (client *MeshController) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (client *MeshController) SetupWithManager(mgr ctrl.Manager) error {
+func (controller *MeshController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&installv1.Mesh{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.Secret{}).
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Owns(&extensionsv1beta1.Ingress{}).
-		Complete(client)
+		Complete(controller)
 }

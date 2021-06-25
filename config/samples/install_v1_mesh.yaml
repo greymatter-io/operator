@@ -4,3 +4,9 @@ metadata:
   name: sample-mesh
 spec:
   version: "1.3"
+  users:
+    - label: "CN=greymatter,OU=Engineering,O=Decipher Technology Studios,L=Alexandria,ST=Virginia,C=US"
+      values:
+        email: ["engineering@greymatter.io"]
+        org: ["www.greymatter.io"]
+        privilege: ["root"]

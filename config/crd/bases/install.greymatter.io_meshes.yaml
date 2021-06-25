@@ -40,6 +40,26 @@ spec:
                 description: The name of the secret used for pulling Grey Matter service
                   Docker images. If not specified, defaults to "docker.secret".
                 type: string
+              users:
+                description: "A list of JWT users to add to the JWT Security service.
+                  For example: - label: CN=greymatter,OU=Engineering,O=Decipher Technology
+                  Studios,L=Alexandria,ST=Virginia,C=US \t values:     email: [\"engineering@greymatter.io\"]
+                  \    org: [\"www.greymatter.io\"]     privilege: [\"root\"]"
+                items:
+                  properties:
+                    label:
+                      type: string
+                    values:
+                      additionalProperties:
+                        items:
+                          type: string
+                        type: array
+                      type: object
+                  required:
+                  - label
+                  - values
+                  type: object
+                type: array
               version:
                 description: Which version of Grey Matter to install. If not specified,
                   the latest version will be installed.

@@ -148,14 +148,16 @@ k3d: ## Make a K3d cluster
 	k3d cluster create gm-operator -a 1 -p 30000:10808@loadbalancer
 	export KUBECONFIG=$(k3d kubeconfig write gm-operator)
 
+k3d-import: # Import the Docker image into K3d
+	k3d image import --cluster gm-operator $(IMG)
+
 sample: ## Make a sample mesh
 	kubectl apply -f config/samples/install_v1_mesh.yaml
 
 remove-sample: ## Remove the sample mesh
 	kubectl delete -f config/samples/install_v1_mesh.yaml
 
-refresh: docker-build ## Refresh the deployed docker image
-	k3d image import --cluster gm-operator $(IMG)
+refresh: docker-build k3d-import ## Refresh the deployed docker image
 	kubectl delete pod -n gm-operator -l control-plane=operator
 
 destroy: ## Destroy the K3d cluster
