@@ -30,7 +30,7 @@ func (d Deployment) Object() client.Object {
 	return &appsv1.Deployment{}
 }
 
-func (d Deployment) Build(mesh *v1.Mesh, configs gmcore.Configs) client.Object {
+func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.Object) client.Object {
 	svc := d.GmService
 	svcCfg := configs[svc]
 	proxyCfg := configs[gmcore.Proxy]
@@ -44,8 +44,8 @@ func (d Deployment) Build(mesh *v1.Mesh, configs gmcore.Configs) client.Object {
 		"greymatter.io/component":       svcCfg.Component,
 		"greymatter.io/service-version": svcCfg.ImageTag,
 	}
-	if svc != gmcore.Control && d.ObjectKey.Name != "edge" {
-		podLabels["greymatter.io/sidecar-version"] = proxyCfg.ImageTag
+	if svc != gmcore.Control {
+		podLabels["greymatter.io/proxy-version"] = proxyCfg.ImageTag
 	}
 
 	objectLabels := map[string]string{
@@ -82,7 +82,7 @@ func (d Deployment) Build(mesh *v1.Mesh, configs gmcore.Configs) client.Object {
 	if svc != gmcore.Control {
 		proxyContainer := corev1.Container{
 			Name:            "sidecar",
-			Image:           fmt.Sprintf("docker.greymatter.io/release/gm-proxy:%s", proxyCfg.ImageTag),
+			Image:           fmt.Sprintf("docker.greymatter.io/%s/gm-proxy:%s", proxyCfg.Directory, proxyCfg.ImageTag),
 			Env:             proxyCfg.Envs.Configure(mesh, d.ObjectKey.Name),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Ports:           proxyCfg.ContainerPorts,
@@ -94,22 +94,21 @@ func (d Deployment) Build(mesh *v1.Mesh, configs gmcore.Configs) client.Object {
 		containers = append(containers, proxyContainer)
 	}
 
+	deployment := obj.(*appsv1.Deployment)
+
+	deployment.ObjectMeta.Name = d.ObjectKey.Name
+	deployment.ObjectMeta.Namespace = mesh.Namespace
+	deployment.ObjectMeta.Labels = objectLabels
+
 	replicas := int32(1)
-	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      d.ObjectKey.Name,
-			Namespace: mesh.Namespace,
-			Labels:    objectLabels,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{MatchLabels: matchLabels},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: podLabels},
-				Spec: corev1.PodSpec{
-					ImagePullSecrets: []corev1.LocalObjectReference{{Name: mesh.Spec.ImagePullSecret}},
-					Containers:       containers,
-				},
+	deployment.Spec = appsv1.DeploymentSpec{
+		Replicas: &replicas,
+		Selector: &metav1.LabelSelector{MatchLabels: matchLabels},
+		Template: corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{Labels: podLabels},
+			Spec: corev1.PodSpec{
+				ImagePullSecrets: []corev1.LocalObjectReference{{Name: mesh.Spec.ImagePullSecret}},
+				Containers:       containers,
 			},
 		},
 	}
@@ -134,25 +133,4 @@ func (d Deployment) Build(mesh *v1.Mesh, configs gmcore.Configs) client.Object {
 	}
 
 	return deployment
-}
-
-func (d Deployment) Reconciled(mesh *v1.Mesh, configs gmcore.Configs, obj client.Object) (bool, error) {
-	svc := d.GmService
-	svcCfg := configs[svc]
-
-	labels := obj.GetLabels()
-	if lbl := labels["greymatter.io/service-version"]; lbl != svcCfg.ImageTag {
-		return false, nil
-	}
-	if lbl := labels["greymatter.io/sidecar-version"]; svc != gmcore.Control &&
-		d.ObjectKey.Name != "edge" &&
-		lbl != configs[gmcore.Proxy].ImageTag {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-func (d Deployment) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
-	return obj
 }

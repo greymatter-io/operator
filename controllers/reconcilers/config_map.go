@@ -24,23 +24,15 @@ func (cm ConfigMap) Key() types.NamespacedName {
 }
 
 func (cm ConfigMap) Object() client.Object {
-	return &corev1.ConfigMap{}
-}
-
-func (cm ConfigMap) Build(mesh *v1.Mesh, _ gmcore.Configs) client.Object {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cm.ObjectKey.Name,
-			Namespace: mesh.Namespace,
+			Namespace: cm.ObjectKey.Namespace,
 		},
 		Data: cm.Data,
 	}
 }
 
-func (cm ConfigMap) Reconciled(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (bool, error) {
-	return true, nil
-}
-
-func (cm ConfigMap) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
+func (cm ConfigMap) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
 	return obj
 }

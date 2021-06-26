@@ -153,7 +153,8 @@ k3d-import: # Import the Docker image into K3d
 	k3d image import --cluster gm-operator $(IMG)
 
 logs: ## Check logs for the deployed operator
-	kubectl logs -n gm-operator -l control-plane=operator -c manager -f
+	$(eval POD := $(shell kubectl get pod -n gm-operator -l control-plane=operator -o jsonpath="{.items[0].metadata.name}"))
+	kubectl logs -n gm-operator $(POD) manager -f
 
 sample: ## Make a sample mesh
 	kubectl apply -f config/samples/v1_mesh.yaml

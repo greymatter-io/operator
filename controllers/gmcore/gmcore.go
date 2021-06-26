@@ -51,6 +51,9 @@ func (cs Configs) Patch(gmVersion string) Configs {
 			if patch.Component != "" {
 				cfg.Component = patch.Component
 			}
+			if patch.Directory != "" {
+				cfg.Directory = patch.Directory
+			}
 			if patch.ImageTag != "" {
 				cfg.ImageTag = patch.ImageTag
 			}

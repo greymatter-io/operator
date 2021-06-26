@@ -24,10 +24,6 @@ func (i Ingress) Key() types.NamespacedName {
 }
 
 func (i Ingress) Object() client.Object {
-	return &extensionsv1beta1.Ingress{}
-}
-
-func (i Ingress) Build(mesh *v1.Mesh, _ gmcore.Configs) client.Object {
 	return &extensionsv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      i.ObjectKey.Name,
@@ -61,10 +57,6 @@ func (i Ingress) Build(mesh *v1.Mesh, _ gmcore.Configs) client.Object {
 	}
 }
 
-func (i Ingress) Reconciled(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (bool, error) {
-	return true, nil
-}
-
-func (i Ingress) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
+func (i Ingress) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
 	return obj
 }

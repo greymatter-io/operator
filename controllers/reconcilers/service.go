@@ -2,7 +2,6 @@ package reconcilers
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -28,7 +27,7 @@ func (s Service) Object() client.Object {
 	return &corev1.Service{}
 }
 
-func (s Service) Build(mesh *v1.Mesh, configs gmcore.Configs) client.Object {
+func (s Service) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.Object) client.Object {
 	svc := s.GmService
 	svcCfg := configs[svc]
 
@@ -37,17 +36,12 @@ func (s Service) Build(mesh *v1.Mesh, configs gmcore.Configs) client.Object {
 	}
 
 	labels := map[string]string{
-		"greymatter.io/control":         s.ObjectKey.Name,
-		"greymatter.io/component":       svcCfg.Component,
-		"greymatter.io/service-version": svcCfg.ImageTag,
-	}
-	if svc != gmcore.Control && s.ObjectKey.Name != "edge" {
-		labels["greymatter.io/sidecar-version"] = configs[gmcore.Proxy].ImageTag
+		"greymatter.io/control":   s.ObjectKey.Name,
+		"greymatter.io/component": svcCfg.Component,
 	}
 
 	objectLabels := map[string]string{
 		"app.kubernetes.io/name":       s.ObjectKey.Name,
-		"app.kubernetes.io/version":    svcCfg.ImageTag,
 		"app.kubernetes.io/part-of":    "greymatter",
 		"app.kubernetes.io/managed-by": "gm-operator",
 		"app.kubernetes.io/created-by": "gm-operator",
@@ -56,42 +50,18 @@ func (s Service) Build(mesh *v1.Mesh, configs gmcore.Configs) client.Object {
 		objectLabels[k] = v
 	}
 
-	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.ObjectKey.Name,
-			Namespace: mesh.Namespace,
-			Labels:    objectLabels,
-		},
-		Spec: corev1.ServiceSpec{
-			Selector: matchLabels,
-			Ports:    svcCfg.ServicePorts,
-		},
-	}
+	service := obj.(*corev1.Service)
+
+	service.ObjectMeta.Name = s.ObjectKey.Name
+	service.ObjectMeta.Namespace = mesh.Namespace
+	service.ObjectMeta.Labels = mesh.Labels
+
+	service.Spec.Selector = matchLabels
+	service.Spec.Ports = svcCfg.ServicePorts
 
 	if s.ServiceKind != "" {
 		service.Spec.Type = s.ServiceKind
 	}
 
 	return service
-}
-
-func (s Service) Reconciled(mesh *v1.Mesh, configs gmcore.Configs, obj client.Object) (bool, error) {
-	svc := s.GmService
-	svcCfg := configs[svc]
-
-	labels := obj.GetLabels()
-	if lbl := labels["greymatter.io/service-version"]; lbl != svcCfg.ImageTag {
-		return false, nil
-	}
-	if lbl := labels["greymatter.io/sidecar-version"]; svc != gmcore.Control &&
-		s.ObjectKey.Name != "edge" &&
-		lbl != configs[gmcore.Proxy].ImageTag {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-func (s Service) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
-	return obj
 }

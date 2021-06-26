@@ -61,8 +61,8 @@ var reconcileID uint
 //+kubebuilder:rbac:groups=greymatter.io,resources=meshes/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services;configmaps,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=serviceaccounts;secrets;pods,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=core,resources=serviceaccounts;secrets;pods,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -74,7 +74,12 @@ var reconcileID uint
 // For more details, check Reconcile and its result:
 // https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := controller.Log.WithValues("ReconcileID", reconcileID)
+	controller.Log.Info(
+		"Reconciling Mesh",
+		"Namespace", req.NamespacedName.Namespace,
+		"Name", req.NamespacedName.Name,
+		"ReconcileID", reconcileID,
+	)
 	reconcileID++
 
 	// Fetch the Mesh object
@@ -84,10 +89,10 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 			// Mesh object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			log.Info("Mesh resource not found. Ignoring since object must be deleted")
+			controller.Log.Info("Mesh resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
-		log.Error(err, "Failed to get Mesh")
+		controller.Log.Error(err, "Failed to get Mesh")
 		return ctrl.Result{}, err
 	}
 
@@ -108,7 +113,7 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 	if err := controller.Get(ctx, key, operatorSecret); err != nil && errors.IsNotFound(err) {
 		// If the secret does not exist, return and don't requeue.
 		// No resources will be created without a valid ImagePullSecret.
-		log.Error(err, "Failed to get secret %s in gm-operator namespace", mesh.Spec.ImagePullSecret)
+		controller.Log.Error(err, "Failed to get secret '%s' in gm-operator namespace", mesh.Spec.ImagePullSecret)
 		return ctrl.Result{}, err
 	}
 	if err := apply(ctx, controller, mesh, configs, reconcilers.Secret{
@@ -140,38 +145,38 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	// Check for meshobjects that do not yet exist in Control API
-	// If all meshobjects exist, exit early
-	apiObjects := controller.Cache.Missing(mesh.Name)
-	if len(apiObjects) == 0 {
-		log.Info("All mesh objects are already configured. Skipping...")
-		return ctrl.Result{}, nil
-	}
-
-	// Ping Control API and wait until responsive.
-	log.Info("Waiting for Control API server...")
 	addr := fmt.Sprintf("http://control-api.%s.svc:5555", mesh.Namespace)
-	api := meshobjects.NewClient(addr, log)
+	api := meshobjects.NewClient(addr, controller.Log)
 
-PING_LOOP:
-	for {
-		if err := api.Ping(); err != nil {
-			time.Sleep(time.Second * 3)
-		} else {
-			break PING_LOOP
+	// Check for meshobjects that do not yet exist in Control API
+	// If expected meshobjects are missing, ensure connection to Control API
+	apiObjects := controller.Cache.Missing(mesh.Name)
+	if len(apiObjects) > 0 {
+		// Ping Control API and wait until responsive.
+		controller.Log.Info(
+			"Pinging Control API server",
+			"Address", addr,
+		)
+	PING_LOOP:
+		for {
+			if err := api.Ping(); err != nil {
+				time.Sleep(time.Second * 3)
+			} else {
+				break PING_LOOP
+			}
 		}
 	}
 
-	// Don't log errors here and for other meshobject failures, just requeue to re-attempt
-	if err := api.MkZone(mesh.Name); err != nil {
-		return ctrl.Result{Requeue: true}, nil
-	}
+	// Add the Zone to the cache since we know it's already been bootstrapped in Control API
 	controller.Cache.AddZone(mesh.Name)
 
+	// Don't log errors here and for other meshobject failures, just requeue to re-attempt
 	if err := api.MkProxy(mesh.Name, string(gmcore.ControlApi)); err != nil {
+		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkService(mesh.Name, string(gmcore.ControlApi), "5555"); err != nil {
+		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	controller.Cache.AddService(mesh.Name, string(gmcore.ControlApi))
@@ -218,6 +223,7 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, "edge"); err != nil {
+		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	controller.Cache.AddSidecar(mesh.Name, "edge")
@@ -231,9 +237,11 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.Catalog)); err != nil {
+		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkService(mesh.Name, string(gmcore.Catalog), "9080"); err != nil {
+		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	controller.Cache.AddService(mesh.Name, string(gmcore.Catalog))
@@ -247,9 +255,11 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.Dashboard)); err != nil {
+		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkService(mesh.Name, string(gmcore.Dashboard), "1337"); err != nil {
+		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	controller.Cache.AddService(mesh.Name, string(gmcore.Dashboard))
@@ -276,9 +286,11 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.JwtSecurity)); err != nil {
+		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkService(mesh.Name, string(gmcore.JwtSecurity), "3000"); err != nil {
+		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	controller.Cache.AddService(mesh.Name, string(gmcore.JwtSecurity))

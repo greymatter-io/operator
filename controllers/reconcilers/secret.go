@@ -23,17 +23,9 @@ func (s Secret) Key() types.NamespacedName {
 }
 
 func (s Secret) Object() client.Object {
-	return &corev1.Secret{}
-}
-
-func (s Secret) Build(mesh *v1.Mesh, _ gmcore.Configs) client.Object {
 	return s.ObjectLiteral
 }
 
-func (s Secret) Reconciled(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (bool, error) {
-	return true, nil
-}
-
-func (s Secret) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
+func (s Secret) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
 	return obj
 }

@@ -23,18 +23,9 @@ func (crb ClusterRoleBinding) Key() types.NamespacedName {
 }
 
 func (crb ClusterRoleBinding) Object() client.Object {
-	return &rbacv1.ClusterRoleBinding{}
-}
-
-func (crb ClusterRoleBinding) Build(mesh *v1.Mesh, _ gmcore.Configs) client.Object {
 	return &rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{Name: crb.Name},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      crb.Name,
-				Namespace: mesh.Namespace,
-			},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: crb.Name,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -44,26 +35,23 @@ func (crb ClusterRoleBinding) Build(mesh *v1.Mesh, _ gmcore.Configs) client.Obje
 	}
 }
 
-func (crb ClusterRoleBinding) Reconciled(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (bool, error) {
+func (crb ClusterRoleBinding) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
 	binding := obj.(*rbacv1.ClusterRoleBinding)
 
+	var hasSubject bool
 	for _, subject := range binding.Subjects {
 		if subject.Name == crb.Name && subject.Namespace == mesh.Namespace {
-			return true, nil
+			hasSubject = true
 		}
 	}
 
-	return false, nil
-}
-
-func (crb ClusterRoleBinding) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
-	binding := obj.(*rbacv1.ClusterRoleBinding)
-
-	binding.Subjects = append(binding.Subjects, rbacv1.Subject{
-		Kind:      "ServiceAccount",
-		Name:      crb.Name,
-		Namespace: mesh.Namespace,
-	})
+	if !hasSubject {
+		binding.Subjects = append(binding.Subjects, rbacv1.Subject{
+			Kind:      "ServiceAccount",
+			Name:      crb.Name,
+			Namespace: mesh.Namespace,
+		})
+	}
 
 	return binding
 }

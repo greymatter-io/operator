@@ -20,54 +20,44 @@ type reconciler interface {
 	Key() types.NamespacedName
 	// Returns an object that implements the client.Object interface (e.g. *appsv1.Deployment).
 	Object() client.Object
-	// Builds a new client.Object with configuration from a *v1.Mesh and gmcore.Configs.
-	Build(*v1.Mesh, gmcore.Configs) client.Object
-	// Compares the state of a client.Object with its desired configuration from a *v1.Mesh and gmcore.Configs.
-	Reconciled(*v1.Mesh, gmcore.Configs, client.Object) (bool, error)
-	// Mutates an existing client.Object with configuration from a *v1.Mesh and gmcore.Configs.
-	Mutate(*v1.Mesh, gmcore.Configs, client.Object) client.Object
+	// Generates a client.Object with configuration from a *v1.Mesh and gmcore.Configs.
+	// The client.Object parameter allows for modifying mutable values of an existing object.
+	Reconcile(*v1.Mesh, gmcore.Configs, client.Object) client.Object
 }
 
 func apply(ctx context.Context, controller *MeshController, mesh *v1.Mesh, configs gmcore.Configs, r reconciler) error {
 	key := r.Key()
 
-	logger := controller.Log.
-		WithValues("Kind", r.Kind()).
-		WithValues("Name", key.Name)
+	logger := controller.Log.WithValues("Name", key.Name)
 	if key.Namespace != "" {
 		logger = logger.WithValues("Namespace", key.Namespace)
 	}
 
 	obj := r.Object()
-	if err := controller.Get(ctx, key, obj); err != nil && errors.IsNotFound(err) {
-		obj = r.Build(mesh, configs)
-		ctrl.SetControllerReference(mesh, obj, controller.Scheme)
-		if err = controller.Create(ctx, obj); err != nil {
-			logger.Error(err, "Create failed")
+	if err := controller.Get(ctx, key, obj); err != nil {
+		if errors.IsNotFound(err) {
+			obj = r.Reconcile(mesh, configs, obj)
+			ctrl.SetControllerReference(mesh, obj, controller.Scheme)
+			if err = controller.Create(ctx, obj); err != nil {
+				logger.Error(err, "Create "+r.Kind()+" failed")
+				return err
+			}
+			logger.Info("Created " + r.Kind())
+			return nil
+		} else {
+			logger.Error(err, "Get "+r.Kind()+" failed")
 			return err
 		}
-		logger.Info("Created")
-		return nil
-	} else if err != nil {
-		logger.Error(err, "Get failed")
-		return err
 	}
 
-	ok, err := r.Reconciled(mesh, configs, obj)
-	if err != nil {
-		logger.Error(err, "Reconciled failed")
+	obj = r.Reconcile(mesh, configs, obj)
+	obj.SetManagedFields(nil)
+	patchOpt := &client.PatchOptions{FieldManager: "gm-operator"}
+	if err := controller.Patch(ctx, obj, client.Apply, patchOpt); err != nil {
+		logger.Error(err, "Patch "+r.Kind()+" failed")
 		return err
 	}
-	if ok {
-		return nil
-	}
-
-	obj = r.Mutate(mesh, configs, obj)
-	if err := controller.Update(ctx, obj); err != nil {
-		logger.Error(err, "Update failed")
-		return err
-	}
-	logger.Info("Updated")
+	logger.Info("Patched " + r.Kind())
 
 	return nil
 }

@@ -36,7 +36,8 @@ func (c *Client) Make(kind, key string, object json.RawMessage) error {
 		return err
 	}
 
-	c.logger.Info("Created", "Kind", strings.Title(kind), "Key", key)
+	kindTitle := strings.Title(kind)
+	c.logger.WithValues("Kind", kindTitle, kindTitle+"Key", key).Info("Configured")
 
 	return nil
 }

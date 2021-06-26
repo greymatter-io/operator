@@ -80,8 +80,8 @@ var base = Configs{
 			{ContainerPort: 8081, Name: "metrics", Protocol: "TCP"},
 		},
 		ServicePorts: []corev1.ServicePort{
-			{Name: "proxy", Port: 10808, Protocol: "TCP"},
-			{Name: "metrics", Port: 8081, Protocol: "TCP"},
+			{Name: "proxy", Port: 10808, TargetPort: intstr.FromInt(10808), Protocol: "TCP"},
+			{Name: "metrics", Port: 8081, TargetPort: intstr.FromInt(8081), Protocol: "TCP"},
 		},
 		Resources: &corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
