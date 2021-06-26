@@ -31,9 +31,9 @@ type config struct {
 }
 
 var versions = map[string]configs{
-	"latest":   versionOneThree,
-	"1.6-beta": versionOneSixBeta,
-	"1.3":      versionOneThree,
+	"latest": versionOneSix,
+	"1.6":    versionOneSix,
+	"1.3":    versionOneThree,
 }
 
 func Base() configs {

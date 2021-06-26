@@ -6,16 +6,20 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/go-logr/logr"
 )
 
 type Client struct {
 	httpClient *http.Client
+	logger     logr.Logger
 	addr       string
 }
 
-func NewClient(addr string) *Client {
+func NewClient(addr string, logger logr.Logger) *Client {
 	return &Client{
 		httpClient: &http.Client{Timeout: time.Second * 3},
+		logger:     logger,
 		addr:       fmt.Sprintf("%s/v1.0", addr),
 	}
 }

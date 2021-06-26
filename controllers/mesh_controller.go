@@ -74,10 +74,8 @@ var reconcileID uint
 // For more details, check Reconcile and its result:
 // https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx = context.WithValue(ctx, struct{}{}, reconcileID)
+	log := controller.Log.WithValues("ReconcileID", reconcileID)
 	reconcileID++
-
-	log := controller.Log.WithValues("mesh", req.NamespacedName)
 
 	// Fetch the Mesh object
 	mesh := &v1.Mesh{}
@@ -141,13 +139,14 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 	// If all meshobjects exist, exit early
 	apiObjects := controller.Cache.Missing(mesh.Name)
 	if len(apiObjects) == 0 {
+		log.Info("All mesh objects are already configured. Skipping...")
 		return ctrl.Result{}, nil
 	}
 
 	// Ping Control API and wait until responsive.
 	log.Info("Waiting for Control API server...")
 	addr := fmt.Sprintf("http://control-api.%s.svc:5555", mesh.Namespace)
-	api := meshobjects.NewClient(addr)
+	api := meshobjects.NewClient(addr, log)
 
 PING_LOOP:
 	for {

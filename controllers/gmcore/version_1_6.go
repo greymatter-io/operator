@@ -2,10 +2,9 @@ package gmcore
 
 import v1 "github.com/bcmendoza/gm-operator/api/v1"
 
-var versionOneSixBeta = configs{
+var versionOneSix = configs{
 	Control: {
-		Directory: "development",
-		ImageTag:  "1.6.0-dev",
+		ImageTag: "1.6.0",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
@@ -19,8 +18,7 @@ var versionOneSixBeta = configs{
 		),
 	},
 	ControlApi: {
-		Directory: "development",
-		ImageTag:  "1.6.0-dev",
+		ImageTag: "1.6.0",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
@@ -35,7 +33,7 @@ var versionOneSixBeta = configs{
 	},
 	Proxy: {
 		Directory: "development",
-		ImageTag:  "1.6.1-dev",
+		ImageTag:  "1.6.0",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
@@ -50,7 +48,7 @@ var versionOneSixBeta = configs{
 	},
 	Catalog: {
 		Directory: "development",
-		ImageTag:  "latest",
+		ImageTag:  "2.0.0",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
@@ -65,7 +63,7 @@ var versionOneSixBeta = configs{
 	},
 	JwtSecurity: {
 		Directory: "development",
-		ImageTag:  "latest",
+		ImageTag:  "1.3.0",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
@@ -80,7 +78,7 @@ var versionOneSixBeta = configs{
 	},
 	Dashboard: {
 		Directory: "development",
-		ImageTag:  "latest",
+		ImageTag:  "5.0.0",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{

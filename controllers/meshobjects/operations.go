@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -37,7 +36,7 @@ func (c *Client) Make(kind, key string, object json.RawMessage) error {
 		return err
 	}
 
-	log.Printf("Created %s with key '%s'", strings.Title(kind), key)
+	c.logger.Info("Created", "Kind", strings.Title(kind), "Key", key)
 
 	return nil
 }
