@@ -6,7 +6,7 @@ import (
 
 func (c *Client) MkZone(zoneKey string) error {
 	template := `{"zone_key":"%s","name":"%s"}`
-	return c.GetOrMake("zone", zoneKey, raw(template, zoneKey, zoneKey))
+	return c.GetOrMake(zoneKey, "zone", zoneKey, raw(template, zoneKey, zoneKey))
 }
 
 func (c *Client) MkProxy(zoneKey, clusterName string) error {
@@ -19,7 +19,7 @@ func (c *Client) MkProxy(zoneKey, clusterName string) error {
 		"port":10808
 	}`
 	object := raw(domain, zoneKey, key)
-	if err := c.GetOrMake("domain", key, object); err != nil {
+	if err := c.GetOrMake(zoneKey, "domain", key, object); err != nil {
 		return err
 	}
 
@@ -45,7 +45,7 @@ func (c *Client) MkProxy(zoneKey, clusterName string) error {
 		}
 	}`
 	object = raw(listener, zoneKey, key, key, clusterName)
-	if err := c.GetOrMake("listener", key, object); err != nil {
+	if err := c.GetOrMake(zoneKey, "listener", key, object); err != nil {
 		return err
 	}
 
@@ -57,7 +57,7 @@ func (c *Client) MkProxy(zoneKey, clusterName string) error {
 		"name":"%s"
 	}`
 	object = raw(proxy, zoneKey, key, key, key, clusterName)
-	if err := c.GetOrMake("proxy", key, object); err != nil {
+	if err := c.GetOrMake(zoneKey, "proxy", key, object); err != nil {
 		return err
 	}
 
@@ -67,7 +67,7 @@ func (c *Client) MkProxy(zoneKey, clusterName string) error {
 		"name":"%s"
 	}`
 	object = raw(cluster, zoneKey, key, clusterName)
-	if err := c.GetOrMake("cluster", key, object); err != nil {
+	if err := c.GetOrMake(zoneKey, "cluster", key, object); err != nil {
 		return err
 	}
 
@@ -92,7 +92,7 @@ func (c *Client) MkService(zoneKey, clusterName, port string) error {
 		]
 	}`
 	object := raw(cluster, zoneKey, serviceKey, serviceClusterName, port)
-	if err := c.GetOrMake("cluster", serviceKey, object); err != nil {
+	if err := c.GetOrMake(zoneKey, "cluster", serviceKey, object); err != nil {
 		return err
 	}
 
@@ -174,5 +174,5 @@ func (c *Client) mkRoute(zoneKey, routeKey, domainKey, path, matchType, rewrite,
 		]
 	}`
 	object := raw(template, zoneKey, routeKey, domainKey, path, matchType, rewrite, clusterKey)
-	return c.GetOrMake("route", routeKey, object)
+	return c.GetOrMake(zoneKey, "route", routeKey, object)
 }

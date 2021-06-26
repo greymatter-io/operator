@@ -36,7 +36,6 @@ import (
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
 	"github.com/bcmendoza/gm-operator/controllers"
-	"github.com/bcmendoza/gm-operator/internal/meshobjects"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -91,12 +90,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.MeshController{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Mesh"),
-		Scheme: mgr.GetScheme(),
-		Cache:  meshobjects.NewCache(),
-	}).SetupWithManager(mgr); err != nil {
+	if err = controllers.NewMeshController(mgr.GetClient(), mgr.GetScheme()).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Mesh")
 		os.Exit(1)
 	}

@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
-	"github.com/bcmendoza/gm-operator/internal/gmcore"
+	"github.com/bcmendoza/gm-operator/pkg/gmcore"
 )
 
 type Deployment struct {
@@ -19,7 +19,7 @@ type Deployment struct {
 }
 
 func (d Deployment) Kind() string {
-	return "Deployment"
+	return "appsv1.Deployment"
 }
 
 func (d Deployment) Key() types.NamespacedName {
@@ -30,7 +30,7 @@ func (d Deployment) Object() client.Object {
 	return &appsv1.Deployment{}
 }
 
-func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.Object) client.Object {
+func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.Object) (client.Object, bool) {
 	svc := d.GmService
 	svcCfg := configs[svc]
 	proxyCfg := configs[gmcore.Proxy]
@@ -49,11 +49,12 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 	}
 
 	objectLabels := map[string]string{
-		"app.kubernetes.io/name":       d.ObjectKey.Name,
-		"app.kubernetes.io/version":    svcCfg.ImageTag,
-		"app.kubernetes.io/part-of":    "greymatter",
-		"app.kubernetes.io/managed-by": "gm-operator",
-		"app.kubernetes.io/created-by": "gm-operator",
+		"app.kubernetes.io/name":           d.ObjectKey.Name,
+		"app.kubernetes.io/version":        svcCfg.ImageTag,
+		"app.kubernetes.io/part-of":        "greymatter",
+		"app.kubernetes.io/managed-by":     "gm-operator",
+		"app.kubernetes.io/created-by":     "gm-operator",
+		"greymatter.io/greymatter-version": mesh.Spec.Version,
 	}
 	for k, v := range podLabels {
 		objectLabels[k] = v
@@ -96,6 +97,11 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 
 	deployment := obj.(*appsv1.Deployment)
 
+	var patch bool
+	if deployment.Labels["greymatter.io/greymatter-version"] != mesh.Spec.Version {
+		patch = true
+	}
+
 	deployment.ObjectMeta.Name = d.ObjectKey.Name
 	deployment.ObjectMeta.Namespace = mesh.Namespace
 	deployment.ObjectMeta.Labels = objectLabels
@@ -132,5 +138,5 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 		deployment.Spec.Template.Spec.ServiceAccountName = "control-pods"
 	}
 
-	return deployment
+	return deployment, patch
 }

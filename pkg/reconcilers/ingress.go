@@ -8,7 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
-	"github.com/bcmendoza/gm-operator/internal/gmcore"
+	"github.com/bcmendoza/gm-operator/pkg/gmcore"
 )
 
 type Ingress struct {
@@ -16,7 +16,7 @@ type Ingress struct {
 }
 
 func (i Ingress) Kind() string {
-	return "Ingress"
+	return "extensionsv1beta1.Ingress"
 }
 
 func (i Ingress) Key() types.NamespacedName {
@@ -57,6 +57,6 @@ func (i Ingress) Object() client.Object {
 	}
 }
 
-func (i Ingress) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
-	return obj
+func (i Ingress) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
+	return obj, false
 }

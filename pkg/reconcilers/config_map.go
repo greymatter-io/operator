@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
-	"github.com/bcmendoza/gm-operator/internal/gmcore"
+	"github.com/bcmendoza/gm-operator/pkg/gmcore"
 )
 
 type ConfigMap struct {
@@ -16,7 +16,7 @@ type ConfigMap struct {
 }
 
 func (cm ConfigMap) Kind() string {
-	return "ConfigMap"
+	return "corev1.ConfigMap"
 }
 
 func (cm ConfigMap) Key() types.NamespacedName {
@@ -33,6 +33,7 @@ func (cm ConfigMap) Object() client.Object {
 	}
 }
 
-func (cm ConfigMap) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
-	return obj
+// todo: allow for updating jwt-users
+func (cm ConfigMap) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
+	return obj, false
 }

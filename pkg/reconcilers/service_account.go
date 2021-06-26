@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
-	"github.com/bcmendoza/gm-operator/internal/gmcore"
+	"github.com/bcmendoza/gm-operator/pkg/gmcore"
 )
 
 type ServiceAccount struct {
@@ -15,7 +15,7 @@ type ServiceAccount struct {
 }
 
 func (sa ServiceAccount) Kind() string {
-	return "ServiceAccount"
+	return "corev1.ServiceAccount"
 }
 
 func (sa ServiceAccount) Key() types.NamespacedName {
@@ -31,6 +31,6 @@ func (sa ServiceAccount) Object() client.Object {
 	}
 }
 
-func (sa ServiceAccount) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
-	return obj
+func (sa ServiceAccount) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
+	return obj, false
 }

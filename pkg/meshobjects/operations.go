@@ -29,20 +29,36 @@ func (c *Client) Ping() error {
 	return nil
 }
 
-func (c *Client) Make(kind, key string, object json.RawMessage) error {
+func (c *Client) Make(zoneKey, kind, key string, object json.RawMessage) error {
 	url := fmt.Sprintf("%s/%s", c.addr, kind)
 
-	if _, err := c.do(http.MethodPost, url, object); err != nil {
+	body, err := c.do(http.MethodPost, url, object)
+	if err != nil {
 		return err
 	}
 
-	kindTitle := strings.Title(kind)
-	c.logger.WithValues("Kind", kindTitle, kindTitle+"Key", key).Info("Configured")
+	checksum := parseChecksum(
+		traverse(
+			traversal.Start(body).ObjectKey("result").ObjectKey("checksum"),
+		),
+	)
+	if checksum == "" {
+		return fmt.Errorf("no checksum returned from API")
+	}
 
+	kindTitle := strings.Title(kind)
+
+	c.cache.Add(Revision{Mesh: zoneKey, Kind: kindTitle, Key: key}, checksum)
+	c.logger.WithValues(kindTitle+"Key", key, "Checksum", checksum).Info("Configured " + kindTitle)
 	return nil
 }
 
-func (c *Client) GetOrMake(kind, key string, object json.RawMessage) error {
+func (c *Client) GetOrMake(zoneKey, kind, key string, object json.RawMessage) error {
+	kindTitle := strings.Title(kind)
+	if c.cache.Has(Revision{Mesh: zoneKey, Kind: kindTitle, Key: key}) {
+		return nil
+	}
+
 	getUrl := fmt.Sprintf("%s/%s/%s", c.addr, kind, key)
 
 	body, err := c.do(http.MethodGet, getUrl, nil)
@@ -59,7 +75,7 @@ func (c *Client) GetOrMake(kind, key string, object json.RawMessage) error {
 		return nil
 	}
 
-	return c.Make(kind, key, object)
+	return c.Make(zoneKey, kind, key, object)
 }
 
 func (c *Client) Change(kind, key string, changes map[string]json.RawMessage) error {

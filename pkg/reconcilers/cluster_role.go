@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
-	"github.com/bcmendoza/gm-operator/internal/gmcore"
+	"github.com/bcmendoza/gm-operator/pkg/gmcore"
 )
 
 type ClusterRole struct {
@@ -16,7 +16,7 @@ type ClusterRole struct {
 }
 
 func (cr ClusterRole) Kind() string {
-	return "ClusterRole"
+	return "rbacv1.ClusterRole"
 }
 
 func (cr ClusterRole) Key() types.NamespacedName {
@@ -32,6 +32,6 @@ func (cr ClusterRole) Object() client.Object {
 	}
 }
 
-func (cr ClusterRole) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
-	return obj
+func (cr ClusterRole) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
+	return obj, false
 }

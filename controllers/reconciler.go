@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
-	"github.com/bcmendoza/gm-operator/internal/gmcore"
+	"github.com/bcmendoza/gm-operator/pkg/gmcore"
 )
 
 type reconciler interface {
@@ -22,13 +22,14 @@ type reconciler interface {
 	Object() client.Object
 	// Generates a client.Object with configuration from a *v1.Mesh and gmcore.Configs.
 	// The client.Object parameter allows for modifying mutable values of an existing object.
-	Reconcile(*v1.Mesh, gmcore.Configs, client.Object) client.Object
+	// If an existing object has been mutated in this process, returns true.
+	Reconcile(*v1.Mesh, gmcore.Configs, client.Object) (client.Object, bool)
 }
 
 func apply(ctx context.Context, controller *MeshController, mesh *v1.Mesh, configs gmcore.Configs, r reconciler) error {
 	key := r.Key()
 
-	logger := controller.Log.WithValues("Name", key.Name)
+	logger := controller.Logger.WithValues("Name", key.Name)
 	if key.Namespace != "" {
 		logger = logger.WithValues("Namespace", key.Namespace)
 	}
@@ -36,7 +37,7 @@ func apply(ctx context.Context, controller *MeshController, mesh *v1.Mesh, confi
 	obj := r.Object()
 	if err := controller.Get(ctx, key, obj); err != nil {
 		if errors.IsNotFound(err) {
-			obj = r.Reconcile(mesh, configs, obj)
+			obj, _ = r.Reconcile(mesh, configs, obj)
 			ctrl.SetControllerReference(mesh, obj, controller.Scheme)
 			if err = controller.Create(ctx, obj); err != nil {
 				logger.Error(err, "Create "+r.Kind()+" failed")
@@ -50,14 +51,16 @@ func apply(ctx context.Context, controller *MeshController, mesh *v1.Mesh, confi
 		}
 	}
 
-	obj = r.Reconcile(mesh, configs, obj)
-	obj.SetManagedFields(nil)
-	patchOpt := &client.PatchOptions{FieldManager: "gm-operator"}
-	if err := controller.Patch(ctx, obj, client.Apply, patchOpt); err != nil {
-		logger.Error(err, "Patch "+r.Kind()+" failed")
-		return err
+	if obj, ok := r.Reconcile(mesh, configs, obj); ok {
+		obj.SetManagedFields(nil)
+		patchOpt := &client.PatchOptions{FieldManager: "gm-operator"}
+		if err := controller.Patch(ctx, obj, client.Apply, patchOpt); err != nil {
+			logger.Error(err, "Patch "+r.Kind()+" failed")
+			return err
+		}
+		// TODO: Detect when values change due to v1.Mesh config changes
+		logger.Info("Patched " + r.Kind())
 	}
-	logger.Info("Patched " + r.Kind())
 
 	return nil
 }

@@ -6,7 +6,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
-	"github.com/bcmendoza/gm-operator/internal/gmcore"
+	"github.com/bcmendoza/gm-operator/pkg/gmcore"
 )
 
 type Service struct {
@@ -16,7 +16,7 @@ type Service struct {
 }
 
 func (s Service) Kind() string {
-	return "Service"
+	return "corev1.Service"
 }
 
 func (s Service) Key() types.NamespacedName {
@@ -27,7 +27,7 @@ func (s Service) Object() client.Object {
 	return &corev1.Service{}
 }
 
-func (s Service) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.Object) client.Object {
+func (s Service) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.Object) (client.Object, bool) {
 	svc := s.GmService
 	svcCfg := configs[svc]
 
@@ -63,5 +63,6 @@ func (s Service) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.Obj
 		service.Spec.Type = s.ServiceKind
 	}
 
-	return service
+	// todo: eval
+	return service, false
 }

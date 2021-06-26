@@ -35,21 +35,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
-	"github.com/bcmendoza/gm-operator/internal/gmcore"
-	"github.com/bcmendoza/gm-operator/internal/meshobjects"
-	"github.com/bcmendoza/gm-operator/internal/reconcilers"
+	"github.com/bcmendoza/gm-operator/pkg/gmcore"
+	"github.com/bcmendoza/gm-operator/pkg/meshobjects"
+	"github.com/bcmendoza/gm-operator/pkg/reconcilers"
 )
 
 // MeshController reconciles a Mesh object
 type MeshController struct {
 	client.Client
-	Log    logr.Logger
 	Scheme *runtime.Scheme
 	Cache  *meshobjects.Cache
+	Logger logr.Logger
 }
 
-// Used to provide context for operations in a given Reconcile call
-var reconcileID uint
+func NewMeshController(client client.Client, scheme *runtime.Scheme) *MeshController {
+	return &MeshController{
+		Client: client,
+		Scheme: scheme,
+		Cache:  meshobjects.NewCache(),
+		Logger: ctrl.Log.WithName("controllers").WithName("Mesh"),
+	}
+}
 
 /*
 	Specify RBAC cluster role rules to generate when running `make manifests`.
@@ -74,13 +80,6 @@ var reconcileID uint
 // For more details, check Reconcile and its result:
 // https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	controller.Log.Info(
-		"Reconciling Mesh",
-		"Namespace", req.NamespacedName.Namespace,
-		"Name", req.NamespacedName.Name,
-		"ReconcileID", reconcileID,
-	)
-	reconcileID++
 
 	// Fetch the Mesh object
 	mesh := &v1.Mesh{}
@@ -89,10 +88,11 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 			// Mesh object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			controller.Log.Info("Mesh resource not found. Ignoring since object must be deleted")
+			controller.Logger.Info("Mesh resource not found.")
+			controller.Cache.Deregister(mesh.Name)
 			return ctrl.Result{}, nil
 		}
-		controller.Log.Error(err, "Failed to get Mesh")
+		controller.Logger.Error(err, "Failed to get Mesh")
 		return ctrl.Result{}, err
 	}
 
@@ -113,7 +113,7 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 	if err := controller.Get(ctx, key, operatorSecret); err != nil && errors.IsNotFound(err) {
 		// If the secret does not exist, return and don't requeue.
 		// No resources will be created without a valid ImagePullSecret.
-		controller.Log.Error(err, "Failed to get secret '%s' in gm-operator namespace", mesh.Spec.ImagePullSecret)
+		controller.Logger.Error(err, "Failed to get secret '%s' in gm-operator namespace", mesh.Spec.ImagePullSecret)
 		return ctrl.Result{}, err
 	}
 	if err := apply(ctx, controller, mesh, configs, reconcilers.Secret{
@@ -145,32 +145,39 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	controller.Cache.Register(mesh.Name)
 	addr := fmt.Sprintf("http://control-api.%s.svc:5555", mesh.Namespace)
-	api := meshobjects.NewClient(addr, controller.Log)
+	api := meshobjects.NewClient(addr, controller.Cache, controller.Logger)
 
-	// Check for meshobjects that do not yet exist in Control API
-	// If expected meshobjects are missing, ensure connection to Control API
-	apiObjects := controller.Cache.Missing(mesh.Name)
-	if len(apiObjects) > 0 {
-		// Ping Control API and wait until responsive.
-		controller.Log.Info(
-			"Pinging Control API server",
-			"Address", addr,
-		)
-	PING_LOOP:
-		for {
-			if err := api.Ping(); err != nil {
-				time.Sleep(time.Second * 3)
-			} else {
-				break PING_LOOP
-			}
+	// Ensure connection to Control API
+PING_LOOP:
+	for {
+		if err := api.Ping(); err != nil {
+			controller.Logger.Info("Waiting for Control API", "Address", addr)
+			time.Sleep(time.Second * 3)
+		} else {
+			break PING_LOOP
 		}
 	}
 
-	// Add the Zone to the cache since we know it's already been bootstrapped in Control API
-	controller.Cache.AddZone(mesh.Name)
+	// Edge
+	key = types.NamespacedName{Name: "edge", Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Proxy, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{
+		GmService:   gmcore.Proxy,
+		ObjectKey:   key,
+		ServiceKind: corev1.ServiceTypeLoadBalancer,
+	}); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	// Don't log errors here and for other meshobject failures, just requeue to re-attempt
+	if err := api.MkProxy(mesh.Name, "edge"); err != nil {
+		time.Sleep(time.Second * 2)
+		return ctrl.Result{Requeue: true}, nil
+	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.ControlApi)); err != nil {
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
@@ -179,7 +186,6 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
-	controller.Cache.AddService(mesh.Name, string(gmcore.ControlApi))
 
 	// Control
 	roleName := "control-pods"
@@ -210,24 +216,6 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	// Edge
-	key = types.NamespacedName{Name: "edge", Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Proxy, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{
-		GmService:   gmcore.Proxy,
-		ObjectKey:   key,
-		ServiceKind: corev1.ServiceTypeLoadBalancer,
-	}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := api.MkProxy(mesh.Name, "edge"); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-	controller.Cache.AddSidecar(mesh.Name, "edge")
-
 	// Catalog
 	key = types.NamespacedName{Name: string(gmcore.Catalog), Namespace: mesh.Namespace}
 	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
@@ -244,7 +232,6 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
-	controller.Cache.AddService(mesh.Name, string(gmcore.Catalog))
 
 	// Dashboard
 	key = types.NamespacedName{Name: string(gmcore.Dashboard), Namespace: mesh.Namespace}
@@ -262,7 +249,6 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
-	controller.Cache.AddService(mesh.Name, string(gmcore.Dashboard))
 
 	// JWT Security
 	if len(mesh.Spec.Users) > 0 {
@@ -293,7 +279,6 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
-	controller.Cache.AddService(mesh.Name, string(gmcore.JwtSecurity))
 
 	// Ingress
 	key = types.NamespacedName{Name: "ingress", Namespace: mesh.Namespace}
