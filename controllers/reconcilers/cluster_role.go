@@ -7,6 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
+	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 )
 
 type ClusterRole struct {
@@ -26,17 +27,17 @@ func (cr ClusterRole) Object() client.Object {
 	return &rbacv1.ClusterRole{}
 }
 
-func (cr ClusterRole) Build(mesh *v1.Mesh) client.Object {
+func (cr ClusterRole) Build(mesh *v1.Mesh, _ gmcore.Configs) client.Object {
 	return &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{Name: cr.Name},
 		Rules:      cr.Rules,
 	}
 }
 
-func (cr ClusterRole) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
+func (cr ClusterRole) Reconciled(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (bool, error) {
 	return true, nil
 }
 
-func (cr ClusterRole) Mutate(mesh *v1.Mesh, obj client.Object) client.Object {
+func (cr ClusterRole) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
 	return obj
 }

@@ -2,7 +2,7 @@ package gmcore
 
 import v1 "github.com/bcmendoza/gm-operator/api/v1"
 
-var versionOneThree = configs{
+var versionOneThree = Configs{
 	Control: {
 		ImageTag: "1.5.3",
 		Envs: mkEnvOpts(

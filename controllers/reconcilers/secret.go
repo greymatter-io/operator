@@ -6,6 +6,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
+	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 )
 
 type Secret struct {
@@ -25,14 +26,14 @@ func (s Secret) Object() client.Object {
 	return &corev1.Secret{}
 }
 
-func (s Secret) Build(mesh *v1.Mesh) client.Object {
+func (s Secret) Build(mesh *v1.Mesh, _ gmcore.Configs) client.Object {
 	return s.ObjectLiteral
 }
 
-func (s Secret) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
+func (s Secret) Reconciled(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (bool, error) {
 	return true, nil
 }
 
-func (s Secret) Mutate(mesh *v1.Mesh, obj client.Object) client.Object {
+func (s Secret) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
 	return obj
 }

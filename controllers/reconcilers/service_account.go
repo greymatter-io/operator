@@ -7,6 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
+	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 )
 
 type ServiceAccount struct {
@@ -25,7 +26,7 @@ func (sa ServiceAccount) Object() client.Object {
 	return &corev1.ServiceAccount{}
 }
 
-func (sa ServiceAccount) Build(mesh *v1.Mesh) client.Object {
+func (sa ServiceAccount) Build(mesh *v1.Mesh, _ gmcore.Configs) client.Object {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      sa.ObjectKey.Name,
@@ -34,10 +35,10 @@ func (sa ServiceAccount) Build(mesh *v1.Mesh) client.Object {
 	}
 }
 
-func (sa ServiceAccount) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
+func (sa ServiceAccount) Reconciled(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (bool, error) {
 	return true, nil
 }
 
-func (sa ServiceAccount) Mutate(mesh *v1.Mesh, obj client.Object) client.Object {
+func (sa ServiceAccount) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
 	return obj
 }

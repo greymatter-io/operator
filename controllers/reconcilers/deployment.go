@@ -30,8 +30,7 @@ func (d Deployment) Object() client.Object {
 	return &appsv1.Deployment{}
 }
 
-func (d Deployment) Build(mesh *v1.Mesh) client.Object {
-	configs := gmcore.Base().Patch(mesh.Spec.Version)
+func (d Deployment) Build(mesh *v1.Mesh, configs gmcore.Configs) client.Object {
 	svc := d.GmService
 	svcCfg := configs[svc]
 	proxyCfg := configs[gmcore.Proxy]
@@ -137,8 +136,7 @@ func (d Deployment) Build(mesh *v1.Mesh) client.Object {
 	return deployment
 }
 
-func (d Deployment) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
-	configs := gmcore.Base().Patch(mesh.Spec.Version)
+func (d Deployment) Reconciled(mesh *v1.Mesh, configs gmcore.Configs, obj client.Object) (bool, error) {
 	svc := d.GmService
 	svcCfg := configs[svc]
 
@@ -155,6 +153,6 @@ func (d Deployment) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
 	return true, nil
 }
 
-func (d Deployment) Mutate(mesh *v1.Mesh, obj client.Object) client.Object {
+func (d Deployment) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
 	return obj
 }

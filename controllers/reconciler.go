@@ -9,6 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
+	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 )
 
 type reconciler interface {
@@ -19,15 +20,15 @@ type reconciler interface {
 	Key() types.NamespacedName
 	// Returns an object that implements the client.Object interface (e.g. *appsv1.Deployment).
 	Object() client.Object
-	// Builds a new client.Object with configuration passed from a *v1.Mesh.
-	Build(*v1.Mesh) client.Object
-	// Compares the state of a client.Object with its configuration specified by a Mesh object.
-	Reconciled(*v1.Mesh, client.Object) (bool, error)
-	// Mutates an existing client.Object with configuration passed from a *v1.Mesh
-	Mutate(*v1.Mesh, client.Object) client.Object
+	// Builds a new client.Object with configuration from a *v1.Mesh and gmcore.Configs.
+	Build(*v1.Mesh, gmcore.Configs) client.Object
+	// Compares the state of a client.Object with its desired configuration from a *v1.Mesh and gmcore.Configs.
+	Reconciled(*v1.Mesh, gmcore.Configs, client.Object) (bool, error)
+	// Mutates an existing client.Object with configuration from a *v1.Mesh and gmcore.Configs.
+	Mutate(*v1.Mesh, gmcore.Configs, client.Object) client.Object
 }
 
-func apply(ctx context.Context, controller *MeshController, mesh *v1.Mesh, r reconciler) error {
+func apply(ctx context.Context, controller *MeshController, mesh *v1.Mesh, configs gmcore.Configs, r reconciler) error {
 	key := r.Key()
 
 	logger := controller.Log.
@@ -39,33 +40,34 @@ func apply(ctx context.Context, controller *MeshController, mesh *v1.Mesh, r rec
 
 	obj := r.Object()
 	if err := controller.Get(ctx, key, obj); err != nil && errors.IsNotFound(err) {
-		obj = r.Build(mesh)
+		obj = r.Build(mesh, configs)
 		ctrl.SetControllerReference(mesh, obj, controller.Scheme)
 		if err = controller.Create(ctx, obj); err != nil {
-			logger.Error(err, "Create Failed")
+			logger.Error(err, "Create failed")
 			return err
 		}
 		logger.Info("Created")
 		return nil
 	} else if err != nil {
-		logger.Error(err, "Get Failed")
+		logger.Error(err, "Get failed")
 		return err
 	}
 
-	ok, err := r.Reconciled(mesh, obj)
+	ok, err := r.Reconciled(mesh, configs, obj)
 	if err != nil {
-		logger.Error(err, "Eval Failed")
+		logger.Error(err, "Reconciled failed")
 		return err
 	}
 	if ok {
 		return nil
 	}
 
-	obj = r.Mutate(mesh, obj)
+	obj = r.Mutate(mesh, configs, obj)
 	if err := controller.Update(ctx, obj); err != nil {
-		logger.Error(err, "Update Failed")
+		logger.Error(err, "Update failed")
 		return err
 	}
 	logger.Info("Updated")
+
 	return nil
 }

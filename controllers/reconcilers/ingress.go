@@ -8,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
+	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 )
 
 type Ingress struct {
@@ -26,7 +27,7 @@ func (i Ingress) Object() client.Object {
 	return &extensionsv1beta1.Ingress{}
 }
 
-func (i Ingress) Build(mesh *v1.Mesh) client.Object {
+func (i Ingress) Build(mesh *v1.Mesh, _ gmcore.Configs) client.Object {
 	return &extensionsv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      i.ObjectKey.Name,
@@ -60,10 +61,10 @@ func (i Ingress) Build(mesh *v1.Mesh) client.Object {
 	}
 }
 
-func (i Ingress) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
+func (i Ingress) Reconciled(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (bool, error) {
 	return true, nil
 }
 
-func (i Ingress) Mutate(mesh *v1.Mesh, obj client.Object) client.Object {
+func (i Ingress) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
 	return obj
 }

@@ -6,7 +6,7 @@ import (
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
 )
 
-type configs map[Service]config
+type Configs map[Service]Config
 
 type Service string
 
@@ -19,7 +19,7 @@ const (
 	Dashboard   Service = "dashboard"
 )
 
-type config struct {
+type Config struct {
 	Component      string
 	Directory      string
 	ImageTag       string
@@ -30,17 +30,17 @@ type config struct {
 	Resources      *corev1.ResourceRequirements
 }
 
-var versions = map[string]configs{
+var versions = map[string]Configs{
 	"latest": versionOneSix,
 	"1.6":    versionOneSix,
 	"1.3":    versionOneThree,
 }
 
-func Base() configs {
+func Base() Configs {
 	return base
 }
 
-func (cs configs) Patch(gmVersion string) configs {
+func (cs Configs) Patch(gmVersion string) Configs {
 	patches, ok := versions[gmVersion]
 	if !ok {
 		patches = versions["latest"]

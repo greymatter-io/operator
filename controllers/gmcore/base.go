@@ -10,7 +10,7 @@ import (
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
 )
 
-var base = configs{
+var base = Configs{
 	Control: {
 		Component: "fabric",
 		Directory: "release",

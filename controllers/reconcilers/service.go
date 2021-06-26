@@ -28,8 +28,7 @@ func (s Service) Object() client.Object {
 	return &corev1.Service{}
 }
 
-func (s Service) Build(mesh *v1.Mesh) client.Object {
-	configs := gmcore.Base().Patch(mesh.Spec.Version)
+func (s Service) Build(mesh *v1.Mesh, configs gmcore.Configs) client.Object {
 	svc := s.GmService
 	svcCfg := configs[svc]
 
@@ -76,8 +75,7 @@ func (s Service) Build(mesh *v1.Mesh) client.Object {
 	return service
 }
 
-func (s Service) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
-	configs := gmcore.Base().Patch(mesh.Spec.Version)
+func (s Service) Reconciled(mesh *v1.Mesh, configs gmcore.Configs, obj client.Object) (bool, error) {
 	svc := s.GmService
 	svcCfg := configs[svc]
 
@@ -94,6 +92,6 @@ func (s Service) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
 	return true, nil
 }
 
-func (s Service) Mutate(mesh *v1.Mesh, obj client.Object) client.Object {
+func (s Service) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
 	return obj
 }

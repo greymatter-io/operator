@@ -7,6 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
+	"github.com/bcmendoza/gm-operator/controllers/gmcore"
 )
 
 type ClusterRoleBinding struct {
@@ -25,7 +26,7 @@ func (crb ClusterRoleBinding) Object() client.Object {
 	return &rbacv1.ClusterRoleBinding{}
 }
 
-func (crb ClusterRoleBinding) Build(mesh *v1.Mesh) client.Object {
+func (crb ClusterRoleBinding) Build(mesh *v1.Mesh, _ gmcore.Configs) client.Object {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{Name: crb.Name},
 		Subjects: []rbacv1.Subject{
@@ -43,7 +44,7 @@ func (crb ClusterRoleBinding) Build(mesh *v1.Mesh) client.Object {
 	}
 }
 
-func (crb ClusterRoleBinding) Reconciled(mesh *v1.Mesh, obj client.Object) (bool, error) {
+func (crb ClusterRoleBinding) Reconciled(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (bool, error) {
 	binding := obj.(*rbacv1.ClusterRoleBinding)
 
 	for _, subject := range binding.Subjects {
@@ -55,7 +56,7 @@ func (crb ClusterRoleBinding) Reconciled(mesh *v1.Mesh, obj client.Object) (bool
 	return false, nil
 }
 
-func (crb ClusterRoleBinding) Mutate(mesh *v1.Mesh, obj client.Object) client.Object {
+func (crb ClusterRoleBinding) Mutate(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) client.Object {
 	binding := obj.(*rbacv1.ClusterRoleBinding)
 
 	binding.Subjects = append(binding.Subjects, rbacv1.Subject{

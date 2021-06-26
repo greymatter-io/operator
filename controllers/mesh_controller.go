@@ -96,6 +96,11 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 	if mesh.Spec.ImagePullSecret == "" {
 		mesh.Spec.ImagePullSecret = "docker.secret"
 	}
+	if mesh.Spec.Version == "" {
+		mesh.Spec.Version = "latest"
+	}
+
+	configs := gmcore.Base().Patch(mesh.Spec.Version)
 
 	// Get the secret within this gm-operator namespace and re-create it in the mesh namesapce
 	key := types.NamespacedName{Name: mesh.Spec.ImagePullSecret, Namespace: "gm-operator"}
@@ -106,7 +111,7 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		log.Error(err, "Failed to get secret %s in gm-operator namespace", mesh.Spec.ImagePullSecret)
 		return ctrl.Result{}, err
 	}
-	if err := apply(ctx, controller, mesh, reconcilers.Secret{
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Secret{
 		ObjectKey: types.NamespacedName{Name: mesh.Spec.ImagePullSecret, Namespace: mesh.Namespace},
 		ObjectLiteral: &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -128,10 +133,10 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Control API
 	key = types.NamespacedName{Name: string(gmcore.ControlApi), Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.ControlApi, ObjectKey: key}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.ControlApi, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
-	if err := apply(ctx, controller, mesh, reconcilers.Service{GmService: gmcore.ControlApi, ObjectKey: key}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.ControlApi, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -173,7 +178,7 @@ PING_LOOP:
 
 	// Control
 	roleName := "control-pods"
-	if err := apply(ctx, controller, mesh, reconcilers.ClusterRole{
+	if err := apply(ctx, controller, mesh, configs, reconcilers.ClusterRole{
 		Name: roleName,
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -186,26 +191,26 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	saKey := types.NamespacedName{Name: roleName, Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, reconcilers.ServiceAccount{ObjectKey: saKey}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.ServiceAccount{ObjectKey: saKey}); err != nil {
 		return ctrl.Result{}, err
 	}
-	if err := apply(ctx, controller, mesh, reconcilers.ClusterRoleBinding{Name: roleName}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.ClusterRoleBinding{Name: roleName}); err != nil {
 		return ctrl.Result{}, err
 	}
 	key = types.NamespacedName{Name: string(gmcore.Control), Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.Control, ObjectKey: key}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Control, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
-	if err := apply(ctx, controller, mesh, reconcilers.Service{GmService: gmcore.Control, ObjectKey: key}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Control, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// Edge
 	key = types.NamespacedName{Name: "edge", Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.Proxy, ObjectKey: key}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Proxy, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
-	if err := apply(ctx, controller, mesh, reconcilers.Service{
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{
 		GmService:   gmcore.Proxy,
 		ObjectKey:   key,
 		ServiceKind: corev1.ServiceTypeLoadBalancer,
@@ -219,10 +224,10 @@ PING_LOOP:
 
 	// Catalog
 	key = types.NamespacedName{Name: string(gmcore.Catalog), Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
-	if err := apply(ctx, controller, mesh, reconcilers.Service{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.Catalog)); err != nil {
@@ -235,10 +240,10 @@ PING_LOOP:
 
 	// Dashboard
 	key = types.NamespacedName{Name: string(gmcore.Dashboard), Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.Dashboard, ObjectKey: key}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Dashboard, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
-	if err := apply(ctx, controller, mesh, reconcilers.Service{GmService: gmcore.Dashboard, ObjectKey: key}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Dashboard, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.Dashboard)); err != nil {
@@ -256,7 +261,7 @@ PING_LOOP:
 			return ctrl.Result{}, err
 		}
 		smKey := types.NamespacedName{Name: "jwt-users", Namespace: mesh.Namespace}
-		if err := apply(ctx, controller, mesh, reconcilers.ConfigMap{
+		if err := apply(ctx, controller, mesh, configs, reconcilers.ConfigMap{
 			ObjectKey: smKey,
 			Data:      map[string]string{"users.json": string(users)},
 		}); err != nil {
@@ -264,10 +269,10 @@ PING_LOOP:
 		}
 	}
 	key = types.NamespacedName{Name: string(gmcore.JwtSecurity), Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, reconcilers.Deployment{GmService: gmcore.JwtSecurity, ObjectKey: key}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.JwtSecurity, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
-	if err := apply(ctx, controller, mesh, reconcilers.Service{GmService: gmcore.JwtSecurity, ObjectKey: key}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.JwtSecurity, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.JwtSecurity)); err != nil {
@@ -280,7 +285,7 @@ PING_LOOP:
 
 	// Ingress
 	key = types.NamespacedName{Name: "ingress", Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, reconcilers.Ingress{ObjectKey: key}); err != nil {
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Ingress{ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 
