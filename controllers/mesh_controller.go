@@ -35,9 +35,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
-	"github.com/bcmendoza/gm-operator/controllers/gmcore"
-	"github.com/bcmendoza/gm-operator/controllers/meshobjects"
-	"github.com/bcmendoza/gm-operator/controllers/reconcilers"
+	"github.com/bcmendoza/gm-operator/internal/gmcore"
+	"github.com/bcmendoza/gm-operator/internal/meshobjects"
+	"github.com/bcmendoza/gm-operator/internal/reconcilers"
 )
 
 // MeshController reconciles a Mesh object
@@ -105,7 +105,7 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		mesh.Spec.Version = "latest"
 	}
 
-	configs := gmcore.Base().Patch(mesh.Spec.Version)
+	configs := gmcore.GetConfigs(mesh.Spec.Version)
 
 	// Get the secret within this gm-operator namespace and re-create it in the mesh namesapce
 	key := types.NamespacedName{Name: mesh.Spec.ImagePullSecret, Namespace: "gm-operator"}

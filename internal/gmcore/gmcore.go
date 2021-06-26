@@ -36,11 +36,11 @@ var versions = map[string]Configs{
 	"1.3":    versionOneThree,
 }
 
-func Base() Configs {
-	return base
+func GetConfigs(gmVersion string) Configs {
+	return base.patch(gmVersion)
 }
 
-func (cs Configs) Patch(gmVersion string) Configs {
+func (cs Configs) patch(gmVersion string) Configs {
 	patches, ok := versions[gmVersion]
 	if !ok {
 		patches = versions["latest"]
@@ -87,7 +87,7 @@ func mkEnvOpts(opt envsOpt) envsOpts {
 	return envsOpts{opt}
 }
 
-func (eb envsOpts) Configure(mesh *v1.Mesh, clusterName string) []corev1.EnvVar {
+func (eb envsOpts) Apply(mesh *v1.Mesh, clusterName string) []corev1.EnvVar {
 	envsMap := make(map[string]string)
 	for _, fn := range eb {
 		envsMap = fn(envsMap, mesh, clusterName)

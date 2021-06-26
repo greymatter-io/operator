@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/bcmendoza/gm-operator/controllers/gmcore"
+	"github.com/bcmendoza/gm-operator/internal/gmcore"
 )
 
 type Cache struct {

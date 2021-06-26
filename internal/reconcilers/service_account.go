@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
-	"github.com/bcmendoza/gm-operator/controllers/gmcore"
+	"github.com/bcmendoza/gm-operator/internal/gmcore"
 )
 
 type ServiceAccount struct {

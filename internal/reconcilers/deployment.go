@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
-	"github.com/bcmendoza/gm-operator/controllers/gmcore"
+	"github.com/bcmendoza/gm-operator/internal/gmcore"
 )
 
 type Deployment struct {
@@ -62,7 +62,7 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 	svcContainer := corev1.Container{
 		Name:            "service",
 		Image:           fmt.Sprintf("docker.greymatter.io/%s/gm-%s:%s", svcCfg.Directory, svc, svcCfg.ImageTag),
-		Env:             svcCfg.Envs.Configure(mesh, d.ObjectKey.Name),
+		Env:             svcCfg.Envs.Apply(mesh, d.ObjectKey.Name),
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Ports:           svcCfg.ContainerPorts,
 	}
@@ -83,7 +83,7 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 		proxyContainer := corev1.Container{
 			Name:            "sidecar",
 			Image:           fmt.Sprintf("docker.greymatter.io/%s/gm-proxy:%s", proxyCfg.Directory, proxyCfg.ImageTag),
-			Env:             proxyCfg.Envs.Configure(mesh, d.ObjectKey.Name),
+			Env:             proxyCfg.Envs.Apply(mesh, d.ObjectKey.Name),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Ports:           proxyCfg.ContainerPorts,
 			Resources:       *proxyCfg.Resources,

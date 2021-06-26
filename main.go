@@ -36,7 +36,7 @@ import (
 
 	v1 "github.com/bcmendoza/gm-operator/api/v1"
 	"github.com/bcmendoza/gm-operator/controllers"
-	"github.com/bcmendoza/gm-operator/controllers/meshobjects"
+	"github.com/bcmendoza/gm-operator/internal/meshobjects"
 	//+kubebuilder:scaffold:imports
 )
 
