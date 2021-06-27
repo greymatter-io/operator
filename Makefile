@@ -61,7 +61,7 @@ help: ## Display this help.
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=manifests/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="LICENSE" paths="./..."
@@ -96,18 +96,18 @@ docker-push: docker-build ## Push docker image with the manager.
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build manifests/crd | kubectl apply -f -
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build manifests/crd | kubectl delete -f -
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	cd manifests/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build manifests/default | kubectl apply -f -
 	./create-docker-secret.sh
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build manifests/default | kubectl delete -f -
 
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
@@ -135,8 +135,8 @@ endef
 .PHONY: bundle ## Generate bundle manifests and metadata, then validate generated files.
 bundle: manifests kustomize
 	operator-sdk generate kustomize manifests -q
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	cd manifests/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build manifests/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
 
 .PHONY: bundle-build ## Build the bundle image.
@@ -157,10 +157,10 @@ logs: ## Check logs for the deployed operator
 	kubectl logs -n gm-operator $(POD) manager -f
 
 sample: ## Make a sample mesh
-	kubectl apply -f config/samples/v1_mesh.yaml
+	kubectl apply -f manifests/samples/v1_mesh.yaml
 
 remove-sample: ## Remove the sample mesh
-	kubectl delete -f config/samples/v1_mesh.yaml
+	kubectl delete -f manifests/samples/v1_mesh.yaml
 
 refresh: docker-build k3d-import ## Refresh the deployed docker image
 	kubectl delete pod -n gm-operator -l control-plane=operator

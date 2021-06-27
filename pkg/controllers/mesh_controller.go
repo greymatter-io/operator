@@ -57,7 +57,7 @@ func NewMeshController(client client.Client, scheme *runtime.Scheme) *MeshContro
 
 /*
 	Specify RBAC cluster role rules to generate when running `make manifests`.
-	This updates /config/rbac/role.yaml
+	This updates /manifests/rbac/role.yaml
 */
 
 //+kubebuilder:rbac:groups=greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
