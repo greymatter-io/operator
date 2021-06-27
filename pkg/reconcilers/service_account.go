@@ -31,6 +31,6 @@ func (sa ServiceAccount) Object() client.Object {
 	}
 }
 
-func (sa ServiceAccount) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
+func (sa ServiceAccount) Reconcile(_ *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
 	return obj, false
 }

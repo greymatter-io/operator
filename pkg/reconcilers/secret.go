@@ -26,6 +26,6 @@ func (s Secret) Object() client.Object {
 	return s.ObjectLiteral
 }
 
-func (s Secret) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
+func (s Secret) Reconcile(_ *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
 	return obj, false
 }

@@ -23,9 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,6 +78,7 @@ func NewMeshController(client client.Client, scheme *runtime.Scheme) *MeshContro
 // For more details, check Reconcile and its result:
 // https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := controller.Logger.WithName(req.NamespacedName.Name)
 
 	// Fetch the Mesh object
 	mesh := &v1.Mesh{}
@@ -87,12 +86,10 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		if errors.IsNotFound(err) {
 			// Mesh object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
-			controller.Logger.Info("Mesh resource not found.")
-			controller.Cache.Deregister(mesh.Name)
+			controller.Cache.Deregister(req.NamespacedName.Name, logger)
 			return ctrl.Result{}, nil
 		}
-		controller.Logger.Error(err, "Failed to get Mesh")
+		logger.Error(err, "Failed to get Mesh")
 		return ctrl.Result{}, err
 	}
 
@@ -113,7 +110,7 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 	if err := controller.Get(ctx, key, operatorSecret); err != nil && errors.IsNotFound(err) {
 		// If the secret does not exist, return and don't requeue.
 		// No resources will be created without a valid ImagePullSecret.
-		controller.Logger.Error(err, "Failed to get secret '%s' in gm-operator namespace", mesh.Spec.ImagePullSecret)
+		logger.Error(err, "Failed to get secret '%s' in gm-operator namespace", mesh.Spec.ImagePullSecret)
 		return ctrl.Result{}, err
 	}
 	if err := apply(ctx, controller, mesh, configs, reconcilers.Secret{
@@ -145,15 +142,15 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	controller.Cache.Register(mesh.Name)
+	controller.Cache.Register(mesh.Name, logger)
 	addr := fmt.Sprintf("http://control-api.%s.svc:5555", mesh.Namespace)
-	api := meshobjects.NewClient(addr, controller.Cache, controller.Logger)
+	api := meshobjects.NewClient(addr, controller.Cache, logger)
 
 	// Ensure connection to Control API
 PING_LOOP:
 	for {
 		if err := api.Ping(); err != nil {
-			controller.Logger.Info("Waiting for Control API", "Address", addr)
+			logger.Info("Waiting for Control API", "Address", addr)
 			time.Sleep(time.Second * 3)
 		} else {
 			break PING_LOOP
@@ -293,13 +290,5 @@ PING_LOOP:
 func (controller *MeshController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1.Mesh{}).
-		Owns(&appsv1.Deployment{}).
-		Owns(&corev1.Service{}).
-		Owns(&corev1.ConfigMap{}).
-		Owns(&corev1.ServiceAccount{}).
-		Owns(&corev1.Secret{}).
-		Owns(&rbacv1.ClusterRole{}).
-		Owns(&rbacv1.ClusterRoleBinding{}).
-		Owns(&extensionsv1beta1.Ingress{}).
 		Complete(controller)
 }

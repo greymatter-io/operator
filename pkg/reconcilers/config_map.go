@@ -34,6 +34,6 @@ func (cm ConfigMap) Object() client.Object {
 }
 
 // todo: allow for updating jwt-users
-func (cm ConfigMap) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
+func (cm ConfigMap) Reconcile(_ *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
 	return obj, false
 }

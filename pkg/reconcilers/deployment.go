@@ -95,26 +95,30 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 		containers = append(containers, proxyContainer)
 	}
 
-	deployment := obj.(*appsv1.Deployment)
+	prev := obj.(*appsv1.Deployment)
 
-	var patch bool
-	if deployment.Labels["greymatter.io/greymatter-version"] != mesh.Spec.Version {
-		patch = true
+	var update bool
+	if prev.Labels["greymatter.io/greymatter-version"] != mesh.Spec.Version {
+		update = true
 	}
 
-	deployment.ObjectMeta.Name = d.ObjectKey.Name
-	deployment.ObjectMeta.Namespace = mesh.Namespace
-	deployment.ObjectMeta.Labels = objectLabels
-
 	replicas := int32(1)
-	deployment.Spec = appsv1.DeploymentSpec{
-		Replicas: &replicas,
-		Selector: &metav1.LabelSelector{MatchLabels: matchLabels},
-		Template: corev1.PodTemplateSpec{
-			ObjectMeta: metav1.ObjectMeta{Labels: podLabels},
-			Spec: corev1.PodSpec{
-				ImagePullSecrets: []corev1.LocalObjectReference{{Name: mesh.Spec.ImagePullSecret}},
-				Containers:       containers,
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            d.ObjectKey.Name,
+			Namespace:       mesh.Namespace,
+			ResourceVersion: prev.ResourceVersion,
+			Labels:          objectLabels,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{MatchLabels: matchLabels},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: podLabels},
+				Spec: corev1.PodSpec{
+					ImagePullSecrets: []corev1.LocalObjectReference{{Name: mesh.Spec.ImagePullSecret}},
+					Containers:       containers,
+				},
 			},
 		},
 	}
@@ -138,5 +142,5 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 		deployment.Spec.Template.Spec.ServiceAccountName = "control-pods"
 	}
 
-	return deployment, patch
+	return deployment, update
 }

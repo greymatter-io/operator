@@ -22,6 +22,8 @@ import (
 
 	// The core controller-runtime library is the major dependency for this project.
 	// Also import Zap, the default controller-runtime logger.
+
+	"go.uber.org/zap/zapcore"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -41,7 +43,7 @@ import (
 
 var (
 	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	setupLog = ctrl.Log.WithName("controller-runtime").WithName("setup")
 )
 
 // Every set of controllers needs a Scheme for mapping Kinds to Go types.
@@ -65,7 +67,8 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 
 	opts := zap.Options{
-		Development: true,
+		Development:     true,
+		StacktraceLevel: zapcore.ErrorLevel,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()

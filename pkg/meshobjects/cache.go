@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/bcmendoza/gm-operator/pkg/gmcore"
+	"github.com/go-logr/logr"
 )
 
 type Cache struct {
@@ -26,13 +27,15 @@ func NewCache() *Cache {
 	}
 }
 
-func (c *Cache) Register(mesh string) {
+func (c *Cache) Register(mesh string, logger logr.Logger) {
 	c.RLock()
 	_, ok := c.meshes[mesh]
 	c.RUnlock()
 	if ok {
 		return
 	}
+
+	logger.Info("Registering mesh '" + mesh + "' with Control API")
 
 	var revisions []Revision
 	revisions = append(revisions, mkSidecarRevisions(mesh, "edge")...)
@@ -51,17 +54,28 @@ func (c *Cache) Register(mesh string) {
 	c.Unlock()
 }
 
-func (c *Cache) Deregister(mesh string) {
+func (c *Cache) Deregister(mesh string, logger logr.Logger) {
 	c.Lock()
 	defer c.Unlock()
 
-	for rev := range c.revisions {
-		if rev.Mesh == mesh {
-			delete(c.revisions, rev)
+	if _, ok := c.meshes[mesh]; !ok {
+		return
+	}
+
+	for revision, checksum := range c.revisions {
+		if revision.Mesh == mesh {
+			delete(c.revisions, revision)
+			logger.Info(
+				"Unconfigured "+revision.Kind,
+				revision.Kind+"Key", revision.Key,
+				"Checksum", checksum,
+			)
 		}
 	}
 
 	delete(c.meshes, mesh)
+
+	logger.Info(fmt.Sprintf("Deregistered mesh '%s' from Control API", mesh))
 }
 
 func (c *Cache) Add(revision Revision, checksum string) {
@@ -115,10 +129,17 @@ func mkSidecarRevisions(mesh, svcName string) []Revision {
 }
 
 func mkServiceRevisions(mesh, svcName string) []Revision {
-	return []Revision{
+	revisions := []Revision{
 		{Mesh: mesh, Kind: "Cluster", Key: fmt.Sprintf("%s.%s.service", mesh, svcName)},
 		{Mesh: mesh, Kind: "Route", Key: fmt.Sprintf("%s.%s.a", mesh, svcName)},
 		{Mesh: mesh, Kind: "Route", Key: fmt.Sprintf("%s.%s.b", mesh, svcName)},
-		{Mesh: mesh, Kind: "Route", Key: fmt.Sprintf("%s.%s.c", mesh, svcName)},
 	}
+
+	if svcName != "dashboard" {
+		revisions = append(
+			revisions,
+			Revision{Mesh: mesh, Kind: "Route", Key: fmt.Sprintf("%s.%s.c", mesh, svcName)},
+		)
+	}
+	return revisions
 }

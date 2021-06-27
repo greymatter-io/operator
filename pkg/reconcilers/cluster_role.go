@@ -32,6 +32,6 @@ func (cr ClusterRole) Object() client.Object {
 	}
 }
 
-func (cr ClusterRole) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
+func (cr ClusterRole) Reconcile(_ *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
 	return obj, false
 }

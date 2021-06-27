@@ -109,6 +109,19 @@ func (c *Client) MkService(zoneKey, clusterName, port string) error {
 		); err != nil {
 			return err
 		}
+
+		if err := c.mkRoute(
+			zoneKey,
+			sidecarKey+".b",
+			sidecarKey,
+			"/",
+			"prefix",
+			"/",
+			serviceKey,
+		); err != nil {
+			return err
+		}
+
 	default:
 		if err := c.mkRoute(
 			zoneKey,
@@ -133,18 +146,18 @@ func (c *Client) MkService(zoneKey, clusterName, port string) error {
 		); err != nil {
 			return err
 		}
-	}
 
-	if err := c.mkRoute(
-		zoneKey,
-		sidecarKey+".c",
-		sidecarKey,
-		"/",
-		"prefix",
-		"/",
-		serviceKey,
-	); err != nil {
-		return err
+		if err := c.mkRoute(
+			zoneKey,
+			sidecarKey+".c",
+			sidecarKey,
+			"/",
+			"prefix",
+			"/",
+			serviceKey,
+		); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -29,7 +29,7 @@ type reconciler interface {
 func apply(ctx context.Context, controller *MeshController, mesh *v1.Mesh, configs gmcore.Configs, r reconciler) error {
 	key := r.Key()
 
-	logger := controller.Logger.WithValues("Name", key.Name)
+	logger := controller.Logger.WithName(mesh.Name).WithValues("Name", key.Name)
 	if key.Namespace != "" {
 		logger = logger.WithValues("Namespace", key.Namespace)
 	}
@@ -52,14 +52,13 @@ func apply(ctx context.Context, controller *MeshController, mesh *v1.Mesh, confi
 	}
 
 	if obj, ok := r.Reconcile(mesh, configs, obj); ok {
-		obj.SetManagedFields(nil)
-		patchOpt := &client.PatchOptions{FieldManager: "gm-operator"}
-		if err := controller.Patch(ctx, obj, client.Apply, patchOpt); err != nil {
-			logger.Error(err, "Patch "+r.Kind()+" failed")
+		ctrl.SetControllerReference(mesh, obj, controller.Scheme)
+		if err := controller.Update(ctx, obj); err != nil {
+			logger.Error(err, "Update "+r.Kind()+" failed")
 			return err
 		}
 		// TODO: Detect when values change due to v1.Mesh config changes
-		logger.Info("Patched " + r.Kind())
+		logger.Info("Updated " + r.Kind())
 	}
 
 	return nil

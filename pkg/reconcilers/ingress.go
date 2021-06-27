@@ -57,6 +57,6 @@ func (i Ingress) Object() client.Object {
 	}
 }
 
-func (i Ingress) Reconcile(mesh *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
+func (i Ingress) Reconcile(_ *v1.Mesh, _ gmcore.Configs, obj client.Object) (client.Object, bool) {
 	return obj, false
 }

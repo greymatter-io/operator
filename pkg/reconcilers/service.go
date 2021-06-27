@@ -2,6 +2,7 @@ package reconcilers
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -50,19 +51,24 @@ func (s Service) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.Obj
 		objectLabels[k] = v
 	}
 
-	service := obj.(*corev1.Service)
+	prev := obj.(*corev1.Service)
 
-	service.ObjectMeta.Name = s.ObjectKey.Name
-	service.ObjectMeta.Namespace = mesh.Namespace
-	service.ObjectMeta.Labels = mesh.Labels
-
-	service.Spec.Selector = matchLabels
-	service.Spec.Ports = svcCfg.ServicePorts
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            s.ObjectKey.Name,
+			Namespace:       mesh.Namespace,
+			ResourceVersion: prev.ResourceVersion,
+			Labels:          objectLabels,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: matchLabels,
+			Ports:    svcCfg.ServicePorts,
+		},
+	}
 
 	if s.ServiceKind != "" {
 		service.Spec.Type = s.ServiceKind
 	}
 
-	// todo: eval
 	return service, false
 }

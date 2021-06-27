@@ -42,7 +42,7 @@ func (c *Client) do(action, url string, data []byte) ([]byte, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("apiClient.Do(req): %w", err)
+		return nil, fmt.Errorf("client.Do: %w", err)
 	}
 	defer resp.Body.Close()
 
