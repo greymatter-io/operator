@@ -1,6 +1,6 @@
 package gmcore
 
-import v1 "github.com/bcmendoza/gm-operator/api/v1"
+import v1 "github.com/bcmendoza/gm-operator/pkg/api/v1"
 
 var versionOneSix = Configs{
 	Control: {
