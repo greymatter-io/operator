@@ -61,7 +61,7 @@ help: ## Display this help.
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=manifests/crd/bases output:rbac:artifacts:config=manifests/rbac
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=operator-role webhook paths="./..." output:crd:artifacts:config=manifests/crd/bases output:rbac:artifacts:config=manifests/rbac
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="LICENSE" paths="./..."
@@ -81,7 +81,7 @@ test: manifests generate fmt vet ## Run tests.
 ##@ Build
 
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	go build -o bin/operator main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
@@ -154,7 +154,7 @@ k3d-import: # Import the Docker image into K3d
 
 logs: ## Check logs for the deployed operator
 	$(eval POD := $(shell kubectl get pod -n gm-operator -l control-plane=gm-operator -o jsonpath="{.items[0].metadata.name}"))
-	kubectl logs -n gm-operator $(POD) manager -f
+	kubectl logs -n gm-operator $(POD) operator -f
 
 sample: ## Make a sample mesh
 	kubectl apply -f manifests/samples/v1_mesh.yaml

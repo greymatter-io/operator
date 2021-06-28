@@ -28,12 +28,12 @@ spec:
         runAsNonRoot: true
       containers:
       - command:
-        - /manager
+        - /gm-operator
         args:
         - --leader-elect
         image: controller:latest
         imagePullPolicy: IfNotPresent
-        name: manager
+        name: gm-operator
         securityContext:
           allowPrivilegeEscalation: false
         livenessProbe:
