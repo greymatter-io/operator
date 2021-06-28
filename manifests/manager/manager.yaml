@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   labels:
-    control-plane: operator
+    control-plane: gm-operator
   name: system
 ---
 apiVersion: apps/v1
@@ -11,16 +11,16 @@ metadata:
   name: operator
   namespace: system
   labels:
-    control-plane: operator
+    control-plane: gm-operator
 spec:
   selector:
     matchLabels:
-      control-plane: operator
+      control-plane: gm-operator
   replicas: 1
   template:
     metadata:
       labels:
-        control-plane: operator
+        control-plane: gm-operator
     spec:
       imagePullSecrets:
         - name: docker.secret
