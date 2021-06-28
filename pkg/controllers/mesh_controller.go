@@ -110,7 +110,7 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 	if err := controller.Get(ctx, key, operatorSecret); err != nil && errors.IsNotFound(err) {
 		// If the secret does not exist, return and don't requeue.
 		// No resources will be created without a valid ImagePullSecret.
-		logger.Error(err, "Failed to get secret '%s' in gm-operator namespace", mesh.Spec.ImagePullSecret)
+		logger.Error(err, fmt.Sprintf("Failed to get secret '%s' in gm-operator namespace", mesh.Spec.ImagePullSecret))
 		return ctrl.Result{}, err
 	}
 	if err := apply(ctx, controller, mesh, configs, reconcilers.Secret{
