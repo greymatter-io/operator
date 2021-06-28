@@ -13,7 +13,6 @@ import (
 var base = Configs{
 	Control: {
 		Component: "fabric",
-		Directory: "release",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
 				return map[string]string{
@@ -38,7 +37,6 @@ var base = Configs{
 	},
 	ControlApi: {
 		Component: "fabric",
-		Directory: "release",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
 				return map[string]string{
@@ -62,7 +60,6 @@ var base = Configs{
 	},
 	Proxy: {
 		Component: "fabric",
-		Directory: "release",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, mesh *v1.Mesh, clusterName string) map[string]string {
 				return map[string]string{
@@ -96,7 +93,6 @@ var base = Configs{
 	},
 	Catalog: {
 		Component: "sense",
-		Directory: "release",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
 				return map[string]string{
@@ -116,7 +112,6 @@ var base = Configs{
 	},
 	JwtSecurity: {
 		Component: "fabric",
-		Directory: "release",
 		Envs: mkEnvOpts(
 			func(map[string]string, *v1.Mesh, string) map[string]string {
 				return map[string]string{
@@ -141,7 +136,6 @@ var base = Configs{
 	},
 	Dashboard: {
 		Component: "sense",
-		Directory: "release",
 		Envs: mkEnvOpts(
 			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
 				return map[string]string{

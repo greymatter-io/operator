@@ -22,7 +22,7 @@ const (
 type Config struct {
 	Component      string
 	Directory      string
-	ImageTag       string
+	Image          string
 	Envs           envsOpts
 	ContainerPorts []corev1.ContainerPort
 	ServicePorts   []corev1.ServicePort
@@ -54,8 +54,8 @@ func (cs Configs) patch(gmVersion string) Configs {
 			if patch.Directory != "" {
 				cfg.Directory = patch.Directory
 			}
-			if patch.ImageTag != "" {
-				cfg.ImageTag = patch.ImageTag
+			if patch.Image != "" {
+				cfg.Image = patch.Image
 			}
 			if cfg.Envs != nil && patch.Envs != nil {
 				cfg.Envs = append(cfg.Envs, patch.Envs...)
