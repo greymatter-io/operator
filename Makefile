@@ -153,7 +153,7 @@ k3d-import: # Import the Docker image into K3d
 	k3d image import --cluster gm-operator $(IMG)
 
 logs: ## Check logs for the deployed operator
-	$(eval POD := $(shell kubectl get pod -n gm-operator -l control-plane=operator -o jsonpath="{.items[0].metadata.name}"))
+	$(eval POD := $(shell kubectl get pod -n gm-operator -l control-plane=gm-operator -o jsonpath="{.items[0].metadata.name}"))
 	kubectl logs -n gm-operator $(POD) manager -f
 
 sample: ## Make a sample mesh
@@ -163,7 +163,7 @@ remove-sample: ## Remove the sample mesh
 	kubectl delete -f manifests/samples/v1_mesh.yaml
 
 refresh: docker-build k3d-import ## Refresh the deployed docker image
-	kubectl delete pod -n gm-operator -l control-plane=operator
+	kubectl delete pod -n gm-operator -l control-plane=gm-operator
 
 destroy: ## Destroy the K3d cluster
 	k3d cluster delete gm-operator
