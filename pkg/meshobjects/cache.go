@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
+
 	"github.com/greymatter.io/operator/pkg/gmcore"
 )
 
