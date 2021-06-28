@@ -1,7 +1,7 @@
 package reconcilers
 
 import (
-	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -35,6 +35,12 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 	svcCfg := configs[svc]
 	proxyCfg := configs[gmcore.Proxy]
 
+	svcImageSplit := strings.Split(svcCfg.Image, ":")
+	svcImageTag := svcImageSplit[len(svcImageSplit)-1]
+
+	proxyImageSplit := strings.Split(proxyCfg.Image, ":")
+	proxyImageTag := proxyImageSplit[len(proxyImageSplit)-1]
+
 	matchLabels := map[string]string{
 		"greymatter.io/control": d.ObjectKey.Name,
 	}
@@ -42,15 +48,15 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 	podLabels := map[string]string{
 		"greymatter.io/control":         d.ObjectKey.Name,
 		"greymatter.io/component":       svcCfg.Component,
-		"greymatter.io/service-version": svcCfg.ImageTag,
+		"greymatter.io/service-version": svcImageTag,
 	}
 	if svc != gmcore.Control {
-		podLabels["greymatter.io/proxy-version"] = proxyCfg.ImageTag
+		podLabels["greymatter.io/proxy-version"] = proxyImageTag
 	}
 
 	objectLabels := map[string]string{
 		"app.kubernetes.io/name":           d.ObjectKey.Name,
-		"app.kubernetes.io/version":        svcCfg.ImageTag,
+		"app.kubernetes.io/version":        svcImageTag,
 		"app.kubernetes.io/part-of":        "greymatter",
 		"app.kubernetes.io/managed-by":     "gm-operator",
 		"app.kubernetes.io/created-by":     "gm-operator",
@@ -62,7 +68,7 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 
 	svcContainer := corev1.Container{
 		Name:            "service",
-		Image:           fmt.Sprintf("docker.greymatter.io/%s/gm-%s:%s", svcCfg.Directory, svc, svcCfg.ImageTag),
+		Image:           svcCfg.Image,
 		Env:             svcCfg.Envs.Apply(mesh, d.ObjectKey.Name),
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Ports:           svcCfg.ContainerPorts,
@@ -83,7 +89,7 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 	if svc != gmcore.Control {
 		proxyContainer := corev1.Container{
 			Name:            "sidecar",
-			Image:           fmt.Sprintf("docker.greymatter.io/%s/gm-proxy:%s", proxyCfg.Directory, proxyCfg.ImageTag),
+			Image:           proxyCfg.Image,
 			Env:             proxyCfg.Envs.Apply(mesh, d.ObjectKey.Name),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Ports:           proxyCfg.ContainerPorts,

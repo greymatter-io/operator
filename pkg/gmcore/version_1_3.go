@@ -4,7 +4,7 @@ import v1 "github.com/greymatter.io/operator/pkg/api/v1"
 
 var versionOneThree = Configs{
 	Control: {
-		ImageTag: "1.5.3",
+		Image: "docker.greymatter.io/release/gm-control:1.5.3",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
@@ -18,7 +18,7 @@ var versionOneThree = Configs{
 		),
 	},
 	ControlApi: {
-		ImageTag: "1.5.4",
+		Image: "docker.greymatter.io/release/gm-control-api:1.5.4",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
@@ -32,7 +32,7 @@ var versionOneThree = Configs{
 		),
 	},
 	Proxy: {
-		ImageTag: "1.5.1",
+		Image: "docker.greymatter.io/release/gm-proxy:1.5.1",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
@@ -46,7 +46,7 @@ var versionOneThree = Configs{
 		),
 	},
 	Catalog: {
-		ImageTag: "1.2.2",
+		Image: "docker.greymatter.io/release/gm-catalog:1.2.2",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
@@ -60,7 +60,7 @@ var versionOneThree = Configs{
 		),
 	},
 	JwtSecurity: {
-		ImageTag: "1.2.0",
+		Image: "docker.greymatter.io/release/gm-jwt-security:1.2.0",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
@@ -74,7 +74,7 @@ var versionOneThree = Configs{
 		),
 	},
 	Dashboard: {
-		ImageTag: "4.0.2",
+		Image: "docker.greymatter.io/release/gm-dashboard:4.0.2",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
