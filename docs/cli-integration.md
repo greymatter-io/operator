@@ -1,18 +1,34 @@
 # CLI Integration Plans
 
+1. [Overview](#overview)
+2. [Manifests](#manifests)
+   1. [Namespace](#namespace)
+   2. [CustomResourceDefinition](#customresourcedefinition)
+   3. [ServiceAccount](#serviceaccount)
+   4. [Role](#role)
+   5. [RoleBinding](#rolebinding)
+   6. [ClusterRole](#clusterrole)
+   7. [ClusterRoleBinding](#clusterrolebinding)
+   8. [Secret](#secret)
+   9. [Deployment](#deployment)
+3. [Creating the Docker Secret](#creating-the-docker-secret)
+
+## Overview
+
 This document outlines plans to integrate the Operator with the CLI [https://github.com/greymatter-io/cli].
 
 In order to manage versioning with the CLI, this repo should expose functions that deploy the Operator and define Mesh CRs in a Kubernetes cluster. The CLI should simply import and run the functions.
-f
-The following CLI commands should each call one function exposed by the package:
-1. `greymatter operator init --namespace [namespace]` should create the required resources in a Kubernetes cluster for deploying the Operator. `namespace` can default to `gm-operator`.
-2. `greymatter operator install <mesh_id> --namespace [namespace] --profile [profile] --version [version]` can create a Mesh CR in the Kubernetes cluster where the Operator is deployed.
-  - `mesh_id` is the name of the Mesh CR and also the name of the `zone` in single-zone deployments.
-  - `namespace` can default to `default`.
-  - `profile` can default to `default`. It uses base recommended settings.
-  - `version` can default to `latest` if not specified, which is the last stable release of Grey Matter in parity with the imported version of the Operator.
 
-The following section details what manifests are needed to deploy the Operator.
+The following CLI commands should each call one function exposed by the package:
+1. `greymatter operator init [--namespace]` should create the required resources in a Kubernetes cluster for deploying the Operator. `namespace` should default to `gm-operator`.
+2. `greymatter operator remove [--namespace]` should delete the resources in a Kubernetes cluster that were used for deploying the Operator.
+3. `greymatter operator install <mesh_id> [--namespace] [--profile] [--version]` should create a Mesh CR in the Kubernetes cluster where the Operator is deployed. The Mesh CR can be specified via stdin, but if none is specified it should open the configured `$EDITOR` with all defaults and/or any values specified in flags.
+  - `mesh_id` is the name of the Mesh CR and also the name of the `zone` in single-zone deployments.
+  - `namespace` should default to `default`.
+  - `profile` should default to `default`. It uses base recommended settings.
+  - `version` should default to `latest` if not specified, which is the last stable release of Grey Matter in parity with the imported version of the Operator.
+4. `greymatter operator upgrade <mesh_id>` should upgrade a Mesh CR in the Kubernetes cluster. As with `install`, a Mesh CR can be specified via stdin or otherwise the user can edit the existing configuration.
+5. `greymatter operator uninstall <mesh_id>` should delete the Mesh CR.
 
 ## Manifests
 
@@ -284,6 +300,21 @@ subjects:
   namespace: [namespace]
 ```
 
+### Secret
+
+See [Creating the Docker Secret](#creating-the-docker-secret) for more information.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: docker.secret
+  namespace: [namespace]
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: [base64_encoded_string]
+```
+
 ### Deployment
 
 ```yaml
@@ -340,4 +371,22 @@ spec:
         runAsNonRoot: true
       serviceAccountName: gm-operator
       terminationGracePeriodSeconds: 10
+```
+
+## Creating the Docker Secret
+
+The CLI should read from some predetermined environment variables such as `GREYMATTER_OPERATOR_IMAGE_REGISTRY_USER` and `GREYMATTER_OPERATOR_IMAGE_REGISTRY_PASSWORD`. The CLI config file can also define them via `operator.image_registry.user` and `operator.image_registry.password`. If those aren't found in the environment, it should prompt the user for those values.
+
+From there, the CLI should pass those values into a function defined in this project that encodes the following object into the base64-encoded string:
+
+```json
+{
+  "auths": {
+    "docker.greymatter.io": {
+      "username": "$GREYMATTER_OPERATOR_IMAGE_REGISTRY_USER",
+      "password": "$GREYMATTER_OPERATOR_IMAGE_REGISTRY_PASSWORD",
+      "email": "$GREYMATTER_OPERATOR_IMAGE_REGISTRY_USER"
+    }
+  }
+}
 ```

@@ -104,7 +104,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd manifests/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build manifests/default | kubectl apply -f -
-	./create-docker-secret.sh
+	./manifests/create-docker-secret.sh
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build manifests/default | kubectl delete -f -
