@@ -170,7 +170,7 @@ destroy: ## Destroy the K3d cluster
 
 ##@ Misc
 
-PKG 	:= github.com/bcmendoza/gm-operator
+PKG 	:= github.com/greymatter.io/operator
 GOFILES		= $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 format: ## Formats the project

@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	v1 "github.com/bcmendoza/gm-operator/pkg/api/v1"
+	v1 "github.com/greymatter.io/operator/pkg/api/v1"
 )
 
 var base = Configs{

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/bcmendoza/gm-operator/pkg/gmcore"
 	"github.com/go-logr/logr"
+	"github.com/greymatter.io/operator/pkg/gmcore"
 )
 
 type Cache struct {
