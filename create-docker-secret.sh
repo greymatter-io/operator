@@ -21,7 +21,7 @@
 #   }
 # }
 
-kubectl create secret docker-registry docker.secret --dry-run=true \
+kubectl create secret docker-registry docker.secret \
   -n gm-operator \
   --docker-server=docker.greymatter.io \
   --docker-username=$NEXUS_USER \
