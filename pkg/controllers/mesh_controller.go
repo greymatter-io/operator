@@ -247,6 +247,23 @@ PING_LOOP:
 		return ctrl.Result{Requeue: true}, nil
 	}
 
+	// SLO
+	key = types.NamespacedName{Name: string(gmcore.Slo), Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Slo, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Slo, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := api.MkProxy(mesh.Name, string(gmcore.Slo)); err != nil {
+		time.Sleep(time.Second * 2)
+		return ctrl.Result{Requeue: true}, nil
+	}
+	if err := api.MkService(mesh.Name, string(gmcore.Slo), "9080"); err != nil {
+		time.Sleep(time.Second * 2)
+		return ctrl.Result{Requeue: true}, nil
+	}
+
 	// JWT Security
 	if len(mesh.Spec.Users) > 0 {
 		users, err := json.Marshal(mesh.Spec.Users)

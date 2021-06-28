@@ -87,4 +87,18 @@ var versionOneThree = Configs{
 			},
 		),
 	},
+	Slo: {
+		ImageTag: "1.1.5",
+		Envs: mkEnvOpts(
+			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
+				patches := map[string]string{
+					//todo: Add patches here
+				}
+				for k, v := range patches {
+					envs[k] = v
+				}
+				return envs
+			},
+		),
+	},
 }

@@ -17,6 +17,8 @@ const (
 	Catalog     Service = "catalog"
 	JwtSecurity Service = "jwt-security"
 	Dashboard   Service = "dashboard"
+	Slo         Service = "slo"
+	Postgres    Service = "postgres"
 )
 
 type Config struct {
