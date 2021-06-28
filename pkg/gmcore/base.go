@@ -172,7 +172,7 @@ var base = Configs{
 					"SERVICE_PORT":        "1337",
 					"SERVICE_SSL_ENABLED": "false",
 					"SSL_1_WAY_SSL":       "false",
-					"DATABASE_URI":        "postgres://$(POSTGRESQL_USERNAME):$(POSTGRESQL_PASSWORD)@postgres-slo.greymatter.svc:5432/$(POSTGRESQL_DATABASE)",
+					"DATABASE_URI":        fmt.Sprintf("postgres://$(POSTGRESQL_USERNAME):$(POSTGRESQL_PASSWORD)@postgres.%s.svc:5432/$(POSTGRESQL_DATABASE)", mesh.Namespace),
 				}
 			},
 		),
@@ -183,22 +183,26 @@ var base = Configs{
 			{Port: 1337, TargetPort: intstr.FromInt(1337), Protocol: "TCP"},
 		},
 	},
-	// Postgres: {
-	// 	Component: "sense",
-	// 	External:  "true",
-	// 	Image:     "docker.io/centos/postgresql-10-centos7",
-	// 	Envs: mkEnvOpts(
-	// 		func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
-	// 			return map[string]string{
-	// 				"POSTGRES_USER_CN":    "CN=greymatter.cio,OU=di2e,O=u.s. government,L=Alexandria,ST=Virginia,C=us",
-	// 				"POSTGRESQL_DATABASE": "slo",
-	// 				"POSTGRESQL_PASSWORD": "password",
-	// 				"POSTGRESQL_USER":     "slo-user",
-	// 				// "SSL_CA_FILE":         "/secret/cert/ca.crt",
-	// 				// "SSL_CRT_FILE":        "/secret/cert/server.crt",
-	// 				// "SSL_KEY_FILE":        "/secret/cert/server.key",
-	// 			}
-	// 		},
-	// 	),
-	// },
+	Postgres: {
+		Component: "sense",
+		Envs: mkEnvOpts(
+			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
+				return map[string]string{
+					"POSTGRES_USER_CN":    "CN=quickstart,OU=sres,O=decipher,L=Alexandria,ST=Virginia,C=us",
+					"POSTGRESQL_DATABASE": "slo",
+					"POSTGRESQL_PASSWORD": "password",
+					"POSTGRESQL_USER":     "slo-user",
+					// "SSL_CA_FILE":         "/secret/cert/ca.crt",
+					// "SSL_CRT_FILE":        "/secret/cert/server.crt",
+					// "SSL_KEY_FILE":        "/secret/cert/server.key",
+				}
+			},
+		),
+		ContainerPorts: []corev1.ContainerPort{
+			{ContainerPort: 5432, Name: "postgres", Protocol: "TCP"},
+		},
+		ServicePorts: []corev1.ServicePort{
+			{Port: 5432, TargetPort: intstr.FromInt(5432), Protocol: "TCP"},
+		},
+	},
 }

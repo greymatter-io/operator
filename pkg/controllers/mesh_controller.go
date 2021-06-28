@@ -264,6 +264,15 @@ PING_LOOP:
 		return ctrl.Result{Requeue: true}, nil
 	}
 
+	// Postgres- SLO
+	key = types.NamespacedName{Name: string(gmcore.Postgres), Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Postgres, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Postgres, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// JWT Security
 	if len(mesh.Spec.Users) > 0 {
 		users, err := json.Marshal(mesh.Spec.Users)
