@@ -46,6 +46,7 @@ func (c *Cache) Register(mesh string, logger logr.Logger) {
 		string(gmcore.Catalog),
 		string(gmcore.JwtSecurity),
 		string(gmcore.Dashboard),
+		string(gmcore.Slo),
 	} {
 		revisions = append(revisions, mkRevisions(mesh, svcName)...)
 	}
