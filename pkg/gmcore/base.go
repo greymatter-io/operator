@@ -165,14 +165,14 @@ var base = Configs{
 			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
 				return map[string]string{
 					"DROP_SCHEMA":         "false",
-					"POSTGRESQL_DATABASE": "slo",
+					"POSTGRESQL_DATABASE": "slo-db",
 					"POSTGRESQL_ENDPOINT": "",
 					"POSTGRESQL_USERNAME": "slo-user",
 					"POSTGRESQL_PASSWORD": "password",
 					"SERVICE_PORT":        "1337",
 					"SERVICE_SSL_ENABLED": "false",
 					"SSL_1_WAY_SSL":       "false",
-					"DATABASE_URI":        fmt.Sprintf("postgres://$(POSTGRESQL_USERNAME):$(POSTGRESQL_PASSWORD)@postgres.%s.svc:5432/$(POSTGRESQL_DATABASE)", mesh.Namespace),
+					"DATABASE_URI":        fmt.Sprintf("postgres://%s:%s@postgres.%s.svc:5432/%s", "slo-user", "password", mesh.Namespace, "slo-db"),
 				}
 			},
 		),
@@ -189,7 +189,7 @@ var base = Configs{
 			func(_ map[string]string, mesh *v1.Mesh, _ string) map[string]string {
 				return map[string]string{
 					"POSTGRES_USER_CN":    "CN=quickstart,OU=sres,O=decipher,L=Alexandria,ST=Virginia,C=us",
-					"POSTGRESQL_DATABASE": "slo",
+					"POSTGRESQL_DATABASE": "slo-db",
 					"POSTGRESQL_PASSWORD": "password",
 					"POSTGRESQL_USER":     "slo-user",
 					// "SSL_CA_FILE":         "/secret/cert/ca.crt",
