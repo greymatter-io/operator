@@ -86,7 +86,8 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 		containers = append(containers, svcContainer)
 	}
 
-	if svc != gmcore.Control {
+	// this is where to include the "include sidecar info".  May want to refactor this to use "IncludeSidecar"
+	if svc != gmcore.Control && svc != gmcore.Postgres {
 		proxyContainer := corev1.Container{
 			Name:            "sidecar",
 			Image:           proxyCfg.Image,
