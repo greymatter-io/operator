@@ -156,11 +156,24 @@ logs: ## Check logs for the deployed operator
 	$(eval POD := $(shell kubectl get pod -n gm-operator -l control-plane=gm-operator -o jsonpath="{.items[0].metadata.name}"))
 	kubectl logs -n gm-operator $(POD) gm-operator -f
 
-sample: ## Make a sample mesh
-	kubectl apply -f manifests/samples/v1_mesh.yaml
+## alias's for 1.6 create and remove sample
+sample:
+	(make sample-16)
 
-remove-sample: ## Remove the sample mesh
-	kubectl delete -f manifests/samples/v1_mesh.yaml
+remove-sample:
+	(make remove-sample-16)
+
+sample-13: ## Make a sample 1.3 mesh
+	kubectl apply -f manifests/samples/v1.3_mesh.yaml
+
+remove-sample-13: ## Remove the sample 1.3 mesh
+	kubectl delete -f manifests/samples/v1.3_mesh.yaml
+
+sample-16: ## Make a sample 1.6 mesh
+	kubectl apply -f manifests/samples/v1.6_mesh.yaml
+
+remove-sample-16: ## Remove the sample 1.6 mesh
+	kubectl delete -f manifests/samples/v1.6_mesh.yaml
 
 refresh: docker-build k3d-import ## Refresh the deployed docker image
 	kubectl delete pod -n gm-operator -l control-plane=gm-operator

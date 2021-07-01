@@ -46,7 +46,7 @@ var versionOneThree = Configs{
 		),
 	},
 	Catalog: {
-		Image: "docker.greymatter.io/release/gm-catalog:1.2.2",
+		Image: "docker.greymatter.io/release/gm-catalog:1.0.7",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
