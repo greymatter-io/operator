@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/dougfort/traversal v0.1.1
 	github.com/go-logr/logr v0.3.0
+	github.com/greymatter-io/gm-catalog v0.0.0-20210630184641-f98f75da5e11
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
 	go.uber.org/zap v1.15.0

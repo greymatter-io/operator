@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -32,6 +33,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	catalogclient "github.com/greymatter-io/gm-catalog/pkg/api/client"
+	"github.com/greymatter-io/gm-catalog/pkg/discovery/meshclient"
+	"github.com/greymatter-io/gm-catalog/pkg/model"
 	v1 "github.com/greymatter.io/operator/pkg/api/v1"
 	"github.com/greymatter.io/operator/pkg/gmcore"
 	"github.com/greymatter.io/operator/pkg/meshobjects"
@@ -147,13 +151,13 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 	api := meshobjects.NewClient(addr, controller.Cache, logger)
 
 	// Ensure connection to Control API
-PING_LOOP:
+API_PING_LOOP:
 	for {
+		logger.Info("Waiting for Control API server", "Address", addr)
 		if err := api.Ping(); err != nil {
-			logger.Info("Waiting for Control API", "Address", addr)
 			time.Sleep(time.Second * 3)
 		} else {
-			break PING_LOOP
+			break API_PING_LOOP
 		}
 	}
 
@@ -170,6 +174,13 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 
+	// Ingress
+	key = types.NamespacedName{Name: "ingress", Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Ingress{ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Make meshobjects for edge and control-api
 	// Don't log errors here and for other meshobject failures, just requeue to re-attempt
 	if err := api.MkProxy(mesh.Name, "edge"); err != nil {
 		time.Sleep(time.Second * 2)
@@ -230,6 +241,69 @@ PING_LOOP:
 		return ctrl.Result{Requeue: true}, nil
 	}
 
+	var catalog *catalogclient.Client
+	if mesh.Spec.Version == "1.6" {
+		addr = fmt.Sprintf("http://catalog.%s.svc:9080", mesh.Namespace)
+		catalog = catalogclient.NewClient(addr)
+
+		// Ensure connection to Catalog
+	CATALOG_PING_LOOP:
+		for {
+			logger.Info("Waiting for Catalog API server", "Address", addr)
+			resp, err := catalog.Ping()
+			if err != nil || resp.StatusCode != http.StatusOK {
+				time.Sleep(time.Second * 3)
+			} else {
+				break CATALOG_PING_LOOP
+			}
+		}
+
+		// Make Catalog objects for edge, control-api, and catalog
+		// TODO: Create wrapper functions that getOrCreate
+		resp, err := catalog.CreateMesh(meshclient.Config{
+			MeshID:   mesh.Name,
+			MeshType: meshclient.GreyMatter,
+			Name:     "Grey Matter Core",
+			Sessions: map[string]meshclient.SessionConfig{
+				"default": {
+					URL:  fmt.Sprintf("control.%s.svc:50000", mesh.Namespace),
+					Zone: mesh.Name,
+				},
+			},
+		})
+		logger.Info("Catalog: Add Mesh", "MeshID", resp.Mesh.MeshID)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			time.Sleep(time.Second * 2)
+			return ctrl.Result{Requeue: true}, nil
+		}
+
+		resp, err = catalog.CreateService(model.Service{
+			ServiceID:   "control-api",
+			MeshID:      mesh.Name,
+			Name:        "Grey Matter Control API",
+			Version:     "latest",
+			Description: "The purpose of the Grey Matter Control API is to update the configuration of every Grey Matter Proxy in the mesh.",
+		})
+		logger.Info("Catalog: Add Service", "ServiceID", resp.Service.ServiceID)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			time.Sleep(time.Second * 2)
+			return ctrl.Result{Requeue: true}, nil
+		}
+
+		resp, err = catalog.CreateService(model.Service{
+			ServiceID:   "catalog",
+			MeshID:      mesh.Name,
+			Name:        "Grey Matter Catalog",
+			Version:     "latest",
+			Description: "The Grey Matter Catalog service interfaces with the Fabric mesh xDS interface to provide high level summaries and more easily consumable views of the current state of the mesh. It powers the Grey Matter application and any other applications that need to understand what is present in the mesh.",
+		})
+		logger.Info("Catalog: Add Service", "ServiceID", resp.Service.ServiceID)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			time.Sleep(time.Second * 2)
+			return ctrl.Result{Requeue: true}, nil
+		}
+	}
+
 	// Dashboard
 	key = types.NamespacedName{Name: string(gmcore.Dashboard), Namespace: mesh.Namespace}
 	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Dashboard, ObjectKey: key}); err != nil {
@@ -247,30 +321,19 @@ PING_LOOP:
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	// SLO
-	key = types.NamespacedName{Name: string(gmcore.Slo), Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Slo, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Slo, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := api.MkProxy(mesh.Name, string(gmcore.Slo)); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-	if err := api.MkService(mesh.Name, string(gmcore.Slo), "9080"); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-
-	// Postgres- SLO
-	key = types.NamespacedName{Name: string(gmcore.Postgres), Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Postgres, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Postgres, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
+	if catalog != nil {
+		resp, err := catalog.CreateService(model.Service{
+			ServiceID:   "dashboard",
+			MeshID:      mesh.Name,
+			Name:        "Grey Matter Dashboard",
+			Version:     "latest",
+			Description: "The Grey Matter application is a user dashboard that paints a high-level picture of the service mesh.",
+		})
+		logger.Info("Catalog: Add Service", "ServiceID", resp.Service.ServiceID)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			time.Sleep(time.Second * 2)
+			return ctrl.Result{Requeue: true}, nil
+		}
 	}
 
 	// JWT Security
@@ -303,10 +366,47 @@ PING_LOOP:
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	// Ingress
-	key = types.NamespacedName{Name: "ingress", Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Ingress{ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
+	if catalog != nil {
+		resp, err := catalog.CreateService(model.Service{
+			ServiceID:   "jwt-security",
+			MeshID:      mesh.Name,
+			Name:        "Grey Matter JWT Security",
+			Version:     "latest",
+			Description: "The Grey Matter JWT security service is a JWT Token generation and retrieval service.",
+		})
+		logger.Info("Catalog: Add Service", "ServiceID", resp.Service.ServiceID)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			time.Sleep(time.Second * 2)
+			return ctrl.Result{Requeue: true}, nil
+		}
+	}
+
+	if mesh.Spec.Version == "1.3" {
+		// SLO
+		key = types.NamespacedName{Name: string(gmcore.Slo), Namespace: mesh.Namespace}
+		if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Slo, ObjectKey: key}); err != nil {
+			return ctrl.Result{}, err
+		}
+		if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Slo, ObjectKey: key}); err != nil {
+			return ctrl.Result{}, err
+		}
+		if err := api.MkProxy(mesh.Name, string(gmcore.Slo)); err != nil {
+			time.Sleep(time.Second * 2)
+			return ctrl.Result{Requeue: true}, nil
+		}
+		if err := api.MkService(mesh.Name, string(gmcore.Slo), "9080"); err != nil {
+			time.Sleep(time.Second * 2)
+			return ctrl.Result{Requeue: true}, nil
+		}
+
+		// Postgres- SLO
+		key = types.NamespacedName{Name: string(gmcore.Postgres), Namespace: mesh.Namespace}
+		if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Postgres, ObjectKey: key}); err != nil {
+			return ctrl.Result{}, err
+		}
+		if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Postgres, ObjectKey: key}); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil
