@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -33,10 +32,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	catalogclient "github.com/greymatter-io/gm-catalog/pkg/api/client"
-	"github.com/greymatter-io/gm-catalog/pkg/discovery/meshclient"
-	"github.com/greymatter-io/gm-catalog/pkg/model"
 	v1 "github.com/greymatter.io/operator/pkg/api/v1"
+	"github.com/greymatter.io/operator/pkg/catalogentries"
 	"github.com/greymatter.io/operator/pkg/gmcore"
 	"github.com/greymatter.io/operator/pkg/meshobjects"
 	"github.com/greymatter.io/operator/pkg/reconcilers"
@@ -241,67 +238,44 @@ API_PING_LOOP:
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	var catalog *catalogclient.Client
-	if mesh.Spec.Version == "1.6" {
-		addr = fmt.Sprintf("http://catalog.%s.svc:9080", mesh.Namespace)
-		catalog = catalogclient.NewClient(addr)
+	addr = fmt.Sprintf("http://catalog.%s.svc:9080", mesh.Namespace)
+	catalog := catalogentries.NewCatalogClient(mesh.Spec.Version, addr, logger)
 
-		// Ensure connection to Catalog
-	CATALOG_PING_LOOP:
-		for {
-			logger.Info("Waiting for Catalog API server", "Address", addr)
-			resp, err := catalog.Ping()
-			if err != nil || resp.StatusCode != http.StatusOK {
-				time.Sleep(time.Second * 3)
-			} else {
-				break CATALOG_PING_LOOP
-			}
+	// Ensure connection to Catalog
+CATALOG_PING_LOOP:
+	for {
+		logger.Info("Waiting for Catalog API server", "Address", addr)
+		if !catalog.Ping() {
+			time.Sleep(time.Second * 3)
+		} else {
+			break CATALOG_PING_LOOP
 		}
+	}
 
-		// Make Catalog objects for edge, control-api, and catalog
-		// TODO: Create wrapper functions that getOrCreate
-		resp, err := catalog.CreateMesh(meshclient.Config{
-			MeshID:   mesh.Name,
-			MeshType: meshclient.GreyMatter,
-			Name:     "Grey Matter Core",
-			Sessions: map[string]meshclient.SessionConfig{
-				"default": {
-					URL:  fmt.Sprintf("control.%s.svc:50000", mesh.Namespace),
-					Zone: mesh.Name,
-				},
-			},
-		})
-		logger.Info("Catalog: Add Mesh", "MeshID", resp.Mesh.MeshID)
-		if err != nil || resp.StatusCode != http.StatusOK {
-			time.Sleep(time.Second * 2)
-			return ctrl.Result{Requeue: true}, nil
-		}
+	// Make Catalog objects for edge, control-api, and catalog
+	if !catalog.CreateMesh(mesh.Name, mesh.Namespace) {
+		time.Sleep(time.Second * 2)
+		return ctrl.Result{Requeue: true}, nil
+	}
 
-		resp, err = catalog.CreateService(model.Service{
-			ServiceID:   "control-api",
-			MeshID:      mesh.Name,
-			Name:        "Grey Matter Control API",
-			Version:     "latest",
-			Description: "The purpose of the Grey Matter Control API is to update the configuration of every Grey Matter Proxy in the mesh.",
-		})
-		logger.Info("Catalog: Add Service", "ServiceID", resp.Service.ServiceID)
-		if err != nil || resp.StatusCode != http.StatusOK {
-			time.Sleep(time.Second * 2)
-			return ctrl.Result{Requeue: true}, nil
-		}
+	if !catalog.CreateService(
+		"control-api",
+		mesh.Name,
+		"Grey Matter Control API",
+		"latest",
+		"The purpose of the Grey Matter Control API is to update the configuration of every Grey Matter Proxy in the mesh.") {
+		time.Sleep(time.Second * 2)
+		return ctrl.Result{Requeue: true}, nil
+	}
 
-		resp, err = catalog.CreateService(model.Service{
-			ServiceID:   "catalog",
-			MeshID:      mesh.Name,
-			Name:        "Grey Matter Catalog",
-			Version:     "latest",
-			Description: "The Grey Matter Catalog service interfaces with the Fabric mesh xDS interface to provide high level summaries and more easily consumable views of the current state of the mesh. It powers the Grey Matter application and any other applications that need to understand what is present in the mesh.",
-		})
-		logger.Info("Catalog: Add Service", "ServiceID", resp.Service.ServiceID)
-		if err != nil || resp.StatusCode != http.StatusOK {
-			time.Sleep(time.Second * 2)
-			return ctrl.Result{Requeue: true}, nil
-		}
+	if !catalog.CreateService(
+		"catalog",
+		mesh.Name,
+		"Grey Matter Catalog",
+		"latest",
+		"The Grey Matter Catalog service interfaces with the Fabric mesh xDS interface to provide high level summaries and more easily consumable views of the current state of the mesh. It powers the Grey Matter application and any other applications that need to understand what is present in the mesh.") {
+		time.Sleep(time.Second * 2)
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Dashboard
@@ -321,19 +295,14 @@ API_PING_LOOP:
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	if catalog != nil {
-		resp, err := catalog.CreateService(model.Service{
-			ServiceID:   "dashboard",
-			MeshID:      mesh.Name,
-			Name:        "Grey Matter Dashboard",
-			Version:     "latest",
-			Description: "The Grey Matter application is a user dashboard that paints a high-level picture of the service mesh.",
-		})
-		logger.Info("Catalog: Add Service", "ServiceID", resp.Service.ServiceID)
-		if err != nil || resp.StatusCode != http.StatusOK {
-			time.Sleep(time.Second * 2)
-			return ctrl.Result{Requeue: true}, nil
-		}
+	if !catalog.CreateService(
+		"dashboard",
+		mesh.Name,
+		"Grey Matter Dashboard",
+		"latest",
+		"The Grey Matter application is a user dashboard that paints a high-level picture of the service mesh.") {
+		time.Sleep(time.Second * 2)
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// JWT Security
@@ -366,19 +335,14 @@ API_PING_LOOP:
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	if catalog != nil {
-		resp, err := catalog.CreateService(model.Service{
-			ServiceID:   "jwt-security",
-			MeshID:      mesh.Name,
-			Name:        "Grey Matter JWT Security",
-			Version:     "latest",
-			Description: "The Grey Matter JWT security service is a JWT Token generation and retrieval service.",
-		})
-		logger.Info("Catalog: Add Service", "ServiceID", resp.Service.ServiceID)
-		if err != nil || resp.StatusCode != http.StatusOK {
-			time.Sleep(time.Second * 2)
-			return ctrl.Result{Requeue: true}, nil
-		}
+	if !catalog.CreateService(
+		"jwt-security",
+		mesh.Name,
+		"Grey Matter JWT Security",
+		"latest",
+		"The Grey Matter JWT security service is a JWT Token generation and retrieval service.") {
+		time.Sleep(time.Second * 2)
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	if mesh.Spec.Version == "1.3" {
