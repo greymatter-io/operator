@@ -1,6 +1,7 @@
 package catalogentries
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,6 +10,7 @@ import (
 	catalogclient "github.com/greymatter-io/gm-catalog/pkg/api/client"
 	"github.com/greymatter-io/gm-catalog/pkg/discovery/meshclient"
 	"github.com/greymatter-io/gm-catalog/pkg/model"
+	"github.com/greymatter.io/operator/pkg/common"
 )
 
 type Client interface {
@@ -46,7 +48,6 @@ type V2Client struct {
 
 func (v2 *V2Client) Ping() bool {
 	resp, err := v2.client.Ping()
-	v2.logger.Info("ping", "status", resp.StatusCode, "error", err)
 	return err == nil && resp.StatusCode == http.StatusOK
 }
 
@@ -66,7 +67,6 @@ func (v2 *V2Client) CreateMesh(meshID, namespace string) bool {
 			},
 		},
 	})
-	v2.logger.Info("Create Mesh Response", "status", resp.StatusCode, "error", err)
 	if err != nil {
 		v2.logger.Error(err, "failed to create mesh")
 		return false
@@ -116,12 +116,26 @@ type V1Client struct {
 }
 
 func (v1 *V1Client) Ping() bool {
-	// todo
-	return true
+	url := fmt.Sprintf("%s/ping", v1.addr)
+	_, err := common.Do(v1.client, http.MethodGet, url, nil)
+	return err == nil
 }
 
 func (v1 *V1Client) CreateMesh(meshID, namespace string) bool {
-	// todo
+	url := fmt.Sprintf("%s/zones/%s", v1.addr, meshID)
+	if _, err := common.Do(v1.client, http.MethodGet, url, nil); err == nil {
+		return true
+	}
+	url = fmt.Sprintf("%s/zones", v1.addr)
+	if _, err := common.Do(v1.client, http.MethodPost, url, json.RawMessage(fmt.Sprintf(`{
+		"zoneName": "%s",
+		"requestCluster": "edge",
+		"serverAddress": "control.%s.svc:50000"
+	}`, meshID, namespace))); err != nil {
+		v1.logger.Error(err, "failed to create mesh")
+		return false
+	}
+	v1.logger.Info("Added Mesh to Catalog", "MeshID", meshID, "Namespace", namespace)
 	return true
 }
 
@@ -131,6 +145,25 @@ func (v1 *V1Client) CreateService(
 	name,
 	version,
 	description string) bool {
-	// todo
+	url := fmt.Sprintf("%s/clusters/%s?meshID=%s", v1.addr, serviceID, meshID)
+	resp, err := common.Do(v1.client, http.MethodGet, url, nil)
+	if err == nil {
+		var slice []interface{}
+		json.Unmarshal(resp, &slice)
+		if len(slice) > 0 {
+			return true
+		}
+	}
+	url = fmt.Sprintf("%s/clusters", v1.addr)
+	if _, err := common.Do(v1.client, http.MethodPost, url, json.RawMessage(fmt.Sprintf(`{
+		"clusterName": "%s",
+		"zoneName": "%s",
+		"name": "%s",
+		"version": "%s"
+		}`, serviceID, meshID, name, version))); err != nil {
+		v1.logger.Error(err, "failed to create service")
+		return false
+	}
+	v1.logger.Info("Added Service to Catalog", "ServiceID", serviceID, "MeshID", meshID)
 	return true
 }
