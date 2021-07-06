@@ -46,7 +46,8 @@ type V2Client struct {
 
 func (v2 *V2Client) Ping() bool {
 	resp, err := v2.client.Ping()
-	return err != nil || resp.StatusCode != http.StatusOK
+	v2.logger.Info("ping", "status", resp.StatusCode, "error", err)
+	return err == nil && resp.StatusCode == http.StatusOK
 }
 
 func (v2 *V2Client) CreateMesh(meshID, namespace string) bool {
@@ -65,6 +66,7 @@ func (v2 *V2Client) CreateMesh(meshID, namespace string) bool {
 			},
 		},
 	})
+	v2.logger.Info("Create Mesh Response", "status", resp.StatusCode, "error", err)
 	if err != nil {
 		v2.logger.Error(err, "failed to create mesh")
 		return false

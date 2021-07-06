@@ -1,6 +1,7 @@
 package reconcilers
 
 import (
+	"fmt"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -64,6 +65,11 @@ func (d Deployment) Reconcile(mesh *v1.Mesh, configs gmcore.Configs, obj client.
 	}
 	for k, v := range podLabels {
 		objectLabels[k] = v
+	}
+	s := strings.Split(svcCfg.Image, ":")
+	if len(s) == 1 {
+		svcCfg.Image = fmt.Sprintf("%s:latest", s[0])
+
 	}
 
 	svcContainer := corev1.Container{
