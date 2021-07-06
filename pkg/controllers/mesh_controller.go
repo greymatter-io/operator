@@ -263,7 +263,11 @@ CATALOG_PING_LOOP:
 		mesh.Name,
 		"Grey Matter Control API",
 		"latest",
-		"The purpose of the Grey Matter Control API is to update the configuration of every Grey Matter Proxy in the mesh.") {
+		"The purpose of the Grey Matter Control API is to update the configuration of every Grey Matter Proxy in the mesh.",
+		"Decipher",
+		"services/control-api/latest/v1.0",
+		"/services/control-api/latest/",
+		"Core Mesh") {
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -273,7 +277,11 @@ CATALOG_PING_LOOP:
 		mesh.Name,
 		"Grey Matter Catalog",
 		"latest",
-		"The Grey Matter Catalog service interfaces with the Fabric mesh xDS interface to provide high level summaries and more easily consumable views of the current state of the mesh. It powers the Grey Matter application and any other applications that need to understand what is present in the mesh.") {
+		"The Grey Matter Catalog service interfaces with the Fabric mesh xDS interface to provide high level summaries and more easily consumable views of the current state of the mesh. It powers the Grey Matter application and any other applications that need to understand what is present in the mesh.",
+		"Decipher",
+		"services/catalog/latest/",
+		"/services/catalog/latest/",
+		"Core Mesh") {
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -300,7 +308,11 @@ CATALOG_PING_LOOP:
 		mesh.Name,
 		"Grey Matter Dashboard",
 		"latest",
-		"The Grey Matter application is a user dashboard that paints a high-level picture of the service mesh.") {
+		"The Grey Matter application is a user dashboard that paints a high-level picture of the service mesh.",
+		"Decipher",
+		"services/dashboard/latest/",
+		"/services/dashboard/latest/",
+		"Core Mesh") {
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -340,7 +352,11 @@ CATALOG_PING_LOOP:
 		mesh.Name,
 		"Grey Matter JWT Security",
 		"latest",
-		"The Grey Matter JWT security service is a JWT Token generation and retrieval service.") {
+		"The Grey Matter JWT security service is a JWT Token generation and retrieval service.",
+		"Decipher",
+		"services/jwt-security/latest/",
+		"/services/jwt-security/latest/",
+		"Core Mesh") {
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}

@@ -19,7 +19,11 @@ type Client interface {
 		meshID,
 		name,
 		version,
-		description string) bool
+		description,
+		owner,
+		apiEndpoint,
+		documentation,
+		capability string) bool
 }
 
 func NewCatalogClient(meshVersion, addr string, logger logr.Logger) Client {
@@ -84,17 +88,25 @@ func (v2 *V2Client) CreateService(
 	meshID,
 	name,
 	version,
-	description string) bool {
+	description,
+	owner,
+	apiEndpoint,
+	documentation,
+	capability string) bool {
 	resp, err := v2.client.GetService(meshID, serviceID)
 	if err == nil && resp.StatusCode != http.StatusNotFound {
 		return true
 	}
 	resp, err = v2.client.CreateService(model.Service{
-		ServiceID:   serviceID,
-		MeshID:      meshID,
-		Name:        name,
-		Version:     version,
-		Description: description,
+		ServiceID:     serviceID,
+		MeshID:        meshID,
+		Name:          name,
+		Version:       version,
+		Description:   description,
+		Owner:         owner,
+		ApiEndpoint:   apiEndpoint,
+		Documentation: documentation,
+		Capability:    capability,
 	})
 	if err != nil {
 		v2.logger.Error(err, "failed to create service")
@@ -130,7 +142,11 @@ func (v1 *V1Client) CreateService(
 	meshID,
 	name,
 	version,
-	description string) bool {
+	description,
+	owner,
+	apiEndpoint,
+	documentation,
+	capability string) bool {
 	// todo
 	return true
 }
