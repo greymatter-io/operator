@@ -32,9 +32,5 @@ func Do(httpClient *http.Client, action, url string, data []byte) ([]byte, error
 		return nil, err
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return body, fmt.Errorf("expected status OK 200 but got %s", resp.Status)
-	}
-
 	return body, nil
 }

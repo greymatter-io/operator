@@ -2,7 +2,6 @@ package meshobjects
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,14 +16,15 @@ func (c *Client) Ping() error {
 
 	var err error
 	for i := 0; i < 5; i++ {
-		if _, err := common.Do(c.httpClient, http.MethodGet, url, nil); err != nil {
+		_, err = common.Do(c.httpClient, http.MethodGet, url, nil)
+		if err != nil {
 			time.Sleep(time.Second * 1)
 			continue
 		}
 		break
 	}
 	if err != nil {
-		return errors.New("ping")
+		return err
 	}
 
 	return nil

@@ -180,14 +180,17 @@ API_PING_LOOP:
 	// Make meshobjects for edge and control-api
 	// Don't log errors here and for other meshobject failures, just requeue to re-attempt
 	if err := api.MkProxy(mesh.Name, "edge"); err != nil {
+		logger.Error(err, "failed to make edge proxy meshobjects")
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.ControlApi)); err != nil {
+		logger.Error(err, "failed to make control-api proxy meshobjects")
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkService(mesh.Name, string(gmcore.ControlApi), "5555"); err != nil {
+		logger.Error(err, "failed to make control-api service meshobjects")
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -230,10 +233,12 @@ API_PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.Catalog)); err != nil {
+		logger.Error(err, "failed to make catalog proxy meshobjects")
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkService(mesh.Name, string(gmcore.Catalog), "9080"); err != nil {
+		logger.Error(err, "failed to make catalog service meshobjects")
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -295,10 +300,12 @@ CATALOG_PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.Dashboard)); err != nil {
+		logger.Error(err, "failed to make dashboard proxy meshobjects")
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkService(mesh.Name, string(gmcore.Dashboard), "1337"); err != nil {
+		logger.Error(err, "failed to make dashboard service meshobjects")
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -339,10 +346,12 @@ CATALOG_PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	if err := api.MkProxy(mesh.Name, string(gmcore.JwtSecurity)); err != nil {
+		logger.Error(err, "failed to make jwt-security proxy meshobjects")
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
 	if err := api.MkService(mesh.Name, string(gmcore.JwtSecurity), "3000"); err != nil {
+		logger.Error(err, "failed to make jwt-security service meshobjects")
 		time.Sleep(time.Second * 2)
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -371,10 +380,12 @@ CATALOG_PING_LOOP:
 			return ctrl.Result{}, err
 		}
 		if err := api.MkProxy(mesh.Name, string(gmcore.Slo)); err != nil {
+			logger.Error(err, "failed to make slo proxy meshobjects")
 			time.Sleep(time.Second * 2)
 			return ctrl.Result{Requeue: true}, nil
 		}
 		if err := api.MkService(mesh.Name, string(gmcore.Slo), "9080"); err != nil {
+			logger.Error(err, "failed to make slo service meshobjects")
 			time.Sleep(time.Second * 2)
 			return ctrl.Result{Requeue: true}, nil
 		}

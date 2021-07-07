@@ -32,7 +32,7 @@ func NewCatalogClient(meshVersion, addr string, logger logr.Logger) Client {
 	switch meshVersion {
 	case "1.3":
 		return &V1Client{
-			client: &http.Client{Timeout: time.Second * 5},
+			client: &http.Client{Timeout: time.Second * 3},
 			addr:   addr,
 			logger: logger,
 		}
