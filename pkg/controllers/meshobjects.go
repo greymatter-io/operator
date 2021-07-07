@@ -13,20 +13,8 @@ import (
 // reconcileMesh reconciles mesh objects in Control API until all expected objects exist
 // This should be called in a goroutine.
 func reconcileMesh(controller *MeshController, mesh *v1.Mesh, logger logr.Logger) {
-	controller.Cache.Register(mesh.Name, logger)
 	addr := fmt.Sprintf("http://control-api.%s.svc:5555", mesh.Namespace)
-	api := meshobjects.NewClient(addr, controller.Cache, logger)
-
-	// Ensure connection to Control API
-PING_LOOP:
-	for {
-		logger.Info("Waiting for Control API server", "Address", addr)
-		if err := api.Ping(); err != nil {
-			time.Sleep(time.Second * 3)
-		} else {
-			break PING_LOOP
-		}
-	}
+	api := meshobjects.NewClient(addr, logger)
 
 	// If any of the operations fail, retry
 	if err := api.MkProxy(mesh.Name, "edge"); err != nil {

@@ -15,17 +15,6 @@ func reconcileCatalog(controller *MeshController, mesh *v1.Mesh, logger logr.Log
 	addr := fmt.Sprintf("http://catalog.%s.svc:9080", mesh.Namespace)
 	catalog := catalogentries.NewCatalogClient(mesh.Spec.Version, addr, logger)
 
-	// Ensure connection to Control API
-PING_LOOP:
-	for {
-		logger.Info("Waiting for Catalog API server", "Address", addr)
-		if !catalog.Ping() {
-			time.Sleep(time.Second * 3)
-		} else {
-			break PING_LOOP
-		}
-	}
-
 	// If any of the operations fail, retry
 	if !catalog.CreateMesh(mesh.Name, mesh.Namespace) {
 		time.Sleep(time.Second * 2)

@@ -33,7 +33,6 @@ import (
 
 	v1 "github.com/greymatter.io/operator/pkg/api/v1"
 	"github.com/greymatter.io/operator/pkg/gmcore"
-	"github.com/greymatter.io/operator/pkg/meshobjects"
 	"github.com/greymatter.io/operator/pkg/reconcilers"
 )
 
@@ -41,7 +40,6 @@ import (
 type MeshController struct {
 	client.Client
 	Scheme *runtime.Scheme
-	Cache  *meshobjects.Cache
 	Logger logr.Logger
 }
 
@@ -49,7 +47,6 @@ func NewMeshController(client client.Client, scheme *runtime.Scheme) *MeshContro
 	return &MeshController{
 		Client: client,
 		Scheme: scheme,
-		Cache:  meshobjects.NewCache(),
 		Logger: ctrl.Log.WithName("controllers").WithName("Mesh"),
 	}
 }
@@ -85,7 +82,6 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		if errors.IsNotFound(err) {
 			// Mesh object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			controller.Cache.Deregister(req.NamespacedName.Name, logger)
 			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "Failed to get Mesh")

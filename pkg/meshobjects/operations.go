@@ -49,17 +49,11 @@ func (c *Client) Make(zoneKey, kind, key string, object json.RawMessage) error {
 
 	kindTitle := strings.Title(kind)
 
-	c.cache.Add(Revision{Mesh: zoneKey, Kind: kindTitle, Key: key}, checksum)
 	c.logger.WithValues(kindTitle+"Key", key, "Checksum", checksum).Info("Configured " + kindTitle)
 	return nil
 }
 
 func (c *Client) GetOrMake(zoneKey, kind, key string, object json.RawMessage) error {
-	kindTitle := strings.Title(kind)
-	if c.cache.Has(Revision{Mesh: zoneKey, Kind: kindTitle, Key: key}) {
-		return nil
-	}
-
 	getUrl := fmt.Sprintf("%s/%s/%s", c.addr, kind, key)
 
 	body, err := common.Do(c.httpClient, http.MethodGet, getUrl, nil)
