@@ -3,7 +3,7 @@ package gmcore
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	v1 "github.com/greymatter.io/operator/pkg/api/v1"
+	v1 "github.com/greymatter-io/operator/pkg/api/v1"
 )
 
 type Configs map[Service]Config

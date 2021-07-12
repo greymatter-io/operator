@@ -36,8 +36,8 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	v1 "github.com/greymatter.io/operator/pkg/api/v1"
-	"github.com/greymatter.io/operator/pkg/controllers"
+	v1 "github.com/greymatter-io/operator/pkg/api/v1"
+	"github.com/greymatter-io/operator/pkg/controllers"
 	//+kubebuilder:scaffold:imports
 )
 

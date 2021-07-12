@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -32,17 +31,15 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "github.com/greymatter.io/operator/pkg/api/v1"
-	"github.com/greymatter.io/operator/pkg/gmcore"
-	"github.com/greymatter.io/operator/pkg/meshobjects"
-	"github.com/greymatter.io/operator/pkg/reconcilers"
+	v1 "github.com/greymatter-io/operator/pkg/api/v1"
+	"github.com/greymatter-io/operator/pkg/gmcore"
+	"github.com/greymatter-io/operator/pkg/reconcilers"
 )
 
 // MeshController reconciles a Mesh object
 type MeshController struct {
 	client.Client
 	Scheme *runtime.Scheme
-	Cache  *meshobjects.Cache
 	Logger logr.Logger
 }
 
@@ -50,7 +47,6 @@ func NewMeshController(client client.Client, scheme *runtime.Scheme) *MeshContro
 	return &MeshController{
 		Client: client,
 		Scheme: scheme,
-		Cache:  meshobjects.NewCache(),
 		Logger: ctrl.Log.WithName("controllers").WithName("Mesh"),
 	}
 }
@@ -86,7 +82,6 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 		if errors.IsNotFound(err) {
 			// Mesh object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			controller.Cache.Deregister(req.NamespacedName.Name, logger)
 			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "Failed to get Mesh")
@@ -141,19 +136,66 @@ func (controller *MeshController) Reconcile(ctx context.Context, req ctrl.Reques
 	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.ControlApi, ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
+	go reconcileMesh(controller, mesh, logger)
 
-	controller.Cache.Register(mesh.Name, logger)
-	addr := fmt.Sprintf("http://control-api.%s.svc:5555", mesh.Namespace)
-	api := meshobjects.NewClient(addr, controller.Cache, logger)
+	// Catalog
+	key = types.NamespacedName{Name: string(gmcore.Catalog), Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	go reconcileCatalog(controller, mesh, logger)
 
-	// Ensure connection to Control API
-PING_LOOP:
-	for {
-		if err := api.Ping(); err != nil {
-			logger.Info("Waiting for Control API", "Address", addr)
-			time.Sleep(time.Second * 3)
-		} else {
-			break PING_LOOP
+	// Dashboard
+	key = types.NamespacedName{Name: string(gmcore.Dashboard), Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Dashboard, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Dashboard, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// JWT Security
+	if len(mesh.Spec.Users) > 0 {
+		users, err := json.Marshal(mesh.Spec.Users)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		smKey := types.NamespacedName{Name: "jwt-users", Namespace: mesh.Namespace}
+		if err := apply(ctx, controller, mesh, configs, reconcilers.ConfigMap{
+			ObjectKey: smKey,
+			Data:      map[string]string{"users.json": string(users)},
+		}); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+	key = types.NamespacedName{Name: string(gmcore.JwtSecurity), Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.JwtSecurity, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.JwtSecurity, ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if mesh.Spec.Version == "1.3" {
+		// SLO
+		key = types.NamespacedName{Name: string(gmcore.Slo), Namespace: mesh.Namespace}
+		if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Slo, ObjectKey: key}); err != nil {
+			return ctrl.Result{}, err
+		}
+		if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Slo, ObjectKey: key}); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		// Postgres- SLO
+		key = types.NamespacedName{Name: string(gmcore.Postgres), Namespace: mesh.Namespace}
+		if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Postgres, ObjectKey: key}); err != nil {
+			return ctrl.Result{}, err
+		}
+		if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Postgres, ObjectKey: key}); err != nil {
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -170,18 +212,10 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 
-	// Don't log errors here and for other meshobject failures, just requeue to re-attempt
-	if err := api.MkProxy(mesh.Name, "edge"); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-	if err := api.MkProxy(mesh.Name, string(gmcore.ControlApi)); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-	if err := api.MkService(mesh.Name, string(gmcore.ControlApi), "5555"); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
+	// Ingress
+	key = types.NamespacedName{Name: "ingress", Namespace: mesh.Namespace}
+	if err := apply(ctx, controller, mesh, configs, reconcilers.Ingress{ObjectKey: key}); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// Control
@@ -210,102 +244,6 @@ PING_LOOP:
 		return ctrl.Result{}, err
 	}
 	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Control, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Catalog
-	key = types.NamespacedName{Name: string(gmcore.Catalog), Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Catalog, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := api.MkProxy(mesh.Name, string(gmcore.Catalog)); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-	if err := api.MkService(mesh.Name, string(gmcore.Catalog), "9080"); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-
-	// Dashboard
-	key = types.NamespacedName{Name: string(gmcore.Dashboard), Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Dashboard, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Dashboard, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := api.MkProxy(mesh.Name, string(gmcore.Dashboard)); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-	if err := api.MkService(mesh.Name, string(gmcore.Dashboard), "1337"); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-
-	// SLO
-	key = types.NamespacedName{Name: string(gmcore.Slo), Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Slo, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Slo, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := api.MkProxy(mesh.Name, string(gmcore.Slo)); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-	if err := api.MkService(mesh.Name, string(gmcore.Slo), "9080"); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-
-	// Postgres- SLO
-	key = types.NamespacedName{Name: string(gmcore.Postgres), Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.Postgres, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.Postgres, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// JWT Security
-	if len(mesh.Spec.Users) > 0 {
-		users, err := json.Marshal(mesh.Spec.Users)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		smKey := types.NamespacedName{Name: "jwt-users", Namespace: mesh.Namespace}
-		if err := apply(ctx, controller, mesh, configs, reconcilers.ConfigMap{
-			ObjectKey: smKey,
-			Data:      map[string]string{"users.json": string(users)},
-		}); err != nil {
-			return ctrl.Result{}, err
-		}
-	}
-	key = types.NamespacedName{Name: string(gmcore.JwtSecurity), Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Deployment{GmService: gmcore.JwtSecurity, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Service{GmService: gmcore.JwtSecurity, ObjectKey: key}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if err := api.MkProxy(mesh.Name, string(gmcore.JwtSecurity)); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-	if err := api.MkService(mesh.Name, string(gmcore.JwtSecurity), "3000"); err != nil {
-		time.Sleep(time.Second * 2)
-		return ctrl.Result{Requeue: true}, nil
-	}
-
-	// Ingress
-	key = types.NamespacedName{Name: "ingress", Namespace: mesh.Namespace}
-	if err := apply(ctx, controller, mesh, configs, reconcilers.Ingress{ObjectKey: key}); err != nil {
 		return ctrl.Result{}, err
 	}
 
