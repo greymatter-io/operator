@@ -1,4 +1,4 @@
-package catalogentries
+package catalog
 
 import (
 	"encoding/json"
@@ -7,14 +7,13 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	catalogclient "github.com/greymatter-io/gm-catalog/pkg/api/client"
+	catalogv2 "github.com/greymatter-io/gm-catalog/pkg/api/client"
 	"github.com/greymatter-io/gm-catalog/pkg/discovery/meshclient"
 	"github.com/greymatter-io/gm-catalog/pkg/model"
-	"github.com/greymatter.io/operator/pkg/common"
+	"github.com/greymatter-io/operator/pkg/clients"
 )
 
 type Client interface {
-	Ping() bool
 	CreateMesh(meshID, namespace string) bool
 	CreateService(
 		serviceID,
@@ -28,7 +27,7 @@ type Client interface {
 		capability string) bool
 }
 
-func NewCatalogClient(meshVersion, addr string, logger logr.Logger) Client {
+func NewClient(meshVersion, addr string, logger logr.Logger) Client {
 	switch meshVersion {
 	case "1.3":
 		return &V1Client{
@@ -38,21 +37,15 @@ func NewCatalogClient(meshVersion, addr string, logger logr.Logger) Client {
 		}
 	default:
 		return &V2Client{
-			client: catalogclient.NewClient(addr),
+			client: catalogv2.NewClient(addr),
 			logger: logger,
 		}
 	}
 }
 
 type V2Client struct {
-	client *catalogclient.Client
+	client *catalogv2.Client
 	logger logr.Logger
-	// todo: add cache
-}
-
-func (v2 *V2Client) Ping() bool {
-	resp, err := v2.client.Ping()
-	return err == nil && resp.StatusCode == http.StatusOK
 }
 
 func (v2 *V2Client) CreateMesh(meshID, namespace string) bool {
@@ -124,22 +117,15 @@ type V1Client struct {
 	client *http.Client
 	addr   string
 	logger logr.Logger
-	// todo: add cache
-}
-
-func (v1 *V1Client) Ping() bool {
-	url := fmt.Sprintf("%s/ping", v1.addr)
-	_, err := common.Do(v1.client, http.MethodGet, url, nil)
-	return err == nil
 }
 
 func (v1 *V1Client) CreateMesh(meshID, namespace string) bool {
 	url := fmt.Sprintf("%s/zones/%s", v1.addr, meshID)
-	if _, err := common.Do(v1.client, http.MethodGet, url, nil); err == nil {
+	if _, err := clients.Do(v1.client, http.MethodGet, url, nil); err == nil {
 		return true
 	}
 	url = fmt.Sprintf("%s/zones", v1.addr)
-	if _, err := common.Do(v1.client, http.MethodPost, url, json.RawMessage(fmt.Sprintf(`{
+	if _, err := clients.Do(v1.client, http.MethodPost, url, json.RawMessage(fmt.Sprintf(`{
 		"zoneName": "%s",
 		"requestCluster": "edge",
 		"serverAddress": "control.%s.svc:50000"
@@ -162,7 +148,7 @@ func (v1 *V1Client) CreateService(
 	documentation,
 	capability string) bool {
 	url := fmt.Sprintf("%s/clusters/%s?meshID=%s", v1.addr, serviceID, meshID)
-	resp, err := common.Do(v1.client, http.MethodGet, url, nil)
+	resp, err := clients.Do(v1.client, http.MethodGet, url, nil)
 	if err == nil {
 		var slice []interface{}
 		json.Unmarshal(resp, &slice)
@@ -171,7 +157,7 @@ func (v1 *V1Client) CreateService(
 		}
 	}
 	url = fmt.Sprintf("%s/clusters", v1.addr)
-	if _, err := common.Do(v1.client, http.MethodPost, url, json.RawMessage(fmt.Sprintf(`{
+	if _, err := clients.Do(v1.client, http.MethodPost, url, json.RawMessage(fmt.Sprintf(`{
 		"clusterName": "%s",
 		"zoneName": "%s",
 		"name": "%s",

@@ -5,15 +5,15 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	v1 "github.com/greymatter.io/operator/pkg/api/v1"
-	"github.com/greymatter.io/operator/pkg/catalogentries"
+	v1 "github.com/greymatter-io/operator/pkg/api/v1"
+	"github.com/greymatter-io/operator/pkg/clients/catalog"
 )
 
 // reconcileMesh reconciles entries in Catalog until all expected objects exist
 // This should be called in a goroutine.
 func reconcileCatalog(controller *MeshController, mesh *v1.Mesh, logger logr.Logger) {
 	addr := fmt.Sprintf("http://catalog.%s.svc:9080", mesh.Namespace)
-	catalog := catalogentries.NewCatalogClient(mesh.Spec.Version, addr, logger)
+	catalog := catalog.NewClient(mesh.Spec.Version, addr, logger)
 
 	// If any of the operations fail, retry
 	if !catalog.CreateMesh(mesh.Name, mesh.Namespace) {

@@ -10,8 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "github.com/greymatter.io/operator/pkg/api/v1"
-	"github.com/greymatter.io/operator/pkg/gmcore"
+	v1 "github.com/greymatter-io/operator/pkg/api/v1"
+	"github.com/greymatter-io/operator/pkg/gmcore"
 )
 
 type Deployment struct {

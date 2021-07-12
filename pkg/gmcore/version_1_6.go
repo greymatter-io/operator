@@ -1,6 +1,6 @@
 package gmcore
 
-import v1 "github.com/greymatter.io/operator/pkg/api/v1"
+import v1 "github.com/greymatter-io/operator/pkg/api/v1"
 
 var versionOneSix = Configs{
 	Control: {

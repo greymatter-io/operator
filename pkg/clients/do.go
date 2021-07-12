@@ -1,4 +1,4 @@
-package common
+package clients
 
 import (
 	"bytes"

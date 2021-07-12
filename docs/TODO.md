@@ -1,2 +1,0 @@
-- [ ] Replace temporary local cache
-- [ ] Add basic meshobject CRD or use configmap for Control API and Catalog objects to persist configs across pod resets and deployment changes

@@ -1,4 +1,4 @@
-module github.com/greymatter.io/operator
+module github.com/greymatter-io/operator
 
 go 1.15
 

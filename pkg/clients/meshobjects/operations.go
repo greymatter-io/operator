@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/dougfort/traversal"
-	"github.com/greymatter.io/operator/pkg/common"
+	"github.com/greymatter-io/operator/pkg/clients"
 )
 
 func (c *Client) Ping() error {
@@ -16,7 +16,7 @@ func (c *Client) Ping() error {
 
 	var err error
 	for i := 0; i < 5; i++ {
-		_, err = common.Do(c.httpClient, http.MethodGet, url, nil)
+		_, err = clients.Do(c.httpClient, http.MethodGet, url, nil)
 		if err != nil {
 			time.Sleep(time.Second * 1)
 			continue
@@ -33,7 +33,7 @@ func (c *Client) Ping() error {
 func (c *Client) Make(zoneKey, kind, key string, object json.RawMessage) error {
 	url := fmt.Sprintf("%s/%s", c.addr, kind)
 
-	body, err := common.Do(c.httpClient, http.MethodPost, url, object)
+	body, err := clients.Do(c.httpClient, http.MethodPost, url, object)
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (c *Client) Make(zoneKey, kind, key string, object json.RawMessage) error {
 func (c *Client) GetOrMake(zoneKey, kind, key string, object json.RawMessage) error {
 	getUrl := fmt.Sprintf("%s/%s/%s", c.addr, kind, key)
 
-	body, err := common.Do(c.httpClient, http.MethodGet, getUrl, nil)
+	body, err := clients.Do(c.httpClient, http.MethodGet, getUrl, nil)
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (c *Client) GetOrMake(zoneKey, kind, key string, object json.RawMessage) er
 func (c *Client) Change(kind, key string, changes map[string]json.RawMessage) error {
 	url := fmt.Sprintf("%s/%s/%s", c.addr, kind, key)
 
-	body, err := common.Do(c.httpClient, http.MethodGet, url, nil)
+	body, err := clients.Do(c.httpClient, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (c *Client) Change(kind, key string, changes map[string]json.RawMessage) er
 		return err
 	}
 
-	if _, err := common.Do(c.httpClient, "PUT", url, updated); err != nil {
+	if _, err := clients.Do(c.httpClient, "PUT", url, updated); err != nil {
 		return err
 	}
 

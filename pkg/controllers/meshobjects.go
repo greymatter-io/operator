@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	v1 "github.com/greymatter.io/operator/pkg/api/v1"
-	"github.com/greymatter.io/operator/pkg/gmcore"
-	"github.com/greymatter.io/operator/pkg/meshobjects"
+	v1 "github.com/greymatter-io/operator/pkg/api/v1"
+	"github.com/greymatter-io/operator/pkg/clients/meshobjects"
+	"github.com/greymatter-io/operator/pkg/gmcore"
 )
 
 // reconcileMesh reconciles mesh objects in Control API until all expected objects exist
