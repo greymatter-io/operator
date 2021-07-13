@@ -74,39 +74,11 @@ var versionOneSix = Configs{
 		),
 	},
 	Dashboard: {
-		Image: "docker.greymatter.io/development/gm-dashboard:5.0.0",
+		Image: "docker.greymatter.io/development/gm-dashboard:5.1.0",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
 					// todo: Add patches here
-				}
-				for k, v := range patches {
-					envs[k] = v
-				}
-				return envs
-			},
-		),
-	},
-	Slo: {
-		Image: "docker.greymatter.io/release/gm-slo:1.2.0",
-		Envs: mkEnvOpts(
-			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
-				patches := map[string]string{
-					//todo: Add patches here
-				}
-				for k, v := range patches {
-					envs[k] = v
-				}
-				return envs
-			},
-		),
-	},
-	Postgres: {
-		Image: "docker.io/centos/postgresql-10-centos7:latest",
-		Envs: mkEnvOpts(
-			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
-				patches := map[string]string{
-					//todo: Add patches here
 				}
 				for k, v := range patches {
 					envs[k] = v
