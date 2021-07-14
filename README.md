@@ -35,7 +35,7 @@ Grey Matter Operator makes use of a tool called [controller-gen](https://book.ku
 - `make generate`: Generates code used to implement a Kubernetes object. This enables Mesh CR objects to be managed entities in the Kubernetes API.
 - `make manifests`: Generates configuration used to deploy Grey Matter Operator and the Mesh CRD into a Kubernetes cluster.
   
-*NOTE: As this project matures, `make manifests` should be replaced by a versioned CLI that programmatically applies all of the configurations to the Kubernetes cluster.*
+*NOTE: As this project matures, `make manifests` will be replaced by a versioned CLI that programmatically applies all of the configurations to the Kubernetes cluster.*
 
 ### Important Files
 
@@ -44,7 +44,6 @@ Grey Matter Operator makes use of a tool called [controller-gen](https://book.ku
 - [pkg/controllers/mesh_controller.go](controllers/mesh_controller.go): Logic for what to do when a Mesh CR is created/updated (i.e. deploy and configure the mesh).
 - [pkg/controllers/reconciler.go](controllers/reconciler.go): A custom interface with methods for reconciling Kubernetes resources based on configuration passed in from a Mesh CR. See the `reconcilers` directory for how this interface is implemented for each Kubernetes resource.
 - [pkg/gmcore/gmcore.go](pkg/gmcore/gmcore.go): This package defines configuration for each version of Grey Matter. At runtime, configurations will be applied starting with `base.go` and then continuing with either `version_1_3.go` or `version_1_6.go` as patches. `base.go` contains configuration that should apply to all versions, while the others allow for specifying version-specific configurations.
-- [pkg/meshobjects/objects.go](pkg/meshobjects/objects.go): This package provides a client with methods for scaffolding mesh objects (i.e. Cluster, Listener, Domain, Proxy, etc.). It is based loosely on this [gm-catalog internal package](https://github.com/greymatter-io/gm-catalog/tree/main/pkg/meshobjects).
 
 ## Resources
 
