@@ -74,7 +74,7 @@ var versionOneSix = Configs{
 		),
 	},
 	Dashboard: {
-		Image: "docker.greymatter.io/development/gm-dashboard:5.1.0",
+		Image: "docker.greymatter.io/development/gm-dashboard:5.1.1",
 		Envs: mkEnvOpts(
 			func(envs map[string]string, _ *v1.Mesh, _ string) map[string]string {
 				patches := map[string]string{
