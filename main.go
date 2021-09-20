@@ -1,5 +1,5 @@
 /*
-Copyright Decipher Technology Studios 2021.
+Copyright 2021.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,83 +20,70 @@ import (
 	"flag"
 	"os"
 
-	// The core controller-runtime library is the major dependency for this project.
-	// Also import Zap, the default controller-runtime logger.
-
-	"go.uber.org/zap/zapcore"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	v1 "github.com/greymatter-io/operator/pkg/api/v1"
-	"github.com/greymatter-io/operator/pkg/controllers"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	greymatteriov1alpha1 "github.com/greymatter-io/operator/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 
 var (
 	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("controller-runtime").WithName("setup")
+	setupLog = ctrl.Log.WithName("setup")
 )
 
-// Every set of controllers needs a Scheme for mapping Kinds to Go types.
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(v1.AddToScheme(scheme))
+	utilruntime.Must(greymatteriov1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
 func main() {
-
-	// Setup basic flags for metrics.
 	var metricsAddr string
-	var enableLeaderElection bool
 	var probeAddr string
+	var enableLeaderElection bool
+	var development bool
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&enableLeaderElection, "leader-elect", true, "Enable leader election, ensuring only one active controller manager.")
+	flag.BoolVar(&development, "development", false, "Run in development mode.")
 
-	opts := zap.Options{
-		Development:     true,
-		StacktraceLevel: zapcore.ErrorLevel,
-	}
+	// Bind flags for Zap logger options, which I assume allows args to be passed in by OLM (?)
+	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
+	// If the development flag is set, override previous settings as this is likely not running in-cluster.
+	if development {
+		opts.Development = development
+		enableLeaderElection = false
+	}
+
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	// Create the Manager for running all our controllers and webhooks.
-	// The Manager runs until it recieves a graceful shutdown signal.
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "b83a1e53.greymatter.io",
-		// The Manager can restrict the namespace all controllers will watch for resources by.
-		// If left empty, the Manager will watch all namespaces.
-		Namespace: "",
+		LeaderElectionID:       "715805a0.greymatter.io",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
-	if err = controllers.NewMeshController(mgr.GetClient(), mgr.GetScheme()).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Mesh")
-		os.Exit(1)
-	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

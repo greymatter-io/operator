@@ -1,102 +1,38 @@
+// Package gmcore exposes functions for applying resources to a Kubernetes cluster.
+// Its exposed functions receive a client for communicating with the cluster.
 package gmcore
 
 import (
+	"github.com/greymatter-io/operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-
-	v1 "github.com/greymatter-io/operator/pkg/api/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type Configs map[Service]Config
-
-type Service string
-
-const (
-	ControlApi  Service = "control-api"
-	Control     Service = "control"
-	Proxy       Service = "proxy"
-	Catalog     Service = "catalog"
-	JwtSecurity Service = "jwt-security"
-	Dashboard   Service = "dashboard"
-	Slo         Service = "slo"
-	Postgres    Service = "postgres"
-)
-
-type Config struct {
-	Component      string
-	Directory      string
-	Image          string
-	Envs           envsOpts
-	ContainerPorts []corev1.ContainerPort
-	ServicePorts   []corev1.ServicePort
-	VolumeMounts   []corev1.VolumeMount
-	Resources      *corev1.ResourceRequirements
+// References a Grey Matter version for each mesh
+type Versions struct {
+	each map[string]string
 }
 
-var versions = map[string]Configs{
-	"latest": versionOneSix,
-	"1.6":    versionOneSix,
-	"1.3":    versionOneThree,
+// Returns *Versions for tracking which Grey Matter version is installed for each mesh
+func New() *Versions {
+	return &Versions{make(map[string]string)}
 }
 
-func GetConfigs(gmVersion string) Configs {
-	return base.patch(gmVersion)
+// Applies all resources necessary for installing Grey Matter core components of a mesh.
+// Also labels namespaces specified in each Mesh CR to trigger meshobject configuration
+// for their deployments and statefulsets, as well as sidecar injection for their pods.
+// If auto-inject is enabled (default=true), labels each existing appsv1.Deployment/StatefulSet
+// plus their pod templates so that those workloads are added to the mesh automatically.
+func (v *Versions) ApplyMesh(c client.Client, mesh v1alpha1.Mesh) {
 }
 
-func (cs Configs) patch(gmVersion string) Configs {
-	patches, ok := versions[gmVersion]
-	if !ok {
-		patches = versions["latest"]
-	}
-
-	for svc, cfg := range cs {
-		if patch, ok := patches[svc]; ok {
-			if patch.Component != "" {
-				cfg.Component = patch.Component
-			}
-			if patch.Directory != "" {
-				cfg.Directory = patch.Directory
-			}
-			if patch.Image != "" {
-				cfg.Image = patch.Image
-			}
-			if cfg.Envs != nil && patch.Envs != nil {
-				cfg.Envs = append(cfg.Envs, patch.Envs...)
-			}
-			if patch.ContainerPorts != nil {
-				cfg.ContainerPorts = patch.ContainerPorts
-			}
-			if patch.ServicePorts != nil {
-				cfg.ServicePorts = patch.ServicePorts
-			}
-			if patch.Resources != nil {
-				cfg.Resources = patch.Resources
-			}
-			if patch.VolumeMounts != nil {
-				cfg.VolumeMounts = patch.VolumeMounts
-			}
-			cs[svc] = cfg
-		}
-	}
-
-	return cs
+// Removes all resources created for installing Grey Matter core components of a mesh.
+// Also removes the mesh from labels of resources (removing the labels if no more meshes are listed)
+// i.e. namespaces, deployments, statefulsets, and pods (via pod templates).
+func (v *Versions) RemoveMesh(c client.Client, name string) {
 }
 
-type envsOpts []envsOpt
-
-type envsOpt func(map[string]string, *v1.Mesh, string) map[string]string
-
-func mkEnvOpts(opt envsOpt) envsOpts {
-	return envsOpts{opt}
-}
-
-func (eb envsOpts) Apply(mesh *v1.Mesh, clusterName string) []corev1.EnvVar {
-	envsMap := make(map[string]string)
-	for _, fn := range eb {
-		envsMap = fn(envsMap, mesh, clusterName)
-	}
-	var envs []corev1.EnvVar
-	for k, v := range envsMap {
-		envs = append(envs, corev1.EnvVar{Name: k, Value: v})
-	}
-	return envs
+// Given a slice of corev1.Containers, injects sidecar(s) to enable traffic for each mesh specified.
+func (v *Versions) Inject(containers []corev1.Container, xdsCluster string, meshes []string) []corev1.Container {
+	return containers
 }
