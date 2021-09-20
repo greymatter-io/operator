@@ -36,7 +36,7 @@ IMAGE_TAG_BASE ?= docker.greymatter.io/internal/gm-operator
 BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:$(VERSION)
 
 # Image URL to use all building/pushing image targets
-IMG ?= gm-operator:latest
+IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -95,8 +95,8 @@ test: manifests generate fmt vet envtest ## Run tests.
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
-run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+run: manifests generate build ## Run a controller from your host.
+	./bin/manager
 
 docker-build: test ## Build docker image with the manager.
 	docker build -t ${IMG} .

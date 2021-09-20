@@ -8,5 +8,27 @@ This project is currently in an unstable alpha stage. This README will be update
 
 ### Requirements
 
-This project is built using the [Operator SDK](https://sdk.operatorframework.io) which relies on [Kubebuilder](https://kubebuilder.io) for its CLI and the [controller-runtime project](https://github.com/kubernetes-sigs/controller-runtime). As such, this project adheres to conventions and best practices recommended by those projects, and uses the [Operator SDK CLI v1.12.0](https://sdk.operatorframework.io/docs/installation/) for maintaining its API, manifests, and general project structure.
+This project is built on the [Operator SDK](https://sdk.operatorframework.io) which relies on [Kubebuilder](https://kubebuilder.io) for its CLI and the [controller-runtime project](https://github.com/kubernetes-sigs/controller-runtime). As such, this project adheres to conventions and best practices recommended by those projects.
 
+Download the [Operator SDK CLI v1.12.0](https://sdk.operatorframework.io/docs/installation/) for maintaining the project API, manifests, and general project structure.
+
+All other dependencies for this project can be added with `go mod vendor`, plus additional `make` targets which will download binaries to the `bin` directory.
+
+### Quickstart (Local)
+
+This section outlines how to set up a local development environment in [K3d](https://k3d.io) (not a requirement for this project, but an alternative to deploying to an online Kubernetes cluster).
+
+The following commands set up a local cluster, install necessary resources in it, and run this project's `main.go` from outside of the cluster.
+
+```
+k3d cluster create gm-operator -a 1 -p 30000:10808@loadbalancer
+export KUBECONFIG=$(k3d kubeconfig write gm-operator)
+make install run
+```
+
+To uninstall and tear down the local cluster, exit the terminal process and run:
+
+```
+make uninstall
+k3d cluster delete gm-operator
+```
