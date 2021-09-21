@@ -26,6 +26,8 @@ export KUBECONFIG=$(k3d kubeconfig write gm-operator)
 make install run
 ```
 
+The `make run` target runs the built binary with a provided `dev-config.yaml` which is used to configure settings the Operator will use.
+
 To uninstall and tear down the local cluster, exit the terminal process and run:
 
 ```

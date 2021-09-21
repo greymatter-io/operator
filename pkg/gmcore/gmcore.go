@@ -10,7 +10,7 @@ import (
 
 // References a Grey Matter version for each mesh
 type Versions struct {
-	each map[string]string
+	each map[string]string // TODO: Expand as options get added to Mesh CR
 }
 
 // Returns *Versions for tracking which Grey Matter version is installed for each mesh

@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	greymatteriov1alpha1 "github.com/greymatter-io/operator/api/v1alpha1"
+	v1alpha1 "github.com/greymatter-io/operator/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -43,16 +43,18 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(greymatteriov1alpha1.AddToScheme(scheme))
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
 func main() {
+	var configFile string
 	var metricsAddr string
 	var probeAddr string
 	var enableLeaderElection bool
 	var development bool
 
+	flag.StringVar(&configFile, "config", "", "The operator will load its initial configuration from this file if defined.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", true, "Enable leader election, ensuring only one active controller manager.")
@@ -71,14 +73,43 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "715805a0.greymatter.io",
-	})
+	// Initialize manager options with set values.
+	// These values will not be replaced by any values set in a read configFile.
+	var err error
+	options := ctrl.Options{
+		Scheme:         scheme,
+		LeaderElection: enableLeaderElection,
+		// TODO: Generate hash for ID; should be unique with multiple operator replicas
+		LeaderElectionID: "715805a0.greymatter.io",
+	}
+
+	// Attempt to read a configFile if one has been configured.
+	opConfig := v1alpha1.OperatorConfig{}
+	if configFile != "" {
+		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&opConfig))
+		if err != nil {
+			setupLog.Error(err, "unable to load config file", "path", configFile)
+			os.Exit(1)
+		}
+	}
+	// Set defaults for OperatorConfig values
+	if opConfig.ImagePullSecretName == "" {
+		opConfig.ImagePullSecretName = "docker.secret"
+	}
+
+	// If the configFile does not define these values, use defaults.
+	if options.Port == 0 {
+		options.Port = 9443
+	}
+	if options.MetricsBindAddress == "" {
+		options.MetricsBindAddress = metricsAddr
+	}
+	if options.HealthProbeBindAddress == "" {
+		options.HealthProbeBindAddress = probeAddr
+	}
+
+	// Initialize manager with configured options
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)

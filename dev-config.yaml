@@ -1,0 +1,9 @@
+apiVersion: greymatter.io/v1alpha1
+kind: OperatorConfig
+webhook:
+  port: 9443
+metrics:
+  bindAddress: 127.0.0.1:8080
+leaderElection:
+  leaderElect: false
+imagePullSecretName: docker.secret
