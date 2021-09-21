@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# Called by CI only
+set -e
+
+install_staticcheck() {
+  wget https://github.com/dominikh/go-tools/releases/download/2021.1/staticcheck_linux_amd64.tar.gz \
+    -O /tmp/staticcheck.tar.gz
+  tar -C /tmp -zxf /tmp/staticcheck.tar.gz
+  sudo mv /tmp/staticcheck/staticcheck /usr/local/bin/staticcheck
+}
+
+release_container() {
+  if [[ "$CIRCLECI" == "true" ]]; then
+    docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
+  fi
+  if [[ "$CIRCLE_BRANCH" == "main" ]]; then
+    echo "branch workflow"
+    docker push "docker.greymatter.io/development/operator:latest"
+  fi
+  if [[ -n "$CIRCLE_TAG" ]]; then
+    echo "tag workflow"
+    local operator_from="docker.greymatter.io/development/operator:latest"
+    local operator_to="docker.greymatter.io/development/operator:${CIRCLE_TAG:1}"
+    docker tag $operator_from $operator_to
+    docker push $operator_to
+  fi
+}
+
+if [ $# -lt 1 ]
+then
+  echo "cibuild: missing argument"
+  exit 1
+fi
+
+case $1 in
+  test)
+    install_staticcheck
+    ./scripts/test lint
+    ./scripts/test
+    ;;
+  build)
+    ./scripts/build
+    ;;
+  container)
+    ./scripts/build docker
+    ;;
+  release)
+    release_container
+    ;;
+  *)
+    echo "invalid argument $1"
+    exit 1
+    ;;
+esac
