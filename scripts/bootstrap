@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -e
+
+for dependency in go operator-sdk staticcheck
+do
+    if ! which $dependency &> /dev/null; then
+        echo "$dependency is missing from your \$PATH"
+        exit 1
+    fi
+done
+
+go mod tidy
+go mod vendor

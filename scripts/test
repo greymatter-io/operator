@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -e
+
+if [ $# -eq 0 ]; then
+  go test ./pkg/...
+else
+  case $1 in
+  lint)
+    staticcheck ./...
+    ;;
+  *)
+    echo "invalid argument $1"
+    exit 1
+    ;;
+  esac
+fi

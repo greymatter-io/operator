@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -e
+
+# stash changes on current branch, switch to main, and update main branch
+git stash
+git switch main
+git fetch origin
+git rebase origin/main
+
+go mod tidy

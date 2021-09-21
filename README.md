@@ -18,7 +18,7 @@ All other dependencies for this project can be added with `go mod vendor`, plus 
 
 This section outlines how to set up a local development environment in [K3d](https://k3d.io) (not a requirement for this project, but an alternative to deploying to an online Kubernetes cluster).
 
-The following commands set up a local cluster, install necessary resources in it, and run this project's `main.go` from outside of the cluster.
+The following commands set up a local cluster, install necessary resources in it, builds a binary, and runs it from outside of the cluster on your host.
 
 ```
 k3d cluster create gm-operator -a 1 -p 30000:10808@loadbalancer
