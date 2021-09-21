@@ -1,0 +1,20 @@
+# permissions for end users to view operatorconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: operatorconfig-viewer-role
+rules:
+- apiGroups:
+  - greymatter.io
+  resources:
+  - operatorconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - greymatter.io
+  resources:
+  - operatorconfigs/status
+  verbs:
+  - get
