@@ -7,3 +7,9 @@ metrics:
 leaderElection:
   leaderElect: false
 imagePullSecretName: docker.secret
+redis:
+  # example: "redis://<user>:<pass>@localhost:6379/<db>"
+  url: ""
+  # this secret should have keys: ca, server_cert, server_key
+  # if this is empty tls is not enabled 
+  certificateSecretName: ""

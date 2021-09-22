@@ -31,7 +31,16 @@ type OperatorConfig struct {
 
 	// TODO: Define settings that we need to configure for each Operator
 	// and create logical groupings for them.
-	ImagePullSecretName string `json:"imagePullSecretName"`
+	ImagePullSecretName string      `json:"imagePullSecretName"`
+	RedisConfig         redisConfig `json:"redis"`
+	// RedisUrl                   string `json:"redis.url"`
+	// RedisCertificateSecretName string `json:"redis.certificateSecretName"`
+
+}
+
+type redisConfig struct {
+	Url        string `json:"url"`
+	SecretName string `json:"certificateSecretName"`
 }
 
 func init() {

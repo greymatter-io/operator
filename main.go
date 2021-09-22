@@ -53,12 +53,17 @@ func main() {
 	var probeAddr string
 	var enableLeaderElection bool
 	var development bool
+	var redisUrl string
+	var redisCertificateSecretName string
 
 	flag.StringVar(&configFile, "config", "", "The operator will load its initial configuration from this file if defined.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", true, "Enable leader election, ensuring only one active controller manager.")
 	flag.BoolVar(&development, "development", false, "Run in development mode.")
+
+	flag.StringVar(&redisUrl, "redis-url", "", "The redis url.  Of the form redis://<user>:<pass>@<host>:<port>/<db> ")
+	flag.StringVar(&redisCertificateSecretName, "redis-certificate-secret-name", "", "The kubernetes secret containing the ca, server_cert, and server_key")
 
 	// Bind flags for Zap logger options, which I assume allows args to be passed in by OLM (?)
 	opts := zap.Options{}
@@ -95,6 +100,17 @@ func main() {
 	// Set defaults for OperatorConfig values
 	if opConfig.ImagePullSecretName == "" {
 		opConfig.ImagePullSecretName = "docker.secret"
+	}
+
+	if opConfig.RedisConfig.Url == "" {
+		opConfig.RedisConfig.Url = "redis://greymatteroperator:redis@localhost:6379/0" // TODO: if this field is empty and we will be spinning up a redis instance then it should connect to it <svc name>.<current namespace>.svc.cluster.local
+	}
+	// TODO: if certificateSecretName exists then use tls to connect to redis (https://redis.uptrace.dev/guide/server.html#using-tls)
+	if opConfig.RedisConfig.SecretName != "" {
+		// get secret specified
+		// validate there are 'ca', 'server_cert', 'server_key' keys.
+		// set up redis to use tls
+		setupLog.Info("A redis config secret name was provided.  TODO: Need to set up redis tls")
 	}
 
 	// If the configFile does not define these values, use defaults.
