@@ -36,6 +36,8 @@ fi
 case $1 in
   test)
     install_staticcheck
+    go mod tidy
+    go mod vendor
     ./scripts/test lint
     ./scripts/test
     ;;
