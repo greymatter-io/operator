@@ -40,6 +40,7 @@ func checkRedisConfig(ms v1alpha1.MeshSpec) error {
 			// set up redis to use tls
 			fmt.Println("A redis config secret name was provide.  TODO: Need to setup redis tls")
 		}
+		return nil
 	}
 	return errors.New("no mesh redis config found")
 }
