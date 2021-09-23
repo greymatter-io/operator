@@ -1,13 +1,13 @@
-# permissions for end users to view systemvaluesconfigs.
+# permissions for end users to view installvaluesconfigs.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: systemvaluesconfig-viewer-role
+  name: installvaluesconfig-viewer-role
 rules:
 - apiGroups:
   - greymatter.io
   resources:
-  - systemvaluesconfigs
+  - installvaluesconfigs
   verbs:
   - get
   - list

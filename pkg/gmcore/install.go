@@ -12,8 +12,8 @@ import (
 // If auto-inject is enabled (default=true), labels each existing appsv1.Deployment/StatefulSet
 // plus their pod templates so that those workloads are added to the mesh automatically.
 func (s *System) ApplyMesh(c client.Client, mesh v1alpha1.Mesh) {
-	// TODO: Get the appropriate s.values SystemValuesConfig, DeepCopy it, and then apply options
-	// NOTE: v1alpha1.Mesh should have a method that reads its spec and returns SystemValues options to overlay.
+	// TODO: Get the appropriate s.values InstallValuesConfig, DeepCopy it, and then apply options
+	// NOTE: v1alpha1.Mesh should have a method that reads its spec and returns InstallValues options to overlay.
 }
 
 // Removes all resources created for installing Grey Matter core components of a mesh.

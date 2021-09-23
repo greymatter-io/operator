@@ -21,8 +21,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// SystemValues defines the desired state of SystemValuesConfig
-type SystemValues struct {
+// InstallValues defines the desired state of InstallValuesConfig
+type InstallValues struct {
 	// Values for injecting proxy containers into deployments/statefulsets.
 	Proxy Values `json:"proxy"`
 	// Values for defining a Grey Matter Edge deployment.
@@ -64,22 +64,22 @@ type Values struct {
 
 //+kubebuilder:object:root=true
 
-// SystemValuesConfig is the Schema for the systemvaluesconfigs API
-type SystemValuesConfig struct {
+// InstallValuesConfig is the Schema for the installvaluesconfigs API
+type InstallValuesConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	SystemValues      `json:",inline"`
+	InstallValues     `json:",inline"`
 }
 
 //+kubebuilder:object:root=true
 
-// SystemValuesConfigList contains a list of SystemValuesConfig
-type SystemValuesConfigList struct {
+// InstallValuesConfigList contains a list of InstallValuesConfig
+type InstallValuesConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []SystemValuesConfig `json:"items"`
+	Items           []InstallValuesConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&SystemValuesConfig{}, &SystemValuesConfigList{})
+	SchemeBuilder.Register(&InstallValuesConfig{}, &InstallValuesConfigList{})
 }

@@ -1,13 +1,13 @@
-# permissions for end users to edit systemvaluesconfigs.
+# permissions for end users to edit installvaluesconfigs.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: systemvaluesconfig-editor-role
+  name: installvaluesconfig-editor-role
 rules:
 - apiGroups:
   - greymatter.io
   resources:
-  - systemvaluesconfigs
+  - installvaluesconfigs
   verbs:
   - create
   - delete

@@ -12,23 +12,23 @@ import (
 var fixture string
 
 func TestWithSPIRE(t *testing.T) {
-	sv := loadFixture()
-	sv.Overlay(WithSPIRE)
+	installValues := loadFixture()
+	installValues.Overlay(WithSPIRE)
 
 	t.Run("applies values to Proxy", func(t *testing.T) {
-		if _, ok := sv.Proxy.Volumes["spire-socket"]; !ok {
+		if _, ok := installValues.Proxy.Volumes["spire-socket"]; !ok {
 			t.Error("expected to find 'spire-socket' volume in Proxy")
 		}
-		if _, ok := sv.Proxy.VolumeMounts["spire-socket"]; !ok {
+		if _, ok := installValues.Proxy.VolumeMounts["spire-socket"]; !ok {
 			t.Error("expected to find 'spire-socket' volumeMount in Proxy")
 		}
-		if _, ok := sv.Proxy.Env["SPIRE_PATH"]; !ok {
+		if _, ok := installValues.Proxy.Env["SPIRE_PATH"]; !ok {
 			t.Error("expected to find 'SPIRE_PATH' env in Proxy")
 		}
 	})
 
 	t.Run("overlays are marshalable into YAML", func(t *testing.T) {
-		y, err := yaml.Marshal(sv.Proxy)
+		y, err := yaml.Marshal(installValues.Proxy)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -39,12 +39,12 @@ func TestWithSPIRE(t *testing.T) {
 }
 
 func TestWithRedis(t *testing.T) {
-	sv := loadFixture()
-	sv.Overlay(WithRedis("host", "port")) // TODO
+	installValues := loadFixture()
+	installValues.Overlay(WithRedis("host", "port")) // TODO
 }
 
-func loadFixture() *SystemValues {
-	sv := &SystemValuesConfig{}
-	yaml.Unmarshal([]byte(fixture), sv)
-	return &sv.SystemValues
+func loadFixture() *InstallValues {
+	installValues := &InstallValuesConfig{}
+	yaml.Unmarshal([]byte(fixture), installValues)
+	return &installValues.InstallValues
 }

@@ -12,7 +12,7 @@ func TestLoadValues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	values := make(map[string]*v1alpha1.SystemValuesConfig)
+	values := make(map[string]*v1alpha1.InstallValuesConfig)
 	t.Run("loads values files from an embed.FS without error", func(t *testing.T) {
 		vs, err := loadValues(files)
 		if err != nil {
