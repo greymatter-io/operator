@@ -3,6 +3,13 @@
 # Called by CI only
 set -e
 
+install_greymatter_cli() {
+  wget https://$NEXUS_USER:$NEXUS_PASSWORD@nexus.greymatter.io/repository/raw/release/gm-cli/greymatter-3.0.0.tar.gz \
+    -O /tmp/greymatter.tar.gz
+  tar -C /tmp -zxf /tmp/greymatter.tar.gz
+  sudo mv /tmp/greymatter/greymatter.linux /usr/local/bin/greymatter
+}
+
 install_staticcheck() {
   wget https://github.com/dominikh/go-tools/releases/download/2021.1/staticcheck_linux_amd64.tar.gz \
     -O /tmp/staticcheck.tar.gz
@@ -35,6 +42,7 @@ fi
 
 case $1 in
   test)
+    install_greymatter_cli
     install_staticcheck
     go mod tidy
     go mod vendor
