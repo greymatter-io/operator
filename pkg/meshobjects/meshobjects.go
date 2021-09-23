@@ -1,20 +1,9 @@
 // Package meshobjects defines functions for generating templates for each service in a mesh.
 package meshobjects
 
-import "github.com/greymatter-io/operator/api/v1alpha1"
-
 type Object struct {
 	Kind string
 	Data string
-}
-
-func MkEdgeObjects(mesh v1alpha1.Mesh) []Object {
-	var objects []Object
-	// cluster
-	// domain
-	// listener
-	// proxy
-	return objects
 }
 
 type ServiceTemplates struct {
@@ -29,8 +18,4 @@ type LocalTemplates struct {
 	Listener string // deployment:port (added to proxy)
 	Cluster  string // deployment:port (static config localhost:port)
 	Route    string // deployment:port (added to local domain)
-}
-
-func MkServiceTemplates(mesh v1alpha1.Mesh) ServiceTemplates {
-	return ServiceTemplates{}
 }
