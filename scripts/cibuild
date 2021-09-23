@@ -4,7 +4,8 @@
 set -e
 
 install_greymatter_cli() {
-  wget https://$NEXUS_USER:$NEXUS_PASSWORD@nexus.greymatter.io/repository/raw/release/gm-cli/greymatter-3.0.0.tar.gz \
+  wget --user $NEXUS_USER --password $NEXUS_PASSWORD \
+    nexus.greymatter.io/repository/raw/release/gm-cli/greymatter-3.0.0.tar.gz \
     -O /tmp/greymatter.tar.gz
   tar -C /tmp -zxf /tmp/greymatter.tar.gz
   sudo mv /tmp/greymatter/greymatter.linux /usr/local/bin/greymatter
