@@ -5,7 +5,6 @@ package store
 
 import (
 	"github.com/greymatter-io/operator/api/v1alpha1"
-	"github.com/greymatter-io/operator/pkg/meshobjects"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -15,8 +14,8 @@ type Data struct {
 }
 
 type db struct {
-	id        int
-	templates meshobjects.ServiceTemplates
+	// id        int
+	// templates meshobjects.ServiceTemplates
 }
 
 // Ensures a connection to Redis in the gm-operator namespace and returns *Data for
