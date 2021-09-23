@@ -23,7 +23,8 @@ import (
 // MeshSpec defines the desired state of Mesh
 type MeshSpec struct {
 	// Foo is an example field of Mesh. Note that json tags are required for fields to be serialized.
-	Foo string `json:"foo,omitempty"`
+	Foo         string       `json:"foo,omitempty"`
+	RedisConfig *RedisConfig `json:"redis,omitempty"`
 }
 
 // MeshStatus defines the observed state of Mesh
