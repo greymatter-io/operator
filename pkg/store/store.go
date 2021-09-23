@@ -4,6 +4,9 @@
 package store
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -22,6 +25,23 @@ type db struct {
 // tracking Redis database assignments for each mesh and how meshobjects in each should be configured.
 func New() (*Data, error) {
 	return &Data{make(map[string]db)}, nil
+}
+
+func checkRedisConfig(ms v1alpha1.MeshSpec) error {
+	if ms.RedisConfig != nil {
+		//set redis config to a locally spawned redis client (in the namespace the mesh is being deployed into)
+		if ms.RedisConfig.Url == "" {
+			ms.RedisConfig.Url = "redis://greymatteroperator:redis@localhost:6379/0" // TODO: if this field is empty and we will be spinning up a redis instance then it should connect to it <svc name>.<current namespace>.svc.cluster.local
+		}
+		if ms.RedisConfig.SecretName != "" {
+			// secret name provided therefore we will use tls
+			// get secret specified
+			// validate there are 'ca', 'server_cert', 'server_key' keys.
+			// set up redis to use tls
+			fmt.Println("A redis config secret name was provide.  TODO: Need to setup redis tls")
+		}
+	}
+	return errors.New("no mesh redis config found")
 }
 
 // Assigns a Redis database to the given Mesh CR (if not assigned), creates meshobject.Edge objects and
