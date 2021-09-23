@@ -1,31 +1,50 @@
 package v1alpha1
 
 import (
+	_ "embed"
 	"strings"
 	"testing"
 
 	"github.com/ghodss/yaml"
 )
 
+//go:embed fixture.yaml
+var fixture string
+
 func TestWithSPIRE(t *testing.T) {
-	sv := &SystemValues{}
+	sv := loadFixture()
 	sv.Overlay(WithSPIRE)
-	if _, ok := sv.Proxy.Volumes["spire-socket"]; !ok {
-		t.Fatal("expected to find 'spire-socket' volume in Proxy")
-	}
-	if _, ok := sv.Proxy.VolumeMounts["spire-socket"]; !ok {
-		t.Fatal("expected to find 'spire-socket' volumeMount in Proxy")
-	}
-	if _, ok := sv.Proxy.Env["SPIRE_PATH"]; !ok {
-		t.Fatal("expected to find 'SPIRE_PATH' env in Proxy")
-	}
 
-	y, err := yaml.Marshal(sv.Proxy)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("applies values to Proxy", func(t *testing.T) {
+		if _, ok := sv.Proxy.Volumes["spire-socket"]; !ok {
+			t.Error("expected to find 'spire-socket' volume in Proxy")
+		}
+		if _, ok := sv.Proxy.VolumeMounts["spire-socket"]; !ok {
+			t.Error("expected to find 'spire-socket' volumeMount in Proxy")
+		}
+		if _, ok := sv.Proxy.Env["SPIRE_PATH"]; !ok {
+			t.Error("expected to find 'SPIRE_PATH' env in Proxy")
+		}
+	})
 
-	if count := strings.Count(string(y), "SPIRE_PATH: /run/spire/socket/agent.sock"); count != 1 {
-		t.Error("did not find substring '/run/spire/socket/agent.sock' in Proxy YAML")
-	}
+	t.Run("overlays are marshalable into YAML", func(t *testing.T) {
+		y, err := yaml.Marshal(sv.Proxy)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(y), "SPIRE_PATH: /run/spire/socket/agent.sock") {
+			t.Error("did not find substring 'SPIRE_PATH: /run/spire/socket/agent.sock' in Proxy YAML")
+		}
+	})
+}
+
+func TestWithRedis(t *testing.T) {
+	sv := loadFixture()
+	sv.Overlay(WithRedis("host", "port")) // TODO
+}
+
+func loadFixture() *SystemValues {
+	sv := &SystemValuesConfig{}
+	yaml.Unmarshal([]byte(fixture), sv)
+	return &sv.SystemValues
 }

@@ -22,9 +22,9 @@ func TestLoadValues(t *testing.T) {
 		}
 	})
 
-	t.Run("loads an expected embedded values file and stores it in a map", func(t *testing.T) {
+	t.Run("loads values for Grey Matter v1.6", func(t *testing.T) {
 		if _, ok := values["v1.6"]; !ok {
-			t.Error("expected to load values from values/v1.6.yaml")
+			t.Error("did not find v1.6 in values")
 		}
 	})
 }

@@ -105,3 +105,11 @@ func WithSPIRE(sv *SystemValues) {
 		WithEnv("SPIRE_PATH", "/run/spire/socket/agent.sock"),
 	)
 }
+
+// A SystemValues option that injects configuration for a Redis provider.
+// If the Redis configuration is empty, adds Values for configuring an internal Redis.
+func WithRedis(redisHost, redisPort string) func(*SystemValues) {
+	return func(sv *SystemValues) {
+		// inject configs into system values for control api, catalog, jwt security
+	}
+}
