@@ -40,6 +40,9 @@ func (mc meshCmd) run() (string, error) {
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
+	if mc.read == nil {
+		return out.String(), nil
+	}
 	result, err := mc.read(out.String())
 	if err != nil {
 		return "", fmt.Errorf("failed to format: %w", err)
@@ -62,4 +65,9 @@ func version() (string, error) {
 			return fields[1], nil
 		},
 	}.run()
+}
+
+func help() string {
+	result, _ := meshCmd{args: "help"}.run()
+	return result
 }

@@ -11,3 +11,8 @@ func TestVersion(t *testing.T) {
 	}
 	t.Log(v)
 }
+
+func TestHelp(t *testing.T) {
+	v := help()
+	t.Log(v)
+}
