@@ -13,7 +13,7 @@ var fixture string
 
 func TestWithSPIRE(t *testing.T) {
 	installValues := loadFixture()
-	installValues.Overlay(WithSPIRE)
+	installValues.With(SPIRE)
 
 	t.Run("applies values to Proxy", func(t *testing.T) {
 		if _, ok := installValues.Proxy.Volumes["spire-socket"]; !ok {
@@ -22,7 +22,7 @@ func TestWithSPIRE(t *testing.T) {
 		if _, ok := installValues.Proxy.VolumeMounts["spire-socket"]; !ok {
 			t.Error("expected to find 'spire-socket' volumeMount in Proxy")
 		}
-		if _, ok := installValues.Proxy.Env["SPIRE_PATH"]; !ok {
+		if _, ok := installValues.Proxy.Envs["SPIRE_PATH"]; !ok {
 			t.Error("expected to find 'SPIRE_PATH' env in Proxy")
 		}
 	})
@@ -40,11 +40,11 @@ func TestWithSPIRE(t *testing.T) {
 
 func TestWithRedis(t *testing.T) {
 	installValues := loadFixture()
-	installValues.Overlay(WithRedis("host", "port")) // TODO
+	installValues.With(Redis("host", "port")) // TODO
 }
 
 func loadFixture() *InstallValues {
-	installValues := &InstallValuesConfig{}
-	yaml.Unmarshal([]byte(fixture), installValues)
-	return &installValues.InstallValues
+	cfg := &InstallValuesConfig{}
+	yaml.Unmarshal([]byte(fixture), cfg)
+	return &cfg.InstallValues
 }

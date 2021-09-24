@@ -30,13 +30,13 @@ spec:
           catalog:
             description: Values for defining a Grey Matter Catalog deployment.
             properties:
-              env:
+              envs:
                 additionalProperties:
                   type: string
                 description: '*Map* of *value* (string) environment variables to set
                   in the container.'
                 type: object
-              envFrom:
+              envsFrom:
                 additionalProperties:
                   description: EnvVarSource represents a source for the value of an
                     EnvVar.
@@ -1659,13 +1659,13 @@ spec:
             description: Values for defining a Grey Matter Control container in the
               control deployment.
             properties:
-              env:
+              envs:
                 additionalProperties:
                   type: string
                 description: '*Map* of *value* (string) environment variables to set
                   in the container.'
                 type: object
-              envFrom:
+              envsFrom:
                 additionalProperties:
                   description: EnvVarSource represents a source for the value of an
                     EnvVar.
@@ -3288,13 +3288,13 @@ spec:
             description: Values for defining a Grey Matter Control API container in
               the control deployment.
             properties:
-              env:
+              envs:
                 additionalProperties:
                   type: string
                 description: '*Map* of *value* (string) environment variables to set
                   in the container.'
                 type: object
-              envFrom:
+              envsFrom:
                 additionalProperties:
                   description: EnvVarSource represents a source for the value of an
                     EnvVar.
@@ -4916,13 +4916,13 @@ spec:
           dashboard:
             description: Values for defining a Grey Matter Dashboard deployment.
             properties:
-              env:
+              envs:
                 additionalProperties:
                   type: string
                 description: '*Map* of *value* (string) environment variables to set
                   in the container.'
                 type: object
-              envFrom:
+              envsFrom:
                 additionalProperties:
                   description: EnvVarSource represents a source for the value of an
                     EnvVar.
@@ -6544,13 +6544,13 @@ spec:
           edge:
             description: Values for defining a Grey Matter Edge deployment.
             properties:
-              env:
+              envs:
                 additionalProperties:
                   type: string
                 description: '*Map* of *value* (string) environment variables to set
                   in the container.'
                 type: object
-              envFrom:
+              envsFrom:
                 additionalProperties:
                   description: EnvVarSource represents a source for the value of an
                     EnvVar.
@@ -8172,13 +8172,13 @@ spec:
           jwtSecurity:
             description: Values for defining a Grey Matter JWT Security Service deployment.
             properties:
-              env:
+              envs:
                 additionalProperties:
                   type: string
                 description: '*Map* of *value* (string) environment variables to set
                   in the container.'
                 type: object
-              envFrom:
+              envsFrom:
                 additionalProperties:
                   description: EnvVarSource represents a source for the value of an
                     EnvVar.
@@ -9807,13 +9807,13 @@ spec:
           prometheus:
             description: Values for defining a Prometheus deployment. Optional.
             properties:
-              env:
+              envs:
                 additionalProperties:
                   type: string
                 description: '*Map* of *value* (string) environment variables to set
                   in the container.'
                 type: object
-              envFrom:
+              envsFrom:
                 additionalProperties:
                   description: EnvVarSource represents a source for the value of an
                     EnvVar.
@@ -11435,13 +11435,13 @@ spec:
           proxy:
             description: Values for injecting proxy containers into deployments/statefulsets.
             properties:
-              env:
+              envs:
                 additionalProperties:
                   type: string
                 description: '*Map* of *value* (string) environment variables to set
                   in the container.'
                 type: object
-              envFrom:
+              envsFrom:
                 additionalProperties:
                   description: EnvVarSource represents a source for the value of an
                     EnvVar.
@@ -13063,13 +13063,13 @@ spec:
           redis:
             description: Values for defining a Redis deployment. Optional.
             properties:
-              env:
+              envs:
                 additionalProperties:
                   type: string
                 description: '*Map* of *value* (string) environment variables to set
                   in the container.'
                 type: object
-              envFrom:
+              envsFrom:
                 additionalProperties:
                   description: EnvVarSource represents a source for the value of an
                     EnvVar.
