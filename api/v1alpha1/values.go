@@ -5,6 +5,10 @@ import corev1 "k8s.io/api/core/v1"
 type Values struct {
 	// Docker image name.
 	Image string `json:"image,omitempty"`
+	// Command to override container entry point
+	Command []string `json:"command,omitempty"`
+	// Arguments to append to command when overriting container entry point
+	Arguments []string `json:"args,omitempty"`
 	// Compute resources required by the container.
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 	// Labels to add to the Deployment/StatefulSet and its Template.Spec
@@ -160,6 +164,22 @@ func VolumeMounts(volumeMounts map[string]corev1.VolumeMount) func(*Values) {
 		}
 		for k, v := range volumeMounts {
 			values.VolumeMounts[k] = v
+		}
+	}
+}
+
+func Command(cmd []string) func(*Values) {
+	return func(values *Values) {
+		if len(cmd) > 0 {
+			values.Command = cmd
+		}
+	}
+}
+
+func Args(args []string) func(*Values) {
+	return func(values *Values) {
+		if len(args) > 0 {
+			values.Arguments = args
 		}
 	}
 }
