@@ -14,7 +14,7 @@ spec:
     listKind: MeshList
     plural: meshes
     singular: mesh
-  scope: Cluster
+  scope: Namespace
   versions:
   - name: v1alpha1
     schema:

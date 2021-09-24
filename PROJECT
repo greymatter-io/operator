@@ -9,6 +9,7 @@ repo: github.com/greymatter-io/operator
 resources:
 - api:
     crdVersion: v1
+    namespaced: true
   domain: greymatter.io
   kind: Mesh
   path: github.com/greymatter-io/operator/api/v1alpha1

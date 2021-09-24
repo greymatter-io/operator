@@ -32,7 +32,7 @@ type MeshStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:resource:scope=Cluster
+//+kubebuilder:resource:scope=Namespace
 
 // Mesh is the Schema for the meshes API
 type Mesh struct {
