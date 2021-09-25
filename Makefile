@@ -146,6 +146,17 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
+.PHONY: packagemanifests
+packagemanifests: manifests kustomize ## Generates gitignored manifests for deploying WITHOUT bundling. Deprecated, and only for development environments.
+	operator-sdk generate kustomize manifests -q
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate packagemanifests -q --package gm-operator --version $(VERSION)
+	sed -i'.original' -e 's/gm-operator:0.0.1/gm-operator:latest/g' ./packagemanifests/0.0.1/gm-operator.clusterserviceversion.yaml
+	rm ./packagemanifests/0.0.1/gm-operator.clusterserviceversion.yaml.original
+
+.PHONY: packagemanifests-run ## Deploys to the current OpenShift cluster.
+packagemanifests-run:
+	operator-sdk run packagemanifests -n gm-operator --version $(VERSION)
+
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
 	operator-sdk generate kustomize manifests -q
@@ -154,12 +165,16 @@ bundle: manifests kustomize ## Generate bundle manifests and metadata, then vali
 	operator-sdk bundle validate ./bundle
 
 .PHONY: bundle-build
-bundle-build: ## Build the bundle image.
+bundle-build: ## Build the bundle image. This should only run in CI.
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
-bundle-push: ## Push the bundle image.
+bundle-push: ## Push the bundle image. This should only run in CI.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
+
+.PHONY: bundle-run
+bundle-run: ## Run the bundle image on the current OpenShift cluster. Uses oc under the hood.
+	operator-sdk run bundle -n gm-operator --pull-secret-name gm-docker-secret $(BUNDLE_IMG)
 
 .PHONY: opm
 OPM = ./bin/opm

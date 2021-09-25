@@ -26,3 +26,4 @@ testbin/*
 
 vendor/
 tmp.md
+packagemanifests/
