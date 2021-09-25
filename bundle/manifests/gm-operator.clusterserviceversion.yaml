@@ -116,6 +116,8 @@ spec:
                     memory: 20Mi
                 securityContext:
                   allowPrivilegeEscalation: false
+              imagePullSecrets:
+              - name: gm-docker-secret
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: operator-controller-manager
