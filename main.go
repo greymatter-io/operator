@@ -98,8 +98,8 @@ func main() {
 	}
 
 	// Set defaults for OperatorConfig values
-	if cfg.ImagePullSecretName == "" {
-		cfg.ImagePullSecretName = "docker.secret"
+	if cfg.ImagePullSecret == "" {
+		cfg.ImagePullSecret = "docker.secret"
 	}
 
 	// If the configFile does not define these values, use defaults.

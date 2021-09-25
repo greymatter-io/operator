@@ -27,7 +27,7 @@ import (
 type BootstrapConfig struct {
 	metav1.TypeMeta                        `json:",inline"`
 	cfg.ControllerManagerConfigurationSpec `json:",inline"`
-	// TODO: Define settings that we need to configure for each Operator
-	// and create logical groupings for them.
-	ImagePullSecretName string `json:"imagePullSecretName"`
+	// The name of the imagePullSecret in the namespace where the Operator is deployed.
+	// This secret is re-created in each namespace where Grey Matter Core is installed.
+	ImagePullSecret string `json:"imagePullSecret"`
 }
