@@ -158,6 +158,13 @@ dev-run: manifests kustomize ## Generates and deploys a 'bundled' project to the
 	rm ./packagemanifests/$(VERSION)/gm-operator.clusterserviceversion.yaml.original
 	operator-sdk run packagemanifests -n gm-operator --version $(VERSION)
 
+.PHONY: dev-upgrade
+dev-upgrade: ## Builds and pushes a new image to docker.greymatter.io/internal/gm-operator:latest.
+# Note that this command does not upgrade the 'packagemanifests' in the OpenShift cluster.
+	$(MAKE) docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
+	$(MAKE) docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
+	oc delete pod -n gm-operator -l control-plane=controller-manager
+
 .PHONY: dev-cleanup
 dev-cleanup:
 	operator-sdk cleanup -n gm-operator gm-operator
