@@ -18,19 +18,17 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.11.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
-  name: operator.v0.0.1
+  name: gm-operator.v0.0.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: Mesh is the Schema for the meshes API
-      displayName: Mesh
-      kind: Mesh
+    - kind: Mesh
       name: meshes.greymatter.io
       version: v1alpha1
-  description: TODO
-  displayName: Grey Matter Operator
+  description: Gm Operator description. TODO.
+  displayName: Gm Operator
   icon:
   - base64data: ""
     mediatype: ""
@@ -167,16 +165,15 @@ spec:
   - supported: true
     type: AllNamespaces
   keywords:
-  - keyword1
-  - keyword2
+  - gm-operator
   links:
-  - name: Operator
-    url: https://operator.domain
+  - name: Gm Operator
+    url: https://gm-operator.domain
   maintainers:
-  - email: info@greymatter.io
-    name: Info
+  - email: your@email.com
+    name: Maintainer Name
   maturity: alpha
   provider:
-    name: Decipher Technology Studios
-    url: https://greymatter.io
+    name: Provider Name
+    url: https://your.domain
   version: 0.0.1
