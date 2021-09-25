@@ -1,0 +1,17 @@
+apiVersion: v1
+data:
+  bootstrap_config.yaml: |
+    kind: BootstrapConfig
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: 127.0.0.1:8080
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: 715805a0.greymatter.io
+    imagePullSecret: docker.secret
+kind: ConfigMap
+metadata:
+  name: operator-manager-config

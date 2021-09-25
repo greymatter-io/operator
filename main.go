@@ -48,6 +48,9 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
+// Add tags here for generating RBAC rules for the role that will be used by the Operator.
+//+kubebuilder:rbac:groups=greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
+
 func main() {
 	var configFile string
 	var metricsAddr string
