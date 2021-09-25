@@ -16,6 +16,7 @@ jobs:
       - run: ./scripts/cibuild build
       - run: ./scripts/cibuild container
       - run: ./scripts/cibuild release
+      - run: ./scripts/cibuild bundle
 
 workflows:
   version: 2
