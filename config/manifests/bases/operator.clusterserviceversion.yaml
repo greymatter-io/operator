@@ -1,4 +1,3 @@
-# Update this file prior to running `make bundle`, as this is used to generate our bundle/manifests.
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
