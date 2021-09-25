@@ -14,7 +14,7 @@ Download the [Operator SDK CLI v1.12.0](https://sdk.operatorframework.io/docs/in
 
 All other dependencies for this project can be added with `go mod vendor`, plus additional `make` targets which will download binaries to the `bin` directory.
 
-### Quickstart (Local)
+### Local Quickstart
 
 This section outlines how to set up a local development environment in [K3d](https://k3d.io) (not a requirement for this project, but an alternative to deploying to an online Kubernetes cluster).
 
@@ -26,7 +26,7 @@ export KUBECONFIG=$(k3d kubeconfig write gm-operator)
 make install run
 ```
 
-The `make run` target runs the built binary with a provided `dev-config.yaml` which is used to configure settings the Operator will use.
+The `make run` target runs the built binary.
 
 To uninstall and tear down the local cluster, exit the terminal process and run:
 
@@ -34,3 +34,10 @@ To uninstall and tear down the local cluster, exit the terminal process and run:
 make uninstall
 k3d cluster delete gm-operator
 ```
+
+### Deployed Quickstart
+
+Warning: This setup is only for development! Do not use in production.
+
+`make dev-run` - Builds an image, pushes it to `docker.greymatter.io/internal`, and installs to an OpenShift cluster to be managed by the Operator Lifecycle Manager.
+`make dev-cleanup` - Remove from the OpenShift cluster.

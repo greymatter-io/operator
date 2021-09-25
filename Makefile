@@ -146,16 +146,21 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
-.PHONY: packagemanifests
-packagemanifests: manifests kustomize ## Generates gitignored manifests for deploying WITHOUT bundling. Deprecated, and only for development environments.
+.PHONY: dev-run
+dev-run: manifests kustomize ## Generates and deploys a 'bundled' project to the current OpenShfit cluster WITHOUT a bundled image.
+# It is only meant to be run in active development, and should not be used for deploying to production.
+# An image will be pushed to docker.greymatter.io/internal/gm-operator:latest.
+	$(MAKE) docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
+	$(MAKE) docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
 	operator-sdk generate kustomize manifests -q
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate packagemanifests -q --package gm-operator --version $(VERSION)
-	sed -i'.original' -e 's/gm-operator:0.0.1/gm-operator:latest/g' ./packagemanifests/0.0.1/gm-operator.clusterserviceversion.yaml
-	rm ./packagemanifests/0.0.1/gm-operator.clusterserviceversion.yaml.original
-
-.PHONY: packagemanifests-run ## Deploys to the current OpenShift cluster.
-packagemanifests-run:
+	sed -i'.original' -e 's|development/gm-operator:$(VERSION)|internal/gm-operator:latest|g' ./packagemanifests/$(VERSION)/gm-operator.clusterserviceversion.yaml
+	rm ./packagemanifests/$(VERSION)/gm-operator.clusterserviceversion.yaml.original
 	operator-sdk run packagemanifests -n gm-operator --version $(VERSION)
+
+.PHONY: dev-cleanup
+dev-cleanup:
+	operator-sdk cleanup -n gm-operator gm-operator
 
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
