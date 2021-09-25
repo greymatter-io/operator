@@ -11,10 +11,13 @@ install_staticcheck() {
 }
 
 release_container() {
-  if [[ "$CIRCLECI" == "true" ]]; then
-    docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
+  if [[ -z "$CIRCLECI" ]]; then
+    echo "cibuild release: must be run in circleci"
+    exit 1
   fi
-  if [[ "$CIRCLE_BRANCH" == "prep-bundle-image" ]]; then
+
+  if [[ "$CIRCLE_BRANCH" == "main" ]]; then
+    docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
     echo "branch workflow"
     make docker-push VERSION=latest
   fi
@@ -33,7 +36,7 @@ release_bundle() {
     exit 1
   fi
 
-  if [[ "$CIRCLE_BRANCH" == "prep-bundle-image" ]]; then
+  if [[ "$CIRCLE_BRANCH" == "main" ]]; then
     echo "branch workflow"
     make bundle-build VERSION=latest
     docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
