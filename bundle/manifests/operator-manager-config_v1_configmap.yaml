@@ -11,7 +11,7 @@ data:
     leaderElection:
       leaderElect: true
       resourceName: 715805a0.greymatter.io
-    imagePullSecret: docker.secret
+    imagePullSecret: gm-docker-secret
 kind: ConfigMap
 metadata:
   name: operator-manager-config
