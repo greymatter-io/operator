@@ -22,22 +22,22 @@ import (
 
 //+kubebuilder:object:root=true
 
-// InstallValuesConfig is the Schema for the installvaluesconfigs API
-type InstallValuesConfig struct {
+// InstallationConfig is the Schema for the installationconfigs API
+type InstallationConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	InstallValues     `json:",inline"`
+	Values            InstallValues `json:",inline"`
 }
 
 //+kubebuilder:object:root=true
 
-// InstallValuesConfigList contains a list of InstallValuesConfig
-type InstallValuesConfigList struct {
+// InstallationConfigList contains a list of InstallationConfig
+type InstallationConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []InstallValuesConfig `json:"items"`
+	Items           []InstallationConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&InstallValuesConfig{}, &InstallValuesConfigList{})
+	SchemeBuilder.Register(&InstallationConfig{}, &InstallationConfigList{})
 }

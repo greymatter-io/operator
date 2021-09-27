@@ -12,7 +12,7 @@ import (
 // If auto-inject is enabled (default=true), labels each existing appsv1.Deployment/StatefulSet
 // plus their pod templates so that those workloads are added to the mesh automatically.
 func (i *Installer) ApplyMesh(c client.Client, mesh v1alpha1.Mesh) {
-	// TODO: Get the appropriate s.values InstallValuesConfig, DeepCopy it, and then apply options
+	// TODO: Get the appropriate s.values from InstallationConfig, DeepCopy it, and then apply options
 	// NOTE: v1alpha1.Mesh should have a method that reads its spec and returns InstallValues options to overlay.
 }
 

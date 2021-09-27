@@ -44,7 +44,7 @@ func TestWithRedis(t *testing.T) {
 }
 
 func loadFixture() *InstallValues {
-	cfg := &InstallValuesConfig{}
+	cfg := &InstallationConfig{}
 	yaml.Unmarshal([]byte(fixture), cfg)
-	return &cfg.InstallValues
+	return &cfg.Values
 }

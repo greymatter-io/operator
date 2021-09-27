@@ -1,5 +1,5 @@
 apiVersion: greymatter.io/v1alpha1
-kind: InstallValuesConfig
+kind: InstallationConfig
 metadata:
   name: fixture
 

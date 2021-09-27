@@ -6,20 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.6.1
   creationTimestamp: null
-  name: installvaluesconfigs.greymatter.io
+  name: installationconfigs.greymatter.io
 spec:
   group: greymatter.io
   names:
-    kind: InstallValuesConfig
-    listKind: InstallValuesConfigList
-    plural: installvaluesconfigs
-    singular: installvaluesconfig
+    kind: InstallationConfig
+    listKind: InstallationConfigList
+    plural: installationconfigs
+    singular: installationconfig
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: InstallValuesConfig is the Schema for the installvaluesconfigs
+        description: InstallationConfig is the Schema for the installationconfigs
           API
         properties:
           apiVersion:
