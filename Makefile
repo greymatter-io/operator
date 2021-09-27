@@ -146,19 +146,24 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
+CI = $(shell echo ${CIRCLECI} | xargs)
+
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
+	if [[ "$$CI" != "true" ]]; then echo "Error: Must only run in CI";exit 1;fi
 	operator-sdk generate kustomize manifests --package gm-operator -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --package gm-operator --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
 
 .PHONY: bundle-build
-bundle-build: ## Build the bundle image. This should only run in CI.
+bundle-build: ## Build the bundle image.
+	if [[ "$$CI" != "true" ]]; then echo "Error: Must only run in CI";exit 1;fi
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
-bundle-push: ## Push the bundle image. This should only run in CI.
+bundle-push: ## Push the bundle image.
+	if [[ "$$CI" != "true" ]]; then echo "Error: Must only run in CI";exit 1;fi
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
 
 .PHONY: bundle-run
