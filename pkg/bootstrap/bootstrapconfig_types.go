@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package bootstrap
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,18 +22,12 @@ import (
 )
 
 //+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
 
-// OperatorConfig enables defining configuration settings for a Grey Matter Operator.
-type OperatorConfig struct {
+// BootstrapConfig enables defining configuration settings for a Grey Matter Operator.
+type BootstrapConfig struct {
 	metav1.TypeMeta                        `json:",inline"`
 	cfg.ControllerManagerConfigurationSpec `json:",inline"`
-
-	// TODO: Define settings that we need to configure for each Operator
-	// and create logical groupings for them.
-	ImagePullSecretName string `json:"imagePullSecretName"`
-}
-
-func init() {
-	SchemeBuilder.Register(&OperatorConfig{})
+	// The name of the imagePullSecret in the namespace where the Operator is deployed.
+	// This secret is re-created in each namespace where Grey Matter Core is installed.
+	ImagePullSecret string `json:"imagePullSecret"`
 }

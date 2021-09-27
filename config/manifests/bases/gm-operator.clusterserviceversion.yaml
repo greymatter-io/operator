@@ -1,0 +1,51 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: gm-operator.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: Mesh is the Schema for the meshes API
+      displayName: Mesh
+      kind: Mesh
+      name: meshes.greymatter.io
+      version: v1alpha1
+  description: Manage Grey Matter mesh installation and configuration in your Kubernetes
+    cluster.
+  displayName: Grey Matter Operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: true
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - service mesh
+  links:
+  - name: Grey Matter Operator
+    url: https://github.com/greymatter-io/operator
+  maintainers:
+  - email: brian.mendoza@greymatter.io
+    name: Brian Mendoza
+  - email: kyle.gallagher@greymatter.io
+    name: Kyle Gallagher
+  maturity: alpha
+  provider:
+    name: Decipher Technology Studios
+    url: https://greymatter.io
+  version: 0.0.0
