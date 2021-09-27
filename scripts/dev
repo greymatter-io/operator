@@ -7,20 +7,6 @@ format_packagemanifests() {
 	rm ./packagemanifests/$1/gm-operator.clusterserviceversion.yaml.original
 }
 
-upgrade_deployment() {
-  local current=$(oc get clusterserviceversion -n gm-operator -o=jsonpath='{.items[0].spec.version}')
-  if [ $current == "0.0.1" ]
-  then
-    make packagemanifests FROM_VERSION=0.0.1 VERSION=0.0.2 CHANNEL=alpha IS_CHANNEL_DEFAULT=1 IMG=docker.greymatter.io/internal/gm-operator:latest
-    format_packagemanifests 0.0.2
-    operator-sdk run packagemanifests -n gm-operator --version 0.0.2
-  else
-    make packagemanifests FROM_VERSION=$current VERSION=0.0.1 CHANNEL=alpha IS_CHANNEL_DEFAULT=1 IMG=docker.greymatter.io/internal/gm-operator:latest
-    format_packagemanifests 0.0.1
-    operator-sdk run packagemanifests -n gm-operator --version 0.0.1
-  fi
-}
-
 if [ $# -lt 1 ]
 then
   echo "dev: missing argument"
@@ -34,13 +20,16 @@ case $1 in
     oc delete pod -n gm-operator -l control-plane=controller-manager
     ;;
   run)
+    make packagemanifests VERSION=0.0.1 CHANNEL=alpha IS_CHANNEL_DEFAULT=1
     format_packagemanifests 0.0.1
     operator-sdk run packagemanifests -n gm-operator --version 0.0.1
     rm -rf ./packagemanifests
     ;;
   upgrade)
-    upgrade_deployment
-    rm -rf ./packagemanifests
+    ./scripts/dev cleanup
+    echo "waiting for cleanup process"
+    sleep 10
+    ./scripts/dev run
     ;;
   cleanup)
     operator-sdk cleanup -n gm-operator gm-operator
