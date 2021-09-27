@@ -9,11 +9,11 @@ spec:
       containers:
       - name: manager
         args:
-        - "--config=controller_manager_config.yaml"
+        - "--config=bootstrap_config.yaml"
         volumeMounts:
         - name: manager-config
-          mountPath: /controller_manager_config.yaml
-          subPath: controller_manager_config.yaml
+          mountPath: /bootstrap_config.yaml
+          subPath: bootstrap_config.yaml
       volumes:
       - name: manager-config
         configMap:

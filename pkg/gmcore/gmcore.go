@@ -57,7 +57,7 @@ func loadBaseValues(files []fs.DirEntry) (map[string]*v1alpha1.InstallValues, er
 		if err := yaml.Unmarshal(data, cfg); err != nil {
 			return nil, fmt.Errorf("failed to parse YAML from file %s: %w", fileName, err)
 		} else {
-			templates[cfg.Name] = &cfg.Values
+			templates[cfg.Name] = &cfg.InstallValues
 		}
 	}
 

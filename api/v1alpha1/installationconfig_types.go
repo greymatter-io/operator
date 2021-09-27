@@ -26,7 +26,7 @@ import (
 type InstallationConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Values            InstallValues `json:",inline"`
+	InstallValues     `json:",inline"`
 }
 
 //+kubebuilder:object:root=true

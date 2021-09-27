@@ -96,6 +96,8 @@ func main() {
 		if err != nil {
 			setupLog.Error(err, "unable to load config file", "path", configFile)
 			os.Exit(1)
+		} else {
+			setupLog.Info("Loaded bootstrap config", "Path", configFile)
 		}
 	}
 
