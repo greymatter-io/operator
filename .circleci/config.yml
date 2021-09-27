@@ -13,9 +13,9 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run: ./scripts/cibuild test
-      - run: ./scripts/cibuild build
       - run: ./scripts/cibuild container
       - run: ./scripts/cibuild release
+      - run: ./scripts/cibuild bundle
 
 workflows:
   version: 2

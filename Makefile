@@ -96,7 +96,7 @@ build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
 run: manifests generate build ## Run a controller from your host.
-	./bin/manager --config dev-config.yaml
+	./bin/manager --config ./config/manager/bootstrap_config.yaml
 
 docker-build: test ## Build docker image with the manager.
 	docker build -t ${IMG} .
@@ -146,20 +146,29 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
+CI = $(shell echo ${CIRCLECI} | xargs)
+
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
-	operator-sdk generate kustomize manifests -q
+	if [[ "$$CI" != "true" ]]; then echo "Error: Must only run in CI";exit 1;fi
+	operator-sdk generate kustomize manifests --package gm-operator -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --package gm-operator --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
+	if [[ "$$CI" != "true" ]]; then echo "Error: Must only run in CI";exit 1;fi
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
+	if [[ "$$CI" != "true" ]]; then echo "Error: Must only run in CI";exit 1;fi
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
+
+.PHONY: bundle-run
+bundle-run: ## Run the bundle image on the current OpenShift cluster. Uses oc under the hood.
+	operator-sdk run bundle -n gm-operator --pull-secret-name gm-docker-secret $(BUNDLE_IMG)
 
 .PHONY: opm
 OPM = ./bin/opm
@@ -201,3 +210,21 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+# Options for "packagemanifests".
+ifneq ($(origin FROM_VERSION), undefined)
+PKG_FROM_VERSION := --from-version=$(FROM_VERSION)
+endif
+ifneq ($(origin CHANNEL), undefined)
+PKG_CHANNELS := --channel=$(CHANNEL)
+endif
+ifeq ($(IS_CHANNEL_DEFAULT), 1)
+PKG_IS_DEFAULT_CHANNEL := --default-channel
+endif
+PKG_MAN_OPTS ?= $(PKG_FROM_VERSION) $(PKG_CHANNELS) $(PKG_IS_DEFAULT_CHANNEL)
+
+.PHONY: packagemanifests
+packagemanifests: kustomize manifests ## Generates a 'dev' bundle to be pushed directly to an OpenShift cluster. Use only in development.
+	operator-sdk generate kustomize manifests --package gm-operator
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate packagemanifests --package gm-operator --version $(VERSION) $(PKG_MAN_OPTS)

@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	v1alpha1 "github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/bootstrap"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -46,6 +47,10 @@ func init() {
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
+
+// Add tags here for generating RBAC rules for the role that will be used by the Operator.
+//+kubebuilder:rbac:groups=greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=greymatter.io,resources=meshes/status,verbs=get;update;patch
 
 func main() {
 	var configFile string
@@ -84,17 +89,18 @@ func main() {
 	}
 
 	// Attempt to read a configFile if one has been configured.
-	opConfig := v1alpha1.OperatorConfig{}
+	cfg := bootstrap.BootstrapConfig{}
 	if configFile != "" {
-		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&opConfig))
+		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&cfg))
 		if err != nil {
 			setupLog.Error(err, "unable to load config file", "path", configFile)
 			os.Exit(1)
 		}
 	}
+
 	// Set defaults for OperatorConfig values
-	if opConfig.ImagePullSecretName == "" {
-		opConfig.ImagePullSecretName = "docker.secret"
+	if cfg.ImagePullSecret == "" {
+		cfg.ImagePullSecret = "gm-docker-secret"
 	}
 
 	// If the configFile does not define these values, use defaults.

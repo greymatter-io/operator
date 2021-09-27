@@ -7,7 +7,12 @@ set -euf -o pipefail
 
 if [ $# -eq 0 ]
 then
-  make build
+  if [[ $OSTYPE == 'linux-gnu' ]]
+  then
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o bin/manager main.go
+  else
+    make build
+  fi
 else
   case $1 in 
   docker)
