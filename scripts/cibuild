@@ -23,7 +23,7 @@ release_container() {
     exit 1
   fi
 
-  if [[ $CIRCLE_BRANCH -ne "main" ]]; then
+  if [[ $CIRCLE_BRANCH != "main" ]]; then
     exit 0
   fi
 
@@ -46,7 +46,7 @@ release_bundle() {
     exit 1
   fi
 
-  if [[ $CIRCLE_BRANCH -ne "main" ]]; then
+  if [[ $CIRCLE_BRANCH != "main" ]]; then
     exit 0
   fi
 
