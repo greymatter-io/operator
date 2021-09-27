@@ -6,7 +6,7 @@ set -e
 install_operator-sdk() {
   wget https://github.com/operator-framework/operator-sdk/releases/download/v1.12.0/operator-sdk_linux_amd64 \
     -O /tmp/operator-sdk
-  chmod +x operator-sdk
+  chmod +x /tmp/operator-sdk
   sudo mv /tmp/operator-sdk /usr/local/bin/operator-sdk
 }
 
@@ -80,9 +80,6 @@ case $1 in
     go mod vendor
     ./scripts/test lint
     ./scripts/test
-    ;;
-  build)
-    ./scripts/build
     ;;
   container)
     ./scripts/build docker
