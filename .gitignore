@@ -26,4 +26,8 @@ testbin/*
 
 vendor/
 tmp.md
+
+# bundle files and dirs
 packagemanifests/
+bundle.Dockerfile
+bundle/

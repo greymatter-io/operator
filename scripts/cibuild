@@ -75,6 +75,7 @@ case $1 in
     release_container
     ;;
   bundle)
+    make bundle
     release_bundle
     ;;
   *)
