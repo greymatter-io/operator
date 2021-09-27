@@ -3,36 +3,63 @@
 package gmcore
 
 import (
+	"embed"
+	"fmt"
+	"io/fs"
+
 	"github.com/greymatter-io/operator/api/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-// References a Grey Matter version for each mesh
-type Versions struct {
-	each map[string]string // TODO: Expand as options get added to Mesh CR
+// Stores a map of Grey Matter InstallValues and a reference from each mesh to a version
+type Installer struct {
+	// The scheme for this program, used for setting controller references on resources.
+	scheme *runtime.Scheme
+	// A map of Grey Matter version (v*.*) -> *InstallValues read from the filesystem.
+	baseValues map[string]*v1alpha1.InstallValues
+	// A map of meshes -> *Values for proxy templates, used for sidecar injection
+	proxyValues map[string]*v1alpha1.Values
 }
 
-// Returns *Versions for tracking which Grey Matter version is installed for each mesh
-func New() *Versions {
-	return &Versions{make(map[string]string)}
+//go:embed values/*.yaml
+var filesystem embed.FS
+
+// Returns *Installer for tracking which Grey Matter version is installed for each mesh
+func New(scheme *runtime.Scheme) (*Installer, error) {
+
+	// TODO: Allow the user to specify a directory for mounting new values files.
+	// Later on, let the user define each InstallationConfig custom resource via apiserver.
+	files, err := filesystem.ReadDir("values")
+	if err != nil {
+		return nil, fmt.Errorf("failed to embed files into program: %w", err)
+	}
+
+	baseValues, err := loadBaseValues(files)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load install values: %w", err)
+	}
+
+	return &Installer{
+		scheme:      scheme,
+		baseValues:  baseValues,
+		proxyValues: make(map[string]*v1alpha1.Values),
+	}, nil
 }
 
-// Applies all resources necessary for installing Grey Matter core components of a mesh.
-// Also labels namespaces specified in each Mesh CR to trigger meshobject configuration
-// for their deployments and statefulsets, as well as sidecar injection for their pods.
-// If auto-inject is enabled (default=true), labels each existing appsv1.Deployment/StatefulSet
-// plus their pod templates so that those workloads are added to the mesh automatically.
-func (v *Versions) ApplyMesh(c client.Client, mesh v1alpha1.Mesh) {
-}
+func loadBaseValues(files []fs.DirEntry) (map[string]*v1alpha1.InstallValues, error) {
+	templates := make(map[string]*v1alpha1.InstallValues)
 
-// Removes all resources created for installing Grey Matter core components of a mesh.
-// Also removes the mesh from labels of resources (removing the labels if no more meshes are listed)
-// i.e. namespaces, deployments, statefulsets, and pods (via pod templates).
-func (v *Versions) RemoveMesh(c client.Client, name string) {
-}
+	for _, file := range files {
+		fileName := file.Name()
+		data, _ := filesystem.ReadFile(fmt.Sprintf("values/%s", fileName))
+		cfg := &v1alpha1.InstallationConfig{}
+		if err := yaml.Unmarshal(data, cfg); err != nil {
+			return nil, fmt.Errorf("failed to parse YAML from file %s: %w", fileName, err)
+		} else {
+			templates[cfg.Name] = &cfg.InstallValues
+		}
+	}
 
-// Given a slice of corev1.Containers, injects sidecar(s) to enable traffic for each mesh specified.
-func (v *Versions) Inject(containers []corev1.Container, xdsCluster string, meshes []string) []corev1.Container {
-	return containers
+	return templates, nil
 }
