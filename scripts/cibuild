@@ -3,6 +3,12 @@
 # Called by CI only
 set -e
 
+install_operator-sdk() {
+  wget https://github.com/operator-framework/operator-sdk/releases/download/v1.12.0/operator-sdk_linux_amd64 \
+    -O /tmp/operator-sdk
+  sudo mv /tmp/operator-sdk /usr/local/bin/operator-sdk
+}
+
 install_staticcheck() {
   wget https://github.com/dominikh/go-tools/releases/download/2021.1/staticcheck_linux_amd64.tar.gz \
     -O /tmp/staticcheck.tar.gz
@@ -75,6 +81,7 @@ case $1 in
     release_container
     ;;
   bundle)
+    install_operator-sdk
     make bundle
     release_bundle
     ;;
