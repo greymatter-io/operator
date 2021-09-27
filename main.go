@@ -33,6 +33,7 @@ import (
 
 	v1alpha1 "github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/bootstrap"
+	"github.com/greymatter-io/operator/pkg/clients"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -112,6 +113,13 @@ func main() {
 	}
 	if options.HealthProbeBindAddress == "" {
 		options.HealthProbeBindAddress = probeAddr
+	}
+
+	// TODO: Move this further down; it's here for now because ctrl.NewManager requires talking to a K8s cluster.
+	_, err = clients.New()
+	if err != nil {
+		setupLog.Error(err, "unable to initialize clients")
+		os.Exit(1)
 	}
 
 	// Initialize manager with configured options

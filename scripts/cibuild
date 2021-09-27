@@ -3,6 +3,14 @@
 # Called by CI only
 set -e
 
+install_greymatter_cli() {
+  wget --user $NEXUS_USER --password $NEXUS_PASSWORD \
+    nexus.greymatter.io/repository/raw/release/gm-cli/greymatter-3.0.0.tar.gz \
+    -O /tmp/greymatter.tar.gz
+  tar -C /tmp -zxf /tmp/greymatter.tar.gz
+  sudo mv /tmp/greymatter.linux /usr/local/bin/greymatter
+}
+
 install_operator-sdk() {
   wget https://github.com/operator-framework/operator-sdk/releases/download/v1.12.0/operator-sdk_linux_amd64 \
     -O /tmp/operator-sdk
@@ -75,6 +83,7 @@ fi
 
 case $1 in
   test)
+    install_greymatter_cli
     install_staticcheck
     go mod tidy
     go mod vendor
