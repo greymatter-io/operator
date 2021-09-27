@@ -146,32 +146,9 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
-.PHONY: dev-run
-dev-run: manifests kustomize ## Generates and deploys a 'bundled' project to the current OpenShfit cluster WITHOUT a bundled image.
-# It is only meant to be run in active development, and should not be used for deploying to production.
-# An image will be pushed to docker.greymatter.io/internal/gm-operator:latest.
-	$(MAKE) docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
-	$(MAKE) docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
-	operator-sdk generate kustomize manifests -q
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate packagemanifests -q --package gm-operator --version $(VERSION)
-	sed -i'.original' -e 's|development/gm-operator:$(VERSION)|internal/gm-operator:latest|g' ./packagemanifests/$(VERSION)/gm-operator.clusterserviceversion.yaml
-	rm ./packagemanifests/$(VERSION)/gm-operator.clusterserviceversion.yaml.original
-	operator-sdk run packagemanifests -n gm-operator --version $(VERSION)
-
-.PHONY: dev-upgrade
-dev-upgrade: ## Builds and pushes a new image to docker.greymatter.io/internal/gm-operator:latest.
-# Note that this command does not upgrade the 'packagemanifests' in the OpenShift cluster.
-	$(MAKE) docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
-	$(MAKE) docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
-	oc delete pod -n gm-operator -l control-plane=controller-manager
-
-.PHONY: dev-cleanup
-dev-cleanup:
-	operator-sdk cleanup -n gm-operator gm-operator
-
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
-	operator-sdk generate kustomize manifests -q
+	operator-sdk generate kustomize manifests --package gm-operator -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --package gm-operator --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
@@ -228,3 +205,21 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+# Options for "packagemanifests".
+ifneq ($(origin FROM_VERSION), undefined)
+PKG_FROM_VERSION := --from-version=$(FROM_VERSION)
+endif
+ifneq ($(origin CHANNEL), undefined)
+PKG_CHANNELS := --channel=$(CHANNEL)
+endif
+ifeq ($(IS_CHANNEL_DEFAULT), 1)
+PKG_IS_DEFAULT_CHANNEL := --default-channel
+endif
+PKG_MAN_OPTS ?= $(PKG_FROM_VERSION) $(PKG_CHANNELS) $(PKG_IS_DEFAULT_CHANNEL)
+
+.PHONY: packagemanifests
+packagemanifests: kustomize manifests ## Generates a 'dev' bundle to be pushed directly to an OpenShift cluster. Use only in development.
+	operator-sdk generate kustomize manifests --package gm-operator
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate packagemanifests --package gm-operator --version $(VERSION) $(PKG_MAN_OPTS)
