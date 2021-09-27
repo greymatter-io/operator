@@ -22,11 +22,14 @@ release_container() {
     exit 1
   fi
 
-  if [[ "$CIRCLE_BRANCH" == "main" ]]; then
-    docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
-    echo "branch workflow"
-    make docker-push VERSION=latest
+  if [[ $CIRCLE_BRANCH -ne "main" ]]; then
+    exit 0
   fi
+
+  docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
+  echo "branch workflow"
+  make docker-push VERSION=latest
+
   if [[ -n "$CIRCLE_TAG" ]]; then
     echo "tag workflow"
     local operator_from="docker.greymatter.io/development/gm-operator:latest"
@@ -42,12 +45,18 @@ release_bundle() {
     exit 1
   fi
 
-  if [[ "$CIRCLE_BRANCH" == "main" ]]; then
-    echo "branch workflow"
-    make bundle-build VERSION=latest
-    docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
-    make bundle-push VERSION=latest
+  if [[ $CIRCLE_BRANCH -ne "main" ]]; then
+    exit 0
   fi
+
+  echo "branch workflow"
+
+  install_operator-sdk
+  make bundle
+  make bundle-build VERSION=latest
+  docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
+  make bundle-push VERSION=latest
+
   if [[ -n "$CIRCLE_TAG" ]]; then
     echo "tag workflow"
     local operator_from="docker.greymatter.io/development/gm-operator-bundle:latest"
@@ -81,8 +90,6 @@ case $1 in
     release_container
     ;;
   bundle)
-    install_operator-sdk
-    make bundle
     release_bundle
     ;;
   *)

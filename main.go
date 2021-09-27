@@ -50,6 +50,7 @@ func init() {
 
 // Add tags here for generating RBAC rules for the role that will be used by the Operator.
 //+kubebuilder:rbac:groups=greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=greymatter.io,resources=meshes/status,verbs=get;update;patch
 
 func main() {
 	var configFile string
