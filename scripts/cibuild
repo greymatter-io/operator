@@ -3,6 +3,21 @@
 # Called by CI only
 set -e
 
+install_greymatter_cli() {
+  wget --user $NEXUS_USER --password $NEXUS_PASSWORD \
+    nexus.greymatter.io/repository/raw/release/gm-cli/greymatter-3.0.0.tar.gz \
+    -O /tmp/greymatter.tar.gz
+  tar -C /tmp -zxf /tmp/greymatter.tar.gz
+  sudo mv /tmp/greymatter.linux /usr/local/bin/greymatter
+}
+
+install_operator-sdk() {
+  wget https://github.com/operator-framework/operator-sdk/releases/download/v1.12.0/operator-sdk_linux_amd64 \
+    -O /tmp/operator-sdk
+  chmod +x /tmp/operator-sdk
+  sudo mv /tmp/operator-sdk /usr/local/bin/operator-sdk
+}
+
 install_staticcheck() {
   wget https://github.com/dominikh/go-tools/releases/download/2021.1/staticcheck_linux_amd64.tar.gz \
     -O /tmp/staticcheck.tar.gz
@@ -11,19 +26,52 @@ install_staticcheck() {
 }
 
 release_container() {
-  if [[ "$CIRCLECI" == "true" ]]; then
-    docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
+  if [[ -z "$CIRCLECI" ]]; then
+    echo "cibuild release: must be run in circleci"
+    exit 1
   fi
-  if [[ "$CIRCLE_BRANCH" == "main" ]]; then
-    echo "branch workflow"
-    docker push "docker.greymatter.io/development/operator:latest"
+
+  if [[ $CIRCLE_BRANCH != "main" ]]; then
+    exit 0
   fi
+
+  docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
+  echo "branch workflow"
+  make docker-push VERSION=latest
+
   if [[ -n "$CIRCLE_TAG" ]]; then
     echo "tag workflow"
-    local operator_from="docker.greymatter.io/development/operator:latest"
-    local operator_to="docker.greymatter.io/development/operator:${CIRCLE_TAG:1}"
+    local operator_from="docker.greymatter.io/development/gm-operator:latest"
+    local operator_to="docker.greymatter.io/development/gm-operator:${CIRCLE_TAG:1}"
     docker tag $operator_from $operator_to
-    docker push $operator_to
+    make docker-push VERSION=${CIRCLE_TAG:1}
+  fi
+}
+
+release_bundle() {
+  if [[ -z "$CIRCLECI" ]]; then
+    echo "cibuild bundle: must be run in circleci"
+    exit 1
+  fi
+
+  if [[ $CIRCLE_BRANCH != "main" ]]; then
+    exit 0
+  fi
+
+  echo "branch workflow"
+
+  install_operator-sdk
+  make bundle
+  make bundle-build VERSION=latest
+  docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
+  make bundle-push VERSION=latest
+
+  if [[ -n "$CIRCLE_TAG" ]]; then
+    echo "tag workflow"
+    local operator_from="docker.greymatter.io/development/gm-operator-bundle:latest"
+    local operator_to="docker.greymatter.io/development/gm-operator-bundle:${CIRCLE_TAG:1}"
+    docker tag $operator_from $operator_to
+    make bundle-push VERSION=${CIRCLE_TAG:1}
   fi
 }
 
@@ -35,20 +83,21 @@ fi
 
 case $1 in
   test)
+    install_greymatter_cli
     install_staticcheck
     go mod tidy
     go mod vendor
     ./scripts/test lint
     ./scripts/test
     ;;
-  build)
-    ./scripts/build
-    ;;
   container)
     ./scripts/build docker
     ;;
   release)
     release_container
+    ;;
+  bundle)
+    release_bundle
     ;;
   *)
     echo "invalid argument $1"

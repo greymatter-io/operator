@@ -41,7 +41,7 @@ func (installValues *InstallValues) With(opts ...func(*InstallValues)) *InstallV
 }
 
 // A InstallValues option that adds Proxy values to Edge values.
-// This keeps a InstallValuesConfig succinct since duplicate values don't need
+// This keeps an InstallationConfig succinct since duplicate values don't need
 // to be defined for both Proxy and Edge. Edge values should just be overrides.
 func WithEdgeValuesFromProxy(installValues *InstallValues) {
 	installValues.Edge = (&Values{}).With(
