@@ -132,9 +132,6 @@ func Redis(rc RedisConfig, msh Mesh) func(*InstallValues) {
 					},
 				}),
 				//TODO: add /data volume and volume mount
-				PersistentVolumeClaimTemplate(&corev1.PersistentVolumeClaimTemplate{
-					corev1.PersistentVolumeClaimSpec: corev1.PersistentVolumeClaimSpec{},
-				}),
 			)
 
 			// add volume and volume mount if tls secret exists

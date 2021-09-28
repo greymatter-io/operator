@@ -43,3 +43,21 @@ func loadFixture() *InstallValues {
 	yaml.Unmarshal([]byte(fixture), cfg)
 	return &cfg.InstallValues
 }
+
+// func TestRedis(t *testing.T) {
+// 	installValues := loadFixture()
+
+// 	rc1 := RedisConfig{
+// 		Url:        "redis://redis.greymatter.svc.cluster.local:6379",
+// 		SecretName: "",
+// 	}
+
+// 	mesh := Mesh{
+// 		Namespace: "greymatter1",
+// 	}
+
+// 	t.Run("Test a values file that speifies a url", func(t *testing.T) {
+// 		installValues.With(Redis(rc1,mesh))
+// 	})
+
+// }
