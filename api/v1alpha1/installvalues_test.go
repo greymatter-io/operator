@@ -38,11 +38,6 @@ func TestWithSPIRE(t *testing.T) {
 	})
 }
 
-func TestWithRedis(t *testing.T) {
-	installValues := loadFixture()
-	installValues.With(Redis("host", "port")) // TODO
-}
-
 func loadFixture() *InstallValues {
 	cfg := &InstallationConfig{}
 	yaml.Unmarshal([]byte(fixture), cfg)
