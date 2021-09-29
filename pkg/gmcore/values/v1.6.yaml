@@ -122,7 +122,7 @@ jwtSecurity:
   envs:
     HTTP_PORT: "3000"
     REDIS_HOST: ""
-    REDIS_PORT: ""
+    REDIS_PORT: "6379"
     REDIS_PASS: ""
     REDIS_DB: ""
     JWT_API_KEY: MTIzCg==

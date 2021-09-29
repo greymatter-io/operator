@@ -57,6 +57,12 @@ type MeshList struct {
 	Items           []Mesh `json:"items"`
 }
 
+// RedisConfig contains the redis connection information for a given mesh installation
+type RedisConfig struct {
+	Url        string `json:"url"`
+	SecretName string `json:"certificateSecretName"`
+}
+
 func init() {
 	SchemeBuilder.Register(&Mesh{}, &MeshList{})
 }

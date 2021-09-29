@@ -1,6 +1,14 @@
 package v1alpha1
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
+	"strings"
+
+	redis "github.com/go-redis/redis/v8"
+	corev1 "k8s.io/api/core/v1"
+)
 
 // InstallValues are values used for installing a Grey Matter mesh.
 type InstallValues struct {

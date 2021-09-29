@@ -30,6 +30,15 @@ spec:
           catalog:
             description: Values for defining a Grey Matter Catalog deployment.
             properties:
+              args:
+                description: Arguments to append to command when overriting container
+                  entry point
+                items:
+                  type: string
+                type: array
+              command:
+                description: Command to override container entry point
+                type: string
               envs:
                 additionalProperties:
                   type: string
@@ -1659,6 +1668,15 @@ spec:
             description: Values for defining a Grey Matter Control container in the
               control deployment.
             properties:
+              args:
+                description: Arguments to append to command when overriting container
+                  entry point
+                items:
+                  type: string
+                type: array
+              command:
+                description: Command to override container entry point
+                type: string
               envs:
                 additionalProperties:
                   type: string
@@ -3288,6 +3306,15 @@ spec:
             description: Values for defining a Grey Matter Control API container in
               the control deployment.
             properties:
+              args:
+                description: Arguments to append to command when overriting container
+                  entry point
+                items:
+                  type: string
+                type: array
+              command:
+                description: Command to override container entry point
+                type: string
               envs:
                 additionalProperties:
                   type: string
@@ -4916,6 +4943,15 @@ spec:
           dashboard:
             description: Values for defining a Grey Matter Dashboard deployment.
             properties:
+              args:
+                description: Arguments to append to command when overriting container
+                  entry point
+                items:
+                  type: string
+                type: array
+              command:
+                description: Command to override container entry point
+                type: string
               envs:
                 additionalProperties:
                   type: string
@@ -6544,6 +6580,15 @@ spec:
           edge:
             description: Values for defining a Grey Matter Edge deployment.
             properties:
+              args:
+                description: Arguments to append to command when overriting container
+                  entry point
+                items:
+                  type: string
+                type: array
+              command:
+                description: Command to override container entry point
+                type: string
               envs:
                 additionalProperties:
                   type: string
@@ -8172,6 +8217,15 @@ spec:
           jwtSecurity:
             description: Values for defining a Grey Matter JWT Security Service deployment.
             properties:
+              args:
+                description: Arguments to append to command when overriting container
+                  entry point
+                items:
+                  type: string
+                type: array
+              command:
+                description: Command to override container entry point
+                type: string
               envs:
                 additionalProperties:
                   type: string
@@ -9807,6 +9861,15 @@ spec:
           prometheus:
             description: Values for defining a Prometheus deployment. Optional.
             properties:
+              args:
+                description: Arguments to append to command when overriting container
+                  entry point
+                items:
+                  type: string
+                type: array
+              command:
+                description: Command to override container entry point
+                type: string
               envs:
                 additionalProperties:
                   type: string
@@ -11435,6 +11498,15 @@ spec:
           proxy:
             description: Values for injecting proxy containers into deployments/statefulsets.
             properties:
+              args:
+                description: Arguments to append to command when overriting container
+                  entry point
+                items:
+                  type: string
+                type: array
+              command:
+                description: Command to override container entry point
+                type: string
               envs:
                 additionalProperties:
                   type: string
@@ -13063,6 +13135,15 @@ spec:
           redis:
             description: Values for defining a Redis deployment. Optional.
             properties:
+              args:
+                description: Arguments to append to command when overriting container
+                  entry point
+                items:
+                  type: string
+                type: array
+              command:
+                description: Command to override container entry point
+                type: string
               envs:
                 additionalProperties:
                   type: string
