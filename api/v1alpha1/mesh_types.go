@@ -22,8 +22,7 @@ import (
 
 // MeshSpec defines the desired state of Mesh
 type MeshSpec struct {
-	// Foo is an example field of Mesh. Note that json tags are required for fields to be serialized.
-	Foo string `json:"foo,omitempty"`
+	RedisConfig *RedisConfig `json:"redis,omitempty"`
 }
 
 // MeshStatus defines the observed state of Mesh
@@ -49,6 +48,12 @@ type MeshList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Mesh `json:"items"`
+}
+
+// RedisConfig contains the redis connection information for a given mesh installation
+type RedisConfig struct {
+	Url        string `json:"url"`
+	SecretName string `json:"certificateSecretName"`
 }
 
 func init() {

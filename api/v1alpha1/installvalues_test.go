@@ -38,9 +38,16 @@ func TestWithSPIRE(t *testing.T) {
 	})
 }
 
-func TestWithRedis(t *testing.T) {
+func TestRedis(t *testing.T) {
 	installValues := loadFixture()
-	installValues.With(Redis("host", "port")) // TODO
+
+	t.Run("Test install values are loaded are modified (with redis config)", func(t *testing.T) {
+		if installValues.Redis.Envs["REDIS_PASSWORD"] != "" {
+			t.Errorf("Expected to find REDIS_PASSWORD is not empty")
+		}
+
+	})
+
 }
 
 func loadFixture() *InstallValues {

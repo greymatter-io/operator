@@ -1,6 +1,14 @@
 package v1alpha1
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
+	"strings"
+
+	redis "github.com/go-redis/redis/v8"
+	corev1 "k8s.io/api/core/v1"
+)
 
 // InstallValues are values used for installing a Grey Matter mesh.
 type InstallValues struct {
@@ -78,8 +86,79 @@ func SPIRE(installValues *InstallValues) {
 
 // A InstallValues option that injects configuration for a Redis provider.
 // If the Redis configuration is empty, adds Values for configuring an internal Redis.
-func Redis(redisHost, redisPort string) func(*InstallValues) {
+func Redis(rc *RedisConfig, namespace string) func(*InstallValues) {
+
+	// If redisConfig is nil then we need to add in redis values to create a redis deployment
+	// Otherwise we need to
+
 	return func(installValues *InstallValues) {
-		// inject configs into install values for control api, catalog, jwt security
+
+		//Initialize default redis values to be reasigned based on redis config
+		var redisHost string
+		var redisPassword string
+		//TODO: add ablility to use separate db for catalog and control-api
+		var redisDB string
+		var redisPort string
+
+		if installValues.Redis != nil {
+			redisHost = fmt.Sprintf("internal-greymatter-redis.%s.cluster.local", namespace)
+			redisDB = "0"
+			redisPort = "6379"
+
+			// Generate an 8 character random password
+			b := make([]byte, 8)
+			rand.Read(b)
+			redisPassword = base64.URLEncoding.EncodeToString(b)
+
+			installValues.Redis.With(Env("REDIS_PASSWORD", redisPassword))
+		}
+
+		//if a redisConfig is provided then do not use the defaults
+		if rc != nil && rc.Url != "" {
+			installValues.Redis = nil
+
+			//parse the given url
+			//TODO: in webhook validate the url is parseable
+			redisOptions, _ := redis.ParseURL(rc.Url)
+
+			// username := redisOptions.Username
+			redisPassword = redisOptions.Password
+			hostPort := redisOptions.Addr
+			split := strings.Split(hostPort, ":")
+			redisHost, redisPort = split[0], split[1]
+			redisDB = fmt.Sprintf("%d", redisOptions.DB)
+
+		}
+
+		fmt.Printf("%s %s %s %s", redisHost, redisPort, redisPassword, redisDB)
+
+		//modify controlapi values
+		installValues.ControlAPI.With(
+			Envs(map[string]string{
+				"GM_CONTROL_API_REDIS_HOST": redisHost,
+				"GM_CONTROL_API_REDIS_PORT": redisPort,
+				"GM_CONTROL_API_REDIS_PASS": redisPassword,
+				"GM_CONTROL_API_REDIS_DB":   redisDB,
+			}),
+		)
+		//modify catalog values
+		installValues.Catalog.With(
+			Envs(map[string]string{
+				"REDIS_HOST": redisHost,
+				"REDIS_PORT": redisPort,
+				"REDIS_PASS": redisPassword,
+				"REDIS_DB":   redisDB,
+			}),
+		)
+		//modify jwtSecurity values
+		installValues.JWTSecurity.With(
+			Envs(map[string]string{
+				"REDIS_HOST": redisHost,
+				"REDIS_PORT": redisPort,
+				"REDIS_PASS": redisPassword,
+				"REDIS_DB":   redisDB,
+			}),
+		)
+
 	}
 }
