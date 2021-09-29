@@ -22,8 +22,6 @@ import (
 
 // MeshSpec defines the desired state of Mesh
 type MeshSpec struct {
-	// Foo is an example field of Mesh. Note that json tags are required for fields to be serialized.
-	Foo         string       `json:"foo,omitempty"`
 	RedisConfig *RedisConfig `json:"redis,omitempty"`
 }
 
@@ -55,6 +53,8 @@ type MeshList struct {
 // RedisConfig contains the redis connection information for a given mesh installation
 type RedisConfig struct {
 	Url        string `json:"url"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
 	SecretName string `json:"certificateSecretName"`
 }
 

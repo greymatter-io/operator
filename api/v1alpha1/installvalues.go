@@ -87,7 +87,7 @@ func SPIRE(installValues *InstallValues) {
 
 // A InstallValues option that injects configuration for a Redis provider.
 // If the Redis configuration is empty, adds Values for configuring an internal Redis.
-func Redis(rc RedisConfig, msh Mesh) func(*InstallValues) {
+func Redis(rc RedisConfig, namespace string) func(*InstallValues) {
 
 	// If redisConfig is nil then we need to add in redis values to create a redis deployment
 	// Otherwise we need to
@@ -95,19 +95,21 @@ func Redis(rc RedisConfig, msh Mesh) func(*InstallValues) {
 	return func(installValues *InstallValues) {
 
 		//Initialize default redis values to be reasigned based on redis config
-		redis_host := ""
-		redis_port := "6379"
-		redis_password := "redis" //TODO: randomize this internal only password
-		redis_db := "0"
+		var redisHost string
+		var redisPassword string
+		var redisDB string
+		redisPort := int32(6379)
 
+		if rc.Password != "" {
+			redisPassword = rc.Password
+		} else {
+			redisPassword = "redis" //TODO: randomize this internal only password
+		}
+
+		//If url is not specified in redis config then we will deploy redis to the cluster
 		if rc.Url == "" {
-
-			svc_name := "redis"
-			redis_host = fmt.Sprintf("%s.%s.svc.cluster.local", svc_name, msh.Namespace)
-			redis_port = "6379"
-			redis_port_int, _ := strconv.Atoi(redis_port)
-			redis_password = "redis"
-			redis_db = "0"
+			redisDB = "0"
+			svcName := "internal-greymatter-redis"
 
 			// Add redis values if we need to create one
 			installValues.Redis.With(
@@ -115,11 +117,10 @@ func Redis(rc RedisConfig, msh Mesh) func(*InstallValues) {
 				Command("redis-server"),
 				Args([]string{"--appendonly", "yes", "--requirepass", "$(REDIS_PASSWORD)", "--dir", "/data"}),
 				Envs(map[string]string{
-					"REDIS_PASSWORD": redis_password,
+					"REDIS_PASSWORD": redisPassword,
 				}),
-				Port("internal-greymatter-redis", corev1.ContainerPort{
-					Name:          svc_name,
-					ContainerPort: int32(redis_port_int),
+				Port(svcName, corev1.ContainerPort{
+					ContainerPort: redisPort,
 				}),
 				Resources(&corev1.ResourceRequirements{
 					Limits: corev1.ResourceList{
@@ -133,45 +134,52 @@ func Redis(rc RedisConfig, msh Mesh) func(*InstallValues) {
 				}),
 				//TODO: add /data volume and volume mount
 			)
+			redisHost = fmt.Sprintf("%s.%s.svc.cluster.local", svcName, namespace)
 
 			// add volume and volume mount if tls secret exists
 
 		} else {
 			//Parse given redis url and assign values to previously initialized variables
+			// TODO: handle redis config validation and log it here.
 			u, err := url.Parse(rc.Url)
 			if err != nil {
 				panic(err)
 			}
-			redis_host, redis_port, _ = net.SplitHostPort(u.Host)
-			redis_password = "redis"
-			redis_db = strings.ReplaceAll(u.Path, "/", "")
+			var splitRedisPort string
+			redisHost, splitRedisPort, _ = net.SplitHostPort(u.Host)
+
+			rp, _ := strconv.ParseInt(splitRedisPort, 10, 32)
+			//TODO: handle errors arrising from if no port is included in redis string
+			redisPort = int32(rp)
+			redisPassword = "redis"
+			redisDB = strings.ReplaceAll(u.Path, "/", "")
 		}
 
 		//modify controlapi values
 		installValues.ControlAPI.With(
 			Envs(map[string]string{
-				"GM_CONTROL_API_REDIS_HOST": redis_host,
-				"GM_CONTROL_API_REDIS_PORT": string(redis_port),
-				"GM_CONTROL_API_REDIS_PASS": redis_password,
-				"GM_CONTROL_API_REDIS_DB":   string(redis_db),
+				"GM_CONTROL_API_REDIS_HOST": redisHost,
+				"GM_CONTROL_API_REDIS_PORT": string(redisPort),
+				"GM_CONTROL_API_REDIS_PASS": redisPassword,
+				"GM_CONTROL_API_REDIS_DB":   string(redisDB),
 			}),
 		)
 		//modify catalog values
 		installValues.Catalog.With(
 			Envs(map[string]string{
-				"REDIS_HOST": redis_host,
-				"REDIS_PORT": string(redis_port),
-				"REDIS_PASS": redis_password,
-				"REDIS_DB":   string(redis_db),
+				"REDIS_HOST": redisHost,
+				"REDIS_PORT": string(redisPort),
+				"REDIS_PASS": redisPassword,
+				"REDIS_DB":   string(redisDB),
 			}),
 		)
 		//modify jwtSecurity values
 		installValues.JWTSecurity.With(
 			Envs(map[string]string{
-				"REDIS_HOST": redis_host,
-				"REDIS_PORT": string(redis_port),
-				"REDIS_PASS": redis_password,
-				"REDIS_DB":   string(redis_db),
+				"REDIS_HOST": redisHost,
+				"REDIS_PORT": string(redisPort),
+				"REDIS_PASS": redisPassword,
+				"REDIS_DB":   string(redisDB),
 			}),
 		)
 
