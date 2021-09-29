@@ -53,8 +53,6 @@ type MeshList struct {
 // RedisConfig contains the redis connection information for a given mesh installation
 type RedisConfig struct {
 	Url        string `json:"url"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
 	SecretName string `json:"certificateSecretName"`
 }
 

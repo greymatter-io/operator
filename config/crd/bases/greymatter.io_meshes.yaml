@@ -42,17 +42,11 @@ spec:
                 properties:
                   certificateSecretName:
                     type: string
-                  password:
-                    type: string
                   url:
-                    type: string
-                  username:
                     type: string
                 required:
                 - certificateSecretName
-                - password
                 - url
-                - username
                 type: object
             type: object
           status:
