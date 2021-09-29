@@ -1,10 +1,10 @@
 package v1alpha1
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
-	"math/rand"
 	"strings"
-	"time"
 
 	redis "github.com/go-redis/redis/v8"
 	corev1 "k8s.io/api/core/v1"
@@ -105,15 +105,11 @@ func Redis(rc *RedisConfig, namespace string) func(*InstallValues) {
 			redisDB = "0"
 			redisPort = "6379"
 
-			rand.Seed(time.Now().UnixNano())
-			chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ" +
-				"0123456789")
-			length := 8
-			var b strings.Builder
-			for i := 0; i < length; i++ {
-				b.WriteRune(chars[rand.Intn(len(chars))])
-			}
-			redisPassword = b.String() //random password
+			// Generate an 8 character random password
+			b := make([]byte, 8)
+			rand.Read(b)
+			redisPassword = base64.URLEncoding.EncodeToString(b)
+
 			installValues.Redis.With(Env("REDIS_PASSWORD", redisPassword))
 		}
 
@@ -133,6 +129,8 @@ func Redis(rc *RedisConfig, namespace string) func(*InstallValues) {
 			redisDB = fmt.Sprintf("%d", redisOptions.DB)
 
 		}
+
+		fmt.Printf("%s %s %s %s", redisHost, redisPort, redisPassword, redisDB)
 
 		//modify controlapi values
 		installValues.ControlAPI.With(

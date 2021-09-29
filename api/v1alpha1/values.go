@@ -23,8 +23,6 @@ type Values struct {
 	Volumes map[string]corev1.VolumeSource `json:"volumes,omitempty"`
 	// *Map* of pod volumes to mount into the container's filesystem.
 	VolumeMounts map[string]corev1.VolumeMount `json:"volumeMounts,omitempty"`
-	// Persistent Volume Claim Template
-	PersistentVolumeClaimTemplate *corev1.PersistentVolumeClaimTemplate `json:"persistentVolumeClaimTemplate,omitempty"`
 }
 
 func (v *Values) With(opts ...func(*Values)) *Values {

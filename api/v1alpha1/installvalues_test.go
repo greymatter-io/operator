@@ -38,23 +38,17 @@ func TestWithSPIRE(t *testing.T) {
 	})
 }
 
-// func TestRedis(t *testing.T) {
-// 	installValues := loadFixture()
+func TestRedis(t *testing.T) {
+	installValues := loadFixture()
 
-// 	rc1 := RedisConfig{
-// 		Url:        "redis://redis.greymatter.svc.cluster.local:6379",
-// 		SecretName: "",
-// 	}
+	t.Run("Test install values are loaded are modified (with redis config)", func(t *testing.T) {
+		if installValues.Redis.Envs["REDIS_PASSWORD"] != "" {
+			t.Errorf("Expected to find REDIS_PASSWORD is not empty")
+		}
 
-// 	mesh := Mesh{
-// 		Namespace: "greymatter1",
-// 	}
+	})
 
-// 	t.Run("Test a values file that speifies a url", func(t *testing.T) {
-// 		installValues.With(Redis(rc1,mesh))
-// 	})
-
-// }
+}
 
 func loadFixture() *InstallValues {
 	cfg := &InstallationConfig{}

@@ -138,8 +138,7 @@ jwtSecurity:
 
 redis:
   image: bitnami/redis:5.0.12
-  command:
-    - "redis-server"
+  command: "redis-server"
   args:
     - "--appendonly"
     - "yes"
@@ -160,4 +159,3 @@ redis:
     requests:
       cpu: "100m"
       memory: "128Mi"
-  # TODO: add a volumeClaimTemplate and mount for /data
