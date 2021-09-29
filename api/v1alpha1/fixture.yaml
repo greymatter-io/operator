@@ -135,3 +135,27 @@ jwtSecurity:
   volumeMounts:
     jwt-users:
       mountPath: /gm-jwt-security/etc
+      
+redis:
+  image: bitnami/redis:5.0.12
+  command: "redis-server"
+  args:
+    - "--appendonly"
+    - "yes"
+    - "--requirepass"
+    - "$(REDIS_PASSWORD)"
+    - "--dir"
+    - "/data"
+  envs:
+    REDIS_PASSWORD: ""
+  ports:
+    redis:
+      protocol: TCP
+      containerPort: 6379
+  resources:
+    limits:
+      cpu: "200m"
+      memory: 500Mi
+    requests:
+      cpu: "100m"
+      memory: "128Mi"

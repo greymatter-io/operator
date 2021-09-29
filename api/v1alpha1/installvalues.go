@@ -78,8 +78,62 @@ func SPIRE(installValues *InstallValues) {
 
 // A InstallValues option that injects configuration for a Redis provider.
 // If the Redis configuration is empty, adds Values for configuring an internal Redis.
-func Redis(redisHost, redisPort string) func(*InstallValues) {
+func Redis(cfg *ExternalRedisConfig, namespace string) func(*InstallValues) {
 	return func(installValues *InstallValues) {
-		// inject configs into install values for control api, catalog, jwt security
+		var host string
+		var port string
+		var password string
+		var db string
+
+		// If a redisConfig is provided then do not use the defaults
+		if cfg != nil && cfg.URL != "" {
+			installValues.Redis = nil
+
+			// TODO: In validating webhook, ensure the URL is parseable.
+			redisOptions, _ := redis.ParseURL(cfg.URL)
+
+			password = redisOptions.Password
+			hostPort := redisOptions.Addr
+			split := strings.Split(hostPort, ":")
+			host, port = split[0], split[1]
+			// TODO: Enable specifying separate databases
+			db = fmt.Sprintf("%d", redisOptions.DB)
+		} else if installValues.Redis != nil {
+			host = fmt.Sprintf("greymatter-redis.%s.svc.cluster.local", namespace)
+			port = "6379"
+			db = "0"
+
+			// Generate and inject an 8 character random password
+			b := make([]byte, 8)
+			rand.Read(b)
+			password = base64.URLEncoding.EncodeToString(b)
+			installValues.Redis.With(Env("REDIS_PASSWORD", password))
+		}
+
+		installValues.ControlAPI.With(
+			Envs(map[string]string{
+				"GM_CONTROL_API_PERSISTER_TYPE": "redis",
+				"GM_CONTROL_API_REDIS_HOST":     host,
+				"GM_CONTROL_API_REDIS_PORT":     port,
+				"GM_CONTROL_API_REDIS_PASS":     password,
+				"GM_CONTROL_API_REDIS_DB":       db,
+			}),
+		)
+		installValues.Catalog.With(
+			Envs(map[string]string{
+				"REDIS_HOST": host,
+				"REDIS_PORT": port,
+				"REDIS_PASS": password,
+				"REDIS_DB":   db,
+			}),
+		)
+		installValues.JWTSecurity.With(
+			Envs(map[string]string{
+				"REDIS_HOST": host,
+				"REDIS_PORT": port,
+				"REDIS_PASS": password,
+				"REDIS_DB":   db,
+			}),
+		)
 	}
 }

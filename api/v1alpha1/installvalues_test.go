@@ -38,6 +38,17 @@ func TestWithSPIRE(t *testing.T) {
 	})
 }
 
+func TestRedis(t *testing.T) {
+	installValues := loadFixture()
+
+	t.Run("Test install values are loaded are modified (with redis config)", func(t *testing.T) {
+		installValues.With(Redis(nil, "namespace"))
+		if installValues.Redis.Envs["REDIS_PASSWORD"] == "" {
+			t.Errorf("Expected to find REDIS_PASSWORD is not empty")
+		}
+	})
+}
+
 func loadFixture() *InstallValues {
 	cfg := &InstallationConfig{}
 	yaml.Unmarshal([]byte(fixture), cfg)

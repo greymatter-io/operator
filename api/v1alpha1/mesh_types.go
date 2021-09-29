@@ -22,8 +22,14 @@ import (
 
 // MeshSpec defines the desired state of Mesh
 type MeshSpec struct {
-	// Foo is an example field of Mesh. Note that json tags are required for fields to be serialized.
-	Foo string `json:"foo,omitempty"`
+	// Enables configuring an external Redis provider for caching Grey Matter core service state.
+	ExternalRedis *ExternalRedisConfig `json:"redis,omitempty"`
+}
+
+type ExternalRedisConfig struct {
+	// TODO: Instead of `url`, require host, port, password, dbs. No username option.
+	URL        string `json:"url"`
+	SecretName string `json:"certificate_secret_name"`
 }
 
 // MeshStatus defines the observed state of Mesh
