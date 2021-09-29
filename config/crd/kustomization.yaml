@@ -3,7 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/greymatter.io_meshes.yaml
-- bases/greymatter.io_installvaluesconfigs.yaml
+- bases/greymatter.io_installationconfigs.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

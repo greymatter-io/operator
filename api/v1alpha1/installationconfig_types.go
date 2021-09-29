@@ -18,22 +18,26 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	cfg "sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 )
 
 //+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
 
-// OperatorConfig enables defining configuration settings for a Grey Matter Operator.
-type OperatorConfig struct {
-	metav1.TypeMeta                        `json:",inline"`
-	cfg.ControllerManagerConfigurationSpec `json:",inline"`
+// InstallationConfig is the Schema for the installationconfigs API
+type InstallationConfig struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	InstallValues     `json:",inline"`
+}
 
-	// TODO: Define settings that we need to configure for each Operator
-	// and create logical groupings for them.
-	ImagePullSecretName string `json:"imagePullSecretName"`
+//+kubebuilder:object:root=true
+
+// InstallationConfigList contains a list of InstallationConfig
+type InstallationConfigList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []InstallationConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&OperatorConfig{})
+	SchemeBuilder.Register(&InstallationConfig{}, &InstallationConfigList{})
 }

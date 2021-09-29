@@ -29,7 +29,7 @@ var filesystem embed.FS
 func New(scheme *runtime.Scheme) (*Installer, error) {
 
 	// TODO: Allow the user to specify a directory for mounting new values files.
-	// Later on, let the user define each InstallValuesConfig custom resource via apiserver.
+	// Later on, let the user define each InstallationConfig custom resource via apiserver.
 	files, err := filesystem.ReadDir("values")
 	if err != nil {
 		return nil, fmt.Errorf("failed to embed files into program: %w", err)
@@ -53,7 +53,7 @@ func loadBaseValues(files []fs.DirEntry) (map[string]*v1alpha1.InstallValues, er
 	for _, file := range files {
 		fileName := file.Name()
 		data, _ := filesystem.ReadFile(fmt.Sprintf("values/%s", fileName))
-		cfg := &v1alpha1.InstallValuesConfig{}
+		cfg := &v1alpha1.InstallationConfig{}
 		if err := yaml.Unmarshal(data, cfg); err != nil {
 			return nil, fmt.Errorf("failed to parse YAML from file %s: %w", fileName, err)
 		} else {
