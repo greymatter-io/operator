@@ -50,10 +50,10 @@ spec:
                 - url
                 type: object
               release_version:
-                default: v1.6
+                default: "1.6"
                 enum:
-                - v1.6
-                - v1.7
+                - "1.6"
+                - "1.7"
                 type: string
             required:
             - release_version

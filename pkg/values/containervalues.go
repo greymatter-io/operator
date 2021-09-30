@@ -16,7 +16,7 @@ type ContainerValues struct {
 	// Labels to add to the Deployment/StatefulSet and its Template.Spec.
 	Labels map[string]string `json:"labels,omitempty"`
 	// *Map* of ports to expose from the container.
-	Ports map[string]corev1.ContainerPort `json:"ports,omitempty"`
+	Ports map[string]int32 `json:"ports,omitempty"`
 	// *Map* of *value* (string) environment variables to set in the container.
 	Envs map[string]string `json:"envs,omitempty"`
 	// *Map* of *valueFrom* environment variables to set in the container.
@@ -45,7 +45,7 @@ func Image(img string) ContainerValuesOpt {
 
 func Command(cmd string) ContainerValuesOpt {
 	return func(values *ContainerValues) {
-		if len(cmd) > 0 {
+		if cmd != "" {
 			values.Command = cmd
 		}
 	}
@@ -87,19 +87,19 @@ func Labels(labels map[string]string) ContainerValuesOpt {
 	}
 }
 
-func Port(k string, v corev1.ContainerPort) ContainerValuesOpt {
+func Port(k string, v int32) ContainerValuesOpt {
 	return func(values *ContainerValues) {
 		if values.Ports == nil {
-			values.Ports = make(map[string]corev1.ContainerPort)
+			values.Ports = make(map[string]int32)
 		}
 		values.Ports[k] = v
 	}
 }
 
-func Ports(ports map[string]corev1.ContainerPort) ContainerValuesOpt {
+func Ports(ports map[string]int32) ContainerValuesOpt {
 	return func(values *ContainerValues) {
 		if values.Ports == nil {
-			values.Ports = make(map[string]corev1.ContainerPort)
+			values.Ports = make(map[string]int32)
 		}
 		for k, v := range ports {
 			values.Ports[k] = v

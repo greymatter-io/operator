@@ -3,6 +3,7 @@ module github.com/greymatter-io/operator
 go 1.17
 
 require (
+	cuelang.org/go v0.4.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-openapi/spec v0.19.3 // indirect
 	github.com/go-redis/redis/v8 v8.11.3

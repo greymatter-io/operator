@@ -46,7 +46,7 @@ func (in *ContainerValues) DeepCopyInto(out *ContainerValues) {
 	}
 	if in.Ports != nil {
 		in, out := &in.Ports, &out.Ports
-		*out = make(map[string]v1.ContainerPort, len(*in))
+		*out = make(map[string]int32, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}

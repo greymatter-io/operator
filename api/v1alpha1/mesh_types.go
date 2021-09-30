@@ -25,8 +25,8 @@ import (
 
 // Defines the desired state of a Grey Matter mesh.
 type MeshSpec struct {
-	// +kubebuilder:validation:Enum=v1.6;v1.7
-	// +kubebuilder:default=v1.6
+	// +kubebuilder:validation:Enum="1.6";"1.7"
+	// +kubebuilder:default="1.6"
 	ReleaseVersion string `json:"release_version"`
 	// Adds an external Redis provider for caching Grey Matter configuration state.
 	// +optional
