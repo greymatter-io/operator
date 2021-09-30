@@ -1,5 +1,5 @@
-// Package meshobjects defines functions for generating templates for each service in a mesh.
-package meshobjects
+// Package fabric defines functions for generating templates for each service in a mesh.
+package fabric
 
 type Object struct {
 	Kind string

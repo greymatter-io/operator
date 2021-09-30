@@ -17,19 +17,14 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/greymatter-io/operator/pkg/values"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // MeshSpec defines the desired state of Mesh
 type MeshSpec struct {
 	// Enables configuring an external Redis provider for caching Grey Matter core service state.
-	ExternalRedis *ExternalRedisConfig `json:"redis,omitempty"`
-}
-
-type ExternalRedisConfig struct {
-	// TODO: Instead of `url`, require host, port, password, dbs. No username option.
-	URL        string `json:"url"`
-	SecretName string `json:"certificate_secret_name"`
+	ExternalRedis *values.ExternalRedisConfig `json:"redis,omitempty"`
 }
 
 // MeshStatus defines the observed state of Mesh
@@ -55,12 +50,6 @@ type MeshList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Mesh `json:"items"`
-}
-
-// RedisConfig contains the redis connection information for a given mesh installation
-type RedisConfig struct {
-	Url        string `json:"url"`
-	SecretName string `json:"certificateSecretName"`
 }
 
 func init() {

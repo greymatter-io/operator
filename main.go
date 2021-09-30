@@ -101,9 +101,9 @@ func main() {
 		}
 	}
 
-	// Set defaults for OperatorConfig values
-	if cfg.ImagePullSecret == "" {
-		cfg.ImagePullSecret = "gm-docker-secret"
+	// Set defaults for BootstrapConfig values
+	if cfg.ImagePullSecretName == "" {
+		cfg.ImagePullSecretName = "gm-docker-secret"
 	}
 
 	// If the configFile does not define these values, use defaults.

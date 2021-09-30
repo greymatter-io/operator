@@ -1,4 +1,4 @@
-package v1alpha1
+package values
 
 import (
 	"crypto/rand"
@@ -10,64 +10,69 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// InstallValues are values used for installing a Grey Matter mesh.
-type InstallValues struct {
+//+kubebuilder:object:generate=true
+
+// Values contain ContainerValues for each Grey Matter core service and dependencies.
+type Values struct {
 	// Values for injecting proxy containers into deployments/statefulsets.
-	Proxy *Values `json:"proxy"`
+	Proxy *ContainerValues `json:"proxy"`
 	// Values for defining a Grey Matter Edge deployment.
-	Edge *Values `json:"edge"`
+	Edge *ContainerValues `json:"edge"`
 	// Values for defining a Grey Matter Control container in the control deployment.
-	Control *Values `json:"control"`
+	Control *ContainerValues `json:"control"`
 	// Values for defining a Grey Matter Control API container in the control deployment.
-	ControlAPI *Values `json:"controlApi"`
+	ControlAPI *ContainerValues `json:"controlApi"`
 	// Values for defining a Grey Matter Catalog deployment.
-	Catalog *Values `json:"catalog"`
+	Catalog *ContainerValues `json:"catalog"`
 	// Values for defining a Grey Matter Dashboard deployment.
-	Dashboard *Values `json:"dashboard"`
+	Dashboard *ContainerValues `json:"dashboard"`
 	// Values for defining a Grey Matter JWT Security Service deployment.
-	JWTSecurity *Values `json:"jwtSecurity"`
+	JWTSecurity *ContainerValues `json:"jwtSecurity"`
 	// Values for defining a Redis deployment. Optional.
-	Redis *Values `json:"redis"`
+	Redis *ContainerValues `json:"redis"`
 	// Values for defining a Prometheus deployment. Optional.
-	Prometheus *Values `json:"prometheus"`
+	Prometheus *ContainerValues `json:"prometheus"`
 }
 
-func (installValues *InstallValues) With(opts ...func(*InstallValues)) *InstallValues {
+type InstallOpt func(*Values)
+
+func (v *Values) Apply(opts ...InstallOpt) {
 	for _, opt := range opts {
-		opt(installValues)
+		opt(v)
 	}
-	return installValues
 }
 
-// A InstallValues option that adds Proxy values to Edge values.
-// This keeps an InstallationConfig succinct since duplicate values don't need
+// A ValuesOpt that adds Proxy values to Edge values.
+// This keeps an Values file succinct since duplicate values don't need
 // to be defined for both Proxy and Edge. Edge values should just be overrides.
-func WithEdgeValuesFromProxy(installValues *InstallValues) {
-	installValues.Edge = (&Values{}).With(
+func EdgeValuesFromProxy(v *Values) {
+	edge := &ContainerValues{}
+	v.Edge.Apply(
 		// First apply all non-nil Proxy values
-		Image(installValues.Proxy.Image),
-		Resources(installValues.Proxy.Resources),
-		Labels(installValues.Proxy.Labels),
-		Ports(installValues.Proxy.Ports),
-		Envs(installValues.Proxy.Envs),
-		EnvsFrom(installValues.Proxy.EnvsFrom),
-		Volumes(installValues.Proxy.Volumes),
-		VolumeMounts(installValues.Proxy.VolumeMounts),
+		Image(v.Proxy.Image),
+		Resources(v.Proxy.Resources),
+		Labels(v.Proxy.Labels),
+		Ports(v.Proxy.Ports),
+		Envs(v.Proxy.Envs),
+		EnvsFrom(v.Proxy.EnvsFrom),
+		Volumes(v.Proxy.Volumes),
+		VolumeMounts(v.Proxy.VolumeMounts),
 		// Then apply all non-nil Edge values
-		Image(installValues.Edge.Image),
-		Resources(installValues.Edge.Resources),
-		Labels(installValues.Edge.Labels),
-		Ports(installValues.Edge.Ports),
-		Envs(installValues.Edge.Envs),
-		EnvsFrom(installValues.Edge.EnvsFrom),
-		Volumes(installValues.Edge.Volumes),
-		VolumeMounts(installValues.Edge.VolumeMounts),
+		Image(v.Edge.Image),
+		Resources(v.Edge.Resources),
+		Labels(v.Edge.Labels),
+		Ports(v.Edge.Ports),
+		Envs(v.Edge.Envs),
+		EnvsFrom(v.Edge.EnvsFrom),
+		Volumes(v.Edge.Volumes),
+		VolumeMounts(v.Edge.VolumeMounts),
 	)
+	v.Edge = edge
 }
 
-// A InstallValues option that injects SPIRE configuration into Proxy values.
-func SPIRE(installValues *InstallValues) {
-	installValues.Proxy.With(
+// A ValuesOpt that injects SPIRE configuration.
+func SPIRE(v *Values) {
+	v.Proxy.Apply(
 		Volume("spire-socket", corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: "/run/spire/socket",
@@ -84,20 +89,29 @@ func SPIRE(installValues *InstallValues) {
 	)
 }
 
-// A InstallValues option that injects configuration for a Redis provider.
-// If the Redis configuration is empty, adds Values for configuring an internal Redis.
-func Redis(cfg *ExternalRedisConfig, namespace string) func(*InstallValues) {
-	return func(installValues *InstallValues) {
+// TODO: Should this live somewhere else?
+type ExternalRedisConfig struct {
+	// TODO: Instead of `url`, require host, port, password, dbs. No username option.
+	URL        string `json:"url"`
+	SecretName string `json:"certificate_secret_name"`
+}
+
+// A ValuesOpt that applies configuration for a Redis server.
+// If ExternalRedisConfig is not nil, it will apply values derived from it pointing to an external Redis server.
+// If ExternalRedisConfig is nil, it will apply values stored in v.Redis pointing to an internal Redis server.
+func Redis(cfg *ExternalRedisConfig, namespace string) InstallOpt {
+	return func(v *Values) {
 		var host string
 		var port string
 		var password string
 		var db string
 
-		// If a redisConfig is provided then do not use the defaults
 		if cfg != nil && cfg.URL != "" {
-			installValues.Redis = nil
+			// Since an ExternalRedisConfig is provided, set v.Redis to nil so the Installer does not install an internal Redis.
+			v.Redis = nil
 
-			// TODO: In validating webhook, ensure the URL is parseable.
+			// TODO: In the Mesh validating webhook, ensure the user provided URL is parseable.
+			// This actually might be OBE if we require the user to supply values separately rather than as a URL.
 			redisOptions, _ := redis.ParseURL(cfg.URL)
 
 			password = redisOptions.Password
@@ -106,7 +120,7 @@ func Redis(cfg *ExternalRedisConfig, namespace string) func(*InstallValues) {
 			host, port = split[0], split[1]
 			// TODO: Enable specifying separate databases
 			db = fmt.Sprintf("%d", redisOptions.DB)
-		} else if installValues.Redis != nil {
+		} else {
 			host = fmt.Sprintf("greymatter-redis.%s.svc.cluster.local", namespace)
 			port = "6379"
 			db = "0"
@@ -115,10 +129,10 @@ func Redis(cfg *ExternalRedisConfig, namespace string) func(*InstallValues) {
 			b := make([]byte, 8)
 			rand.Read(b)
 			password = base64.URLEncoding.EncodeToString(b)
-			installValues.Redis.With(Env("REDIS_PASSWORD", password))
+			v.Redis.Apply(Env("REDIS_PASSWORD", password))
 		}
 
-		installValues.ControlAPI.With(
+		v.ControlAPI.Apply(
 			Envs(map[string]string{
 				"GM_CONTROL_API_PERSISTER_TYPE": "redis",
 				"GM_CONTROL_API_REDIS_HOST":     host,
@@ -127,7 +141,7 @@ func Redis(cfg *ExternalRedisConfig, namespace string) func(*InstallValues) {
 				"GM_CONTROL_API_REDIS_DB":       db,
 			}),
 		)
-		installValues.Catalog.With(
+		v.Catalog.Apply(
 			Envs(map[string]string{
 				"REDIS_HOST": host,
 				"REDIS_PORT": port,
@@ -135,7 +149,7 @@ func Redis(cfg *ExternalRedisConfig, namespace string) func(*InstallValues) {
 				"REDIS_DB":   db,
 			}),
 		)
-		installValues.JWTSecurity.With(
+		v.JWTSecurity.Apply(
 			Envs(map[string]string{
 				"REDIS_HOST": host,
 				"REDIS_PORT": port,

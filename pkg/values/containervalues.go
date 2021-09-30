@@ -1,17 +1,19 @@
-package v1alpha1
+package values
 
 import corev1 "k8s.io/api/core/v1"
 
-type Values struct {
+//+kubebuilder:object:generate=true
+
+type ContainerValues struct {
 	// Docker image name.
 	Image string `json:"image,omitempty"`
-	// Command to override container entry point
+	// Command to override container entry point.
 	Command string `json:"command,omitempty"`
-	// Arguments to append to command when overriting container entry point
-	Arguments []string `json:"args,omitempty"`
+	// Arguments to append to command when overriting container entry point.
+	Args []string `json:"args,omitempty"`
 	// Compute resources required by the container.
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
-	// Labels to add to the Deployment/StatefulSet and its Template.Spec
+	// Labels to add to the Deployment/StatefulSet and its Template.Spec.
 	Labels map[string]string `json:"labels,omitempty"`
 	// *Map* of ports to expose from the container.
 	Ports map[string]corev1.ContainerPort `json:"ports,omitempty"`
@@ -25,47 +27,48 @@ type Values struct {
 	VolumeMounts map[string]corev1.VolumeMount `json:"volumeMounts,omitempty"`
 }
 
-func (v *Values) With(opts ...func(*Values)) *Values {
+type ContainerValuesOpt func(*ContainerValues)
+
+func (v *ContainerValues) Apply(opts ...ContainerValuesOpt) {
 	for _, opt := range opts {
 		opt(v)
 	}
-	return v
 }
 
-func Image(img string) func(*Values) {
-	return func(values *Values) {
+func Image(img string) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if img != "" {
 			values.Image = img
 		}
 	}
 }
 
-func Command(cmd string) func(*Values) {
-	return func(values *Values) {
+func Command(cmd string) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if len(cmd) > 0 {
 			values.Command = cmd
 		}
 	}
 }
 
-func Args(args []string) func(*Values) {
-	return func(values *Values) {
+func Args(args []string) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if len(args) > 0 {
-			values.Arguments = args
+			values.Args = args
 		}
 	}
 }
 
-func Resources(r *corev1.ResourceRequirements) func(*Values) {
-	return func(values *Values) {
+func Resources(r *corev1.ResourceRequirements) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if r != nil {
 			values.Resources = r
 		}
 	}
 }
 
-func Label(k, v string) func(*Values) {
-	return func(values *Values) {
+func Label(k, v string) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if values.Labels == nil {
 			values.Labels = make(map[string]string)
 		}
@@ -73,8 +76,8 @@ func Label(k, v string) func(*Values) {
 	}
 }
 
-func Labels(labels map[string]string) func(*Values) {
-	return func(values *Values) {
+func Labels(labels map[string]string) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if values.Labels == nil {
 			values.Labels = make(map[string]string)
 		}
@@ -84,8 +87,8 @@ func Labels(labels map[string]string) func(*Values) {
 	}
 }
 
-func Port(k string, v corev1.ContainerPort) func(*Values) {
-	return func(values *Values) {
+func Port(k string, v corev1.ContainerPort) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if values.Ports == nil {
 			values.Ports = make(map[string]corev1.ContainerPort)
 		}
@@ -93,8 +96,8 @@ func Port(k string, v corev1.ContainerPort) func(*Values) {
 	}
 }
 
-func Ports(ports map[string]corev1.ContainerPort) func(*Values) {
-	return func(values *Values) {
+func Ports(ports map[string]corev1.ContainerPort) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if values.Ports == nil {
 			values.Ports = make(map[string]corev1.ContainerPort)
 		}
@@ -104,8 +107,8 @@ func Ports(ports map[string]corev1.ContainerPort) func(*Values) {
 	}
 }
 
-func Env(k, v string) func(*Values) {
-	return func(values *Values) {
+func Env(k, v string) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if values.Envs == nil {
 			values.Envs = make(map[string]string)
 		}
@@ -113,8 +116,8 @@ func Env(k, v string) func(*Values) {
 	}
 }
 
-func Envs(envs map[string]string) func(*Values) {
-	return func(values *Values) {
+func Envs(envs map[string]string) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if values.Envs == nil {
 			values.Envs = make(map[string]string)
 		}
@@ -124,8 +127,8 @@ func Envs(envs map[string]string) func(*Values) {
 	}
 }
 
-func EnvFrom(k string, v corev1.EnvVarSource) func(*Values) {
-	return func(values *Values) {
+func EnvFrom(k string, v corev1.EnvVarSource) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if values.EnvsFrom == nil {
 			values.EnvsFrom = make(map[string]corev1.EnvVarSource)
 		}
@@ -133,8 +136,8 @@ func EnvFrom(k string, v corev1.EnvVarSource) func(*Values) {
 	}
 }
 
-func EnvsFrom(envsFrom map[string]corev1.EnvVarSource) func(*Values) {
-	return func(values *Values) {
+func EnvsFrom(envsFrom map[string]corev1.EnvVarSource) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if values.EnvsFrom == nil {
 			values.EnvsFrom = make(map[string]corev1.EnvVarSource)
 		}
@@ -144,8 +147,8 @@ func EnvsFrom(envsFrom map[string]corev1.EnvVarSource) func(*Values) {
 	}
 }
 
-func Volume(k string, v corev1.VolumeSource) func(*Values) {
-	return func(values *Values) {
+func Volume(k string, v corev1.VolumeSource) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if values.Volumes == nil {
 			values.Volumes = make(map[string]corev1.VolumeSource)
 		}
@@ -153,8 +156,8 @@ func Volume(k string, v corev1.VolumeSource) func(*Values) {
 	}
 }
 
-func Volumes(volumes map[string]corev1.VolumeSource) func(*Values) {
-	return func(values *Values) {
+func Volumes(volumes map[string]corev1.VolumeSource) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if values.Volumes == nil {
 			values.Volumes = make(map[string]corev1.VolumeSource)
 		}
@@ -164,8 +167,8 @@ func Volumes(volumes map[string]corev1.VolumeSource) func(*Values) {
 	}
 }
 
-func VolumeMount(k string, v corev1.VolumeMount) func(*Values) {
-	return func(values *Values) {
+func VolumeMount(k string, v corev1.VolumeMount) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if values.VolumeMounts == nil {
 			values.VolumeMounts = make(map[string]corev1.VolumeMount)
 		}
@@ -173,8 +176,8 @@ func VolumeMount(k string, v corev1.VolumeMount) func(*Values) {
 	}
 }
 
-func VolumeMounts(volumeMounts map[string]corev1.VolumeMount) func(*Values) {
-	return func(values *Values) {
+func VolumeMounts(volumeMounts map[string]corev1.VolumeMount) ContainerValuesOpt {
+	return func(values *ContainerValues) {
 		if values.VolumeMounts == nil {
 			values.VolumeMounts = make(map[string]corev1.VolumeMount)
 		}
