@@ -46,7 +46,7 @@ control:
     GM_CONTROL_API_INSECURE: "true"
     GM_CONTROL_API_SSL: "false"
 
-controlApi:
+control_api:
   image: docker.greymatter.io/release/gm-control-api:1.6.4
   labels:
     greymatter.io/cluster: control-api

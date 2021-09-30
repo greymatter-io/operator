@@ -21,13 +21,13 @@ type Values struct {
 	// Values for defining a Grey Matter Control container in the control deployment.
 	Control *ContainerValues `json:"control"`
 	// Values for defining a Grey Matter Control API container in the control deployment.
-	ControlAPI *ContainerValues `json:"controlApi"`
+	ControlAPI *ContainerValues `json:"control_api"`
 	// Values for defining a Grey Matter Catalog deployment.
 	Catalog *ContainerValues `json:"catalog"`
 	// Values for defining a Grey Matter Dashboard deployment.
 	Dashboard *ContainerValues `json:"dashboard"`
 	// Values for defining a Grey Matter JWT Security Service deployment.
-	JWTSecurity *ContainerValues `json:"jwtSecurity"`
+	JWTSecurity *ContainerValues `json:"jwt_security"`
 	// Values for defining a Redis deployment. Optional.
 	Redis *ContainerValues `json:"redis"`
 	// Values for defining a Prometheus deployment. Optional.
@@ -90,10 +90,11 @@ func SPIRE(v *Values) {
 }
 
 // TODO: Should this live somewhere else?
+// TODO: Instead of `url`, require host, port, password, dbs. No username option.
 type ExternalRedisConfig struct {
-	// TODO: Instead of `url`, require host, port, password, dbs. No username option.
-	URL        string `json:"url"`
-	SecretName string `json:"certificate_secret_name"`
+	URL string `json:"url"`
+	// +optional
+	CertSecretName string `json:"cert_secret_name"`
 }
 
 // A ValuesOpt that applies configuration for a Redis server.

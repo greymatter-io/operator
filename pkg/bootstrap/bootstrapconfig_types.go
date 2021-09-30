@@ -24,6 +24,7 @@ import (
 //+kubebuilder:object:root=true
 
 // BootstrapConfig enables defining configuration settings for a Grey Matter Operator.
+// Fields are camelCased rather than snake_cased for compatibility with cfg.ControllerManagerConfigSpec.
 type BootstrapConfig struct {
 	metav1.TypeMeta                        `json:",inline"`
 	cfg.ControllerManagerConfigurationSpec `json:",inline"`

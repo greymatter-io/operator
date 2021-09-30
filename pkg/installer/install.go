@@ -19,7 +19,7 @@ func (i *Installer) ApplyMesh(c client.Client, mesh *v1alpha1.Mesh) {
 	// DeepCopy base values for the Grey Matter version specified, so the original is not mutated.
 	// TODO: Assign version once we have the value in our spec. For now, use v1.6 by default.
 	// TODO: Use the Mesh validating webhook to ensure mesh.Spec.ReleaseVersion is valid.
-	values := i.baseValues["v1.6"].DeepCopy()
+	values := i.baseValues[mesh.Spec.ReleaseVersion].DeepCopy()
 
 	// Apply options defined in Mesh CR
 	values.Apply(mesh.InstallOpts()...)

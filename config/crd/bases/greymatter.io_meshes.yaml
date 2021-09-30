@@ -19,7 +19,8 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Mesh is the Schema for the meshes API
+        description: The schema used to define a Grey Matter mesh's desired state
+          and describe its observed state.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,25 +35,31 @@ spec:
           metadata:
             type: object
           spec:
-            description: MeshSpec defines the desired state of Mesh
+            description: Defines the desired state of a Grey Matter mesh.
             properties:
               redis:
-                description: Enables configuring an external Redis provider for caching
-                  Grey Matter core service state.
+                description: Adds an external Redis provider for caching Grey Matter
+                  configuration state.
+                nullable: true
                 properties:
-                  certificate_secret_name:
+                  cert_secret_name:
                     type: string
                   url:
-                    description: 'TODO: Instead of `url`, require host, port, password,
-                      dbs. No username option.'
                     type: string
                 required:
-                - certificate_secret_name
                 - url
                 type: object
+              release_version:
+                default: v1.6
+                enum:
+                - v1.6
+                - v1.7
+                type: string
+            required:
+            - release_version
             type: object
           status:
-            description: MeshStatus defines the observed state of Mesh
+            description: Describes the observed state of a Grey Matter mesh.
             type: object
         type: object
     served: true
