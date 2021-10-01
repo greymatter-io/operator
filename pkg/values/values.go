@@ -8,6 +8,11 @@ import (
 
 	redis "github.com/go-redis/redis/v8"
 	corev1 "k8s.io/api/core/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
+)
+
+var (
+	logger = ctrl.Log.WithName("pkg.values")
 )
 
 //+kubebuilder:object:generate=true
@@ -108,9 +113,6 @@ func Redis(cfg *ExternalRedisConfig, namespace string) InstallOpt {
 		var db string
 
 		if cfg != nil && cfg.URL != "" {
-			// Since an ExternalRedisConfig is provided, set v.Redis to nil so the Installer does not install an internal Redis.
-			v.Redis = nil
-
 			// TODO: In the Mesh validating webhook, ensure the user provided URL is parseable.
 			// This actually might be OBE if we require the user to supply values separately rather than as a URL.
 			redisOptions, _ := redis.ParseURL(cfg.URL)
@@ -120,14 +122,15 @@ func Redis(cfg *ExternalRedisConfig, namespace string) InstallOpt {
 			split := strings.Split(hostPort, ":")
 			host, port = split[0], split[1]
 			// TODO: Enable specifying separate databases
+			// Also, what if DB is not defined in the URL? It'll be 0 by default.
 			db = fmt.Sprintf("%d", redisOptions.DB)
 		} else {
 			host = fmt.Sprintf("greymatter-redis.%s.svc.cluster.local", namespace)
 			port = "6379"
 			db = "0"
 
-			// Generate and inject an 8 character random password
-			b := make([]byte, 8)
+			// Generate and inject a random password
+			b := make([]byte, 10)
 			rand.Read(b)
 			password = base64.URLEncoding.EncodeToString(b)
 			v.Redis.Apply(Env("REDIS_PASSWORD", password))
@@ -135,11 +138,10 @@ func Redis(cfg *ExternalRedisConfig, namespace string) InstallOpt {
 
 		v.ControlAPI.Apply(
 			Envs(map[string]string{
-				"GM_CONTROL_API_PERSISTER_TYPE": "redis",
-				"GM_CONTROL_API_REDIS_HOST":     host,
-				"GM_CONTROL_API_REDIS_PORT":     port,
-				"GM_CONTROL_API_REDIS_PASS":     password,
-				"GM_CONTROL_API_REDIS_DB":       db,
+				"GM_CONTROL_API_REDIS_HOST": host,
+				"GM_CONTROL_API_REDIS_PORT": port,
+				"GM_CONTROL_API_REDIS_PASS": password,
+				"GM_CONTROL_API_REDIS_DB":   db,
 			}),
 		)
 		v.Catalog.Apply(

@@ -24,15 +24,19 @@ func (i *Installer) ApplyMesh(c client.Client, mesh *v1alpha1.Mesh) {
 	values.Apply(mesh.InstallOpts()...)
 
 	// Generate manifests from from values and send them to the K8s apiserver.
+INSTALL_LOOP:
 	for _, group := range values.GenerateManifests() {
+		if group.Deployment.Name == "greymatter-redis" && mesh.Spec.ExternalRedis != nil && mesh.Spec.ExternalRedis.URL != "" {
+			continue INSTALL_LOOP
+		}
 		// Set an owner reference on the manifest for garbage collection if the mesh is deleted.
-		controllerutil.SetOwnerReference(mesh, group.Deployment, i.scheme)
+		controllerutil.SetOwnerReference(mesh, group.Deployment, scheme)
 		// https://github.com/kubernetes-sigs/controller-runtime/blob/master/pkg/controller/controllerutil/example_test.go#L35
 		// TODO: Ensure no mutateFn callback is needed for updates.
 		// TODO: Use controllerutil.OperationResult to update Mesh.Status with an event stream of what was created, updated, etc.
 		controllerutil.CreateOrUpdate(context.TODO(), c, group.Deployment, func() error { return nil })
 		for _, service := range group.Services {
-			controllerutil.SetOwnerReference(mesh, service, i.scheme)
+			controllerutil.SetOwnerReference(mesh, service, scheme)
 			controllerutil.CreateOrUpdate(context.TODO(), c, service, func() error { return nil })
 		}
 	}

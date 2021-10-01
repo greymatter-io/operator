@@ -60,7 +60,7 @@ control_api:
     GM_CONTROL_API_REDIS_RETRY_DELAY: "5s"
 
 catalog:
-  image: docker.greymatter.io/release/gm-control-api:2.0.0
+  image: docker.greymatter.io/release/gm-catalog:2.0.0
   labels:
     greymatter.io/cluster: catalog
     greymatter.io/service-version: "2.0"
@@ -129,13 +129,6 @@ redis:
     REDIS_PASSWORD: ""
   ports:
     redis: 6379
-  resources:
-    limits:
-      cpu: "200m"
-      memory: 500Mi
-    requests:
-      cpu: "100m"
-      memory: "128Mi"
 
 prometheus:
-  image: ""
+  image: "prom/prometheus:v2.7.1"
