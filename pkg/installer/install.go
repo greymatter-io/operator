@@ -17,15 +17,18 @@ import (
 func (i *Installer) ApplyMesh(c client.Client, mesh *v1alpha1.Mesh) {
 
 	// TODO: Use the Mesh validating webhook to ensure mesh.Spec.ReleaseVersion is valid.
-	version := i.versions[mesh.Spec.ReleaseVersion]
-	vCopy := version.Copy()
+	version := i.versions[mesh.Spec.ReleaseVersion].Copy()
 
 	// Apply options defined in Mesh CR
-	vCopy.Apply(mesh.InstallOptions()...)
+	version.Apply(mesh.InstallOptions()...)
+	ics := version.InstallConfigs()
 
-	// Generate manifests from from values and send them to the K8s apiserver.
+	// Save this mesh's Proxy InstallConfig to use later for sidecar injection
+	i.proxyConfigs[mesh.Name] = ics.Proxy
+
+	// Generate manifests from install configs and send them to the K8s apiserver.
 INSTALL_LOOP:
-	for _, group := range vCopy.Values().Manifests() {
+	for _, group := range ics.Manifests() {
 		if group.Deployment.Name == "greymatter-redis" && mesh.Spec.ExternalRedis != nil && mesh.Spec.ExternalRedis.URL != "" {
 			continue INSTALL_LOOP
 		}

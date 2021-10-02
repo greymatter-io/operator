@@ -1,5 +1,3 @@
-package base
-
 #Values: {
   image?: string
   command?: string

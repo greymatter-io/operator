@@ -19,12 +19,12 @@ func (v Version) Copy() Version {
 	return Version{v.cv}
 }
 
-func (v Version) Values() Values {
+func (v Version) InstallConfigs() InstallConfigs {
 	//lint:ignore SA1019 will update to Context in next Cue version
 	codec := gocodec.New(&cue.Runtime{}, nil)
-	var values Values
-	codec.Encode(v.cv, &values)
-	return values
+	var ics InstallConfigs
+	codec.Encode(v.cv, &ics)
+	return ics
 }
 
 func (v *Version) Apply(opts ...InstallOption) {

@@ -3,45 +3,21 @@ package version
 import (
 	"bytes"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
-	"cuelang.org/go/cue/load"
 	"github.com/kylelemons/godebug/diff"
 )
 
 func CueFromStrings(ss ...string) (cue.Value, error) {
 	if len(ss) == 0 {
-		return cue.Value{}, fmt.Errorf("no strings provided")
+		return cue.Value{}, fmt.Errorf("no string inputs")
 	}
 
-	cwd, _ := os.Getwd()
-	abs := func(path string) string {
-		return filepath.Join(cwd, path)
-	}
-	var cueArgs []string
-	overlays := make(map[string]load.Source)
-	for idx, s := range ss {
-		mock := fmt.Sprintf("./mock/%d.cue", idx)
-		cueArgs = append(cueArgs, mock)
-		overlays[abs(mock)] = load.FromString(s)
-	}
-
-	ctx := cuecontext.New()
-	value := cue.Value{}
-	cfg := &load.Config{Overlay: overlays}
-	for idx, i := range load.Instances(cueArgs, cfg) {
-		if i.Err != nil {
-			return cue.Value{}, fmt.Errorf("load error [%d]: %w", idx, i.Err)
-		}
-		v := ctx.BuildInstance(i)
-		if err := v.Err(); err != nil {
-			return v, fmt.Errorf("value error [%d]: %w", idx, err)
-		}
-		value = value.Unify(v)
+	value := cuecontext.New().CompileString(strings.Join(ss, "\n"))
+	if err := value.Err(); err != nil {
+		return value, err
 	}
 
 	return value, nil

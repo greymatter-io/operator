@@ -14,11 +14,11 @@ type ManifestGroup struct {
 	// Tools for templates: https://github.com/Masterminds/sprig
 }
 
-func (v Values) Manifests() []ManifestGroup {
+func (ics InstallConfigs) Manifests() []ManifestGroup {
 	return []ManifestGroup{}
 }
 
-func manifests(expose []string, cvs ...ContainerValues) ManifestGroup {
+func manifests(expose []string, ic ...InstallConfig) ManifestGroup {
 	// Create deployment with labels
 	// Create service with selectors
 	return ManifestGroup{}

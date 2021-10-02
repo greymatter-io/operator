@@ -1,5 +1,3 @@
-package base
-
 proxy: #Proxy
 edge: #Edge
 control: #Control

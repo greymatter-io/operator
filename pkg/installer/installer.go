@@ -13,12 +13,12 @@ var (
 	scheme *runtime.Scheme
 )
 
-// Stores a map of version.Version and distinct proxy ContainerValues for each mesh.
+// Stores a map of version.Version and a distinct proxy InstallConfig for each mesh.
 type Installer struct {
-	// A map of Grey Matter version (v*.*) -> *Values read from the filesystem.
+	// A map of Grey Matter version (v*.*) -> Version read from the filesystem.
 	versions map[string]version.Version
-	// A map of meshes -> *ContainerValues for proxy templates, used for sidecar injection
-	proxyValues map[string]version.ContainerValues
+	// A map of meshes -> InstallConfig for proxy templates, used for sidecar injection
+	proxyConfigs map[string]version.InstallConfig
 }
 
 // Returns *Installer for tracking which Grey Matter version is installed for each mesh
@@ -32,7 +32,7 @@ func New(runtimeScheme *runtime.Scheme) (*Installer, error) {
 	}
 
 	return &Installer{
-		versions:    versions,
-		proxyValues: make(map[string]version.ContainerValues),
+		versions:     versions,
+		proxyConfigs: make(map[string]version.InstallConfig),
 	}, nil
 }

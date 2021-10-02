@@ -4,29 +4,29 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Values contain ContainerValues for each Grey Matter core service and dependencies.
-type Values struct {
-	// Values for injecting proxy containers into deployments/statefulsets.
-	Proxy ContainerValues `json:"proxy"`
-	// Values for defining a Grey Matter Edge deployment.
-	Edge ContainerValues `json:"edge"`
-	// Values for defining a Grey Matter Control container in the control deployment.
-	Control ContainerValues `json:"control"`
-	// Values for defining a Grey Matter Control API container in the control deployment.
-	ControlAPI ContainerValues `json:"control_api"`
-	// Values for defining a Grey Matter Catalog deployment.
-	Catalog ContainerValues `json:"catalog"`
-	// Values for defining a Grey Matter Dashboard deployment.
-	Dashboard ContainerValues `json:"dashboard"`
-	// Values for defining a Grey Matter JWT Security Service deployment.
-	JWTSecurity ContainerValues `json:"jwt_security"`
-	// Values for defining a Redis deployment. Optional.
-	Redis ContainerValues `json:"redis"`
-	// Values for defining a Prometheus deployment.
-	Prometheus ContainerValues `json:"prometheus"`
+// InstallConfigs contain InstallConfig for each Grey Matter core service and dependencies.
+type InstallConfigs struct {
+	// For injecting proxy containers into deployments/statefulsets.
+	Proxy InstallConfig `json:"proxy"`
+	// For defining a Grey Matter Edge deployment.
+	Edge InstallConfig `json:"edge"`
+	// For defining a Grey Matter Control container in the control deployment.
+	Control InstallConfig `json:"control"`
+	// For defining a Grey Matter Control API container in the control deployment.
+	ControlAPI InstallConfig `json:"control_api"`
+	// For defining a Grey Matter Catalog deployment.
+	Catalog InstallConfig `json:"catalog"`
+	// For defining a Grey Matter Dashboard deployment.
+	Dashboard InstallConfig `json:"dashboard"`
+	// For defining a Grey Matter JWT Security Service deployment.
+	JWTSecurity InstallConfig `json:"jwt_security"`
+	// For defining a Redis deployment. Optional.
+	Redis InstallConfig `json:"redis"`
+	// For defining a Prometheus deployment.
+	Prometheus InstallConfig `json:"prometheus"`
 }
 
-type ContainerValues struct {
+type InstallConfig struct {
 	// Docker image name.
 	Image string `json:"image,omitempty"`
 	// Command to override container entry point.

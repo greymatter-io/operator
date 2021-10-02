@@ -7,7 +7,7 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-func TestValues(t *testing.T) {
+func TestInstallConfigs(t *testing.T) {
 	versions, err := Load()
 	if err != nil {
 		t.Fatal(err)
@@ -15,7 +15,7 @@ func TestValues(t *testing.T) {
 
 	for name, version := range versions {
 		t.Run(name, func(t *testing.T) {
-			values := version.Values()
+			values := version.InstallConfigs()
 			y, _ := yaml.Marshal(values)
 			fmt.Println(string(y))
 		})
