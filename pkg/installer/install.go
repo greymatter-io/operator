@@ -16,16 +16,16 @@ import (
 // plus their pod templates so that those workloads are added to the mesh automatically.
 func (i *Installer) ApplyMesh(c client.Client, mesh *v1alpha1.Mesh) {
 
-	// DeepCopy base values for the Grey Matter version specified, so the original is not mutated.
 	// TODO: Use the Mesh validating webhook to ensure mesh.Spec.ReleaseVersion is valid.
-	values := i.baseValues[mesh.Spec.ReleaseVersion].DeepCopy()
+	version := i.versions[mesh.Spec.ReleaseVersion]
+	vCopy := version.Copy()
 
 	// Apply options defined in Mesh CR
-	values.Apply(mesh.InstallOpts()...)
+	vCopy.Apply(mesh.InstallOptions()...)
 
 	// Generate manifests from from values and send them to the K8s apiserver.
 INSTALL_LOOP:
-	for _, group := range values.GenerateManifests() {
+	for _, group := range vCopy.Values().Manifests() {
 		if group.Deployment.Name == "greymatter-redis" && mesh.Spec.ExternalRedis != nil && mesh.Spec.ExternalRedis.URL != "" {
 			continue INSTALL_LOOP
 		}

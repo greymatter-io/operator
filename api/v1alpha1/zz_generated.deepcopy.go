@@ -21,7 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/greymatter-io/operator/pkg/values"
+	"github.com/greymatter-io/operator/pkg/version"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -89,7 +89,7 @@ func (in *MeshSpec) DeepCopyInto(out *MeshSpec) {
 	*out = *in
 	if in.ExternalRedis != nil {
 		in, out := &in.ExternalRedis, &out.ExternalRedis
-		*out = new(values.ExternalRedisConfig)
+		*out = new(version.ExternalRedisConfig)
 		**out = **in
 	}
 }

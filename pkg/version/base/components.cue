@@ -1,6 +1,17 @@
+package base
 
-proxy: {
-  image: "docker.greymatter.io/release/gm-proxy:1.6.4"
+proxy: #Proxy
+edge: #Edge
+control: #Control
+control_api: #ControlAPI
+catalog: #Catalog
+dashboard: #Dashboard
+jwt_security: #JWTSecurity
+redis: #Redis
+prometheus: #Prometheus
+
+#Proxy: #Values & {
+  image: =~"^docker.greymatter.io/(release|development)/gm-proxy:" & !~"latest$"
   ports: {
     metrics: 8081
   }
@@ -11,14 +22,14 @@ proxy: {
   }
 }
 
-edge: {
+#Edge: #Values & proxy & {
   envs: {
     XDS_CLUSTER: "edge"
   }
 }
 
-control: {
-  image: "docker.greymatter.io/release/gm-control:1.6.4"
+#Control: #Values & {
+  image: =~"^docker.greymatter.io/(release|development)/gm-control:" & !~"latest$"
   ports: {
     grpc: 50000
   }
@@ -32,8 +43,8 @@ control: {
   }
 }
 
-control_api: {
-  image: "docker.greymatter.io/release/gm-control-api:1.6.4"
+#ControlAPI: #Values & {
+  image: =~"^docker.greymatter.io/(release|development)/gm-control-api:" & !~"latest$"
   labels: {
     "greymatter.io/cluster": "control-api"
   }
@@ -49,8 +60,8 @@ control_api: {
   }
 }
 
-catalog: {
-  image: "docker.greymatter.io/release/gm-catalog:2.0.0"
+#Catalog: #Values & {
+  image: =~"^docker.greymatter.io/(release|development)/gm-catalog:" & !~"latest$"
   labels: {
     "greymatter.io/cluster": "catalog"
   }
@@ -64,8 +75,8 @@ catalog: {
   }
 }
 
-dashboard: {
-  image: "docker.greymatter.io/release/gm-dashboard:5.0.0"
+#Dashboard: #Values & {
+  image: =~"^docker.greymatter.io/(release|development)/gm-dashboard:" & !~"latest$"
   labels:
     "greymatter.io/cluster": "dashboard"
   ports: {
@@ -73,9 +84,9 @@ dashboard: {
   }
   envs: {
     REQUEST_TIMEOUT: "15000"
-    BASE_URL: "/services/dashboard/5.0/"
-    FABRIC_SERVER: "/services/catalog/2.0/"
-    CONFIG_SERVER: "/services/control-api/1.6/v1.0"
+    BASE_URL: =~"^/services/dashboard/" & =~"/$"
+    FABRIC_SERVER: =~"/services/catalog/" & =~"/$"
+    CONFIG_SERVER: =~"/services/control-api/" & =~"v1.0$"
     PROMETHEUS_SERVER: "/services/prometheus/latest/api/v1/"
     USE_PROMETHEUS: "true"
     DISABLE_PROMETHEUS_ROUTES_UI: "false"
@@ -83,8 +94,8 @@ dashboard: {
   }
 }
 
-jwt_security: {
-  image: "docker.greymatter.io/release/gm-jwt-security:1.3.0"
+#JWTSecurity: #Values & {
+  image: =~"^docker.greymatter.io/(release|development)/gm-jwt-security:" & !~"latest$"
   labels:
     "greymatter.io/cluster": "jwt-security"
   ports: {
@@ -107,8 +118,8 @@ jwt_security: {
   }
 }
 
-redis: {
-  image: "bitnami/redis:5.0.12"
+#Redis: #Values & {
+  image: =~"redis:"
   command: "redis-server"
   args: [
     "--appendonly",
@@ -123,6 +134,6 @@ redis: {
   }
 }
 
-prometheus: {
-  image: "prom/prometheus:v2.7.1"
+#Prometheus: #Values & {
+  image: =~"^prom/prometheus:"
 }

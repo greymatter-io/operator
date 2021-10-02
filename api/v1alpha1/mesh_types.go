@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/greymatter-io/operator/pkg/values"
+	"github.com/greymatter-io/operator/pkg/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -31,7 +31,7 @@ type MeshSpec struct {
 	// Adds an external Redis provider for caching Grey Matter configuration state.
 	// +optional
 	// +nullable
-	ExternalRedis *values.ExternalRedisConfig `json:"redis,omitempty"`
+	ExternalRedis *version.ExternalRedisConfig `json:"redis,omitempty"`
 }
 
 // Describes the observed state of a Grey Matter mesh.
