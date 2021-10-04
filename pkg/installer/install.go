@@ -21,14 +21,14 @@ func (i *Installer) ApplyMesh(c client.Client, mesh *v1alpha1.Mesh) {
 
 	// Apply options defined in Mesh CR
 	version.Apply(mesh.InstallOptions()...)
-	ics := version.InstallConfigs()
+	manifests := version.Manifests()
 
 	// Save this mesh's Proxy InstallConfig to use later for sidecar injection
-	i.proxyConfigs[mesh.Name] = ics.Proxy
+	i.sidecars[mesh.Name] = version.Sidecar()
 
 	// Generate manifests from install configs and send them to the K8s apiserver.
 INSTALL_LOOP:
-	for _, group := range ics.Manifests() {
+	for _, group := range manifests {
 		if group.Deployment.Name == "greymatter-redis" && mesh.Spec.ExternalRedis != nil && mesh.Spec.ExternalRedis.URL != "" {
 			continue INSTALL_LOOP
 		}

@@ -10,20 +10,11 @@ import (
 	"github.com/kylelemons/godebug/diff"
 )
 
-func CueFromStrings(ss ...string) (cue.Value, error) {
-	if len(ss) == 0 {
-		return cue.Value{}, fmt.Errorf("no string inputs")
-	}
-
-	value := cuecontext.New().CompileString(strings.Join(ss, "\n"))
-	if err := value.Err(); err != nil {
-		return value, err
-	}
-
-	return value, nil
+func Cue(ss ...string) cue.Value {
+	return cuecontext.New().CompileString(strings.Join(ss, "\n"))
 }
 
-func PrintCueDiff(a, b cue.Value) {
+func CueDiff(a, b cue.Value) {
 	aStr := fmt.Sprintf("%v", a)
 	bStr := fmt.Sprintf("%v", b)
 	aLines := strings.Split(aStr, "\n")

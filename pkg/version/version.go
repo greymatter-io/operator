@@ -9,22 +9,45 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/encoding/gocode/gocodec"
 	"github.com/go-redis/redis/v8"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type Version struct {
-	cv cue.Value
+	cue cue.Value
 }
 
 func (v Version) Copy() Version {
-	return Version{v.cv}
+	return Version{v.cue}
 }
 
-func (v Version) InstallConfigs() InstallConfigs {
+type ManifestGroup struct {
+	Deployment *appsv1.Deployment `json:"deployment"`
+	Services   []*corev1.Service  `json:"services"`
+	// TODO: ConfigMaps, PVCs, etc.
+	// TODO: Inject certs, base64, etc. using Cue; see Redis options for example
+	// Possibly use templating: https://cuetorials.com/first-steps/generate-all-the-things/
+	// Tools for templates: https://github.com/Masterminds/sprig
+}
+
+func (v Version) Manifests() []ManifestGroup {
 	//lint:ignore SA1019 will update to Context in next Cue version
 	codec := gocodec.New(&cue.Runtime{}, nil)
-	var ics InstallConfigs
-	codec.Encode(v.cv, &ics)
-	return ics
+	var m struct {
+		Manifests []ManifestGroup `json:"manifests"`
+	}
+	codec.Encode(v.cue, &m)
+	return m.Manifests
+}
+
+func (v Version) Sidecar() *corev1.Container {
+	//lint:ignore SA1019 will update to Context in next Cue version
+	codec := gocodec.New(&cue.Runtime{}, nil)
+	var c struct {
+		Sidecar *corev1.Container `json:"sidecar"`
+	}
+	codec.Encode(v.cue, &c)
+	return c.Sidecar
 }
 
 func (v *Version) Apply(opts ...InstallOption) {
@@ -50,7 +73,7 @@ func SPIRE(v *Version) {
 		}
 		spire = &value
 	}
-	v.cv = v.cv.Unify(*spire)
+	v.cue = v.cue.Unify(*spire)
 }
 
 // An InstallOption for injecting configuration for an internal Redis deployment.
@@ -66,15 +89,15 @@ func InternalRedis(namespace string) InstallOption {
 		b := make([]byte, 10)
 		rand.Read(b)
 		password := base64.URLEncoding.EncodeToString(b)
-		injected, err := CueFromStrings(fmt.Sprintf(`
+		injected := Cue(fmt.Sprintf(`
 			namespace: "%s"
 			password: "%s"
 		`, namespace, password))
-		if err != nil {
+		if err := injected.Err(); err != nil {
 			logger.Error(err, "failed to inject apply option", "option", "internal Redis")
 			return
 		}
-		v.cv = v.cv.Unify(*redisInternal).Unify(injected)
+		v.cue = v.cue.Unify(*redisInternal).Unify(injected)
 	}
 }
 
@@ -104,17 +127,17 @@ func ExternalRedis(cfg *ExternalRedisConfig) InstallOption {
 			}
 			redisExternal = &value
 		}
-		injected, err := CueFromStrings(fmt.Sprintf(`
+		injected := Cue(fmt.Sprintf(`
 			host: "%s"
 			port: "%s"
 			password: "%s"
 			db: "%s"
 		`, host, port, password, db))
-		if err != nil {
+		if err := injected.Err(); err != nil {
 			logger.Error(err, "failed to inject apply option", "option", "internal Redis")
 			return
 		}
-		v.cv = v.cv.Unify(*redisExternal).Unify(injected)
+		v.cue = v.cue.Unify(*redisExternal).Unify(injected)
 	}
 }
 
@@ -124,8 +147,8 @@ func loadOption(fileName string) (cue.Value, error) {
 		logger.Error(err, "failed to load option", "file", fileName)
 		return cue.Value{}, err
 	}
-	value, err := CueFromStrings(string(data))
-	if err != nil {
+	value := Cue(string(data))
+	if err := value.Err(); err != nil {
 		logger.Error(err, "failed to parse option", "file", fileName)
 	}
 	return value, nil

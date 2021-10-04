@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestCueFromStrings(t *testing.T) {
+func TestCue(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		in   []string
@@ -21,8 +21,8 @@ func TestCueFromStrings(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			value, err := CueFromStrings(tc.in...)
-			if err != nil {
+			value := Cue(tc.in...)
+			if err := value.Err(); err != nil {
 				t.Fatal(err)
 			}
 			out := fmt.Sprintf("%v", value)

@@ -6,6 +6,9 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/errors"
+	"cuelang.org/go/cue/load"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -29,43 +32,35 @@ func Load() (map[string]Version, error) {
 		return nil, err
 	}
 
+	var errs errors.Error
 	for name, version := range versions {
-		version.cv = base.Unify(version.cv)
-		if err := version.cv.Err(); err != nil {
+		version.cue = base.Unify(version.cue)
+		if err := version.cue.Err(); err != nil {
 			logger.Error(err, "found invalid install version file", "filename", fmt.Sprintf("%s.cue", name))
+			if errs == nil {
+				errs = errors.Errors(err)[0]
+			} else {
+				errs = errors.Wrap(errs, err)
+			}
 			delete(versions, name)
 		} else {
 			versions[name] = version
 		}
 	}
 
-	return versions, nil
+	return versions, errs
 }
 
 func loadBase() (cue.Value, error) {
-	files, err := filesystem.ReadDir("base")
-	if err != nil {
-		logger.Error(err, "failed to load install definition files")
-		return cue.Value{}, err
+	instances := load.Instances(
+		[]string{"./cue.mod/"},
+		&load.Config{Package: "base"},
+	)
+	base := cuecontext.New().BuildInstance(instances[0])
+	if err := base.Err(); err != nil {
+		return base, base.Err()
 	}
-
-	var baseSchemas []string
-	for _, file := range files {
-		data, err := filesystem.ReadFile(fmt.Sprintf("base/%s", file.Name()))
-		if err != nil {
-			logger.Error(err, "failed to load install definition file", "filename", file.Name())
-			return cue.Value{}, err
-		}
-		baseSchemas = append(baseSchemas, string(data))
-	}
-
-	value, err := CueFromStrings(baseSchemas...)
-	if err != nil {
-		logger.Error(err, "failed to parse install definition files")
-		return cue.Value{}, err
-	}
-
-	return value, nil
+	return base, nil
 }
 
 func loadVersions() (map[string]Version, error) {
@@ -83,14 +78,13 @@ func loadVersions() (map[string]Version, error) {
 			return nil, err
 		}
 
-		value, err := CueFromStrings(string(data))
-		if err != nil {
+		value := Cue(string(data))
+		if err := value.Err(); err != nil {
 			logger.Error(err, "failed to parse install version file", "filename", file.Name())
 			return nil, err
 		}
 
 		name := strings.Replace(file.Name(), ".cue", "", 1)
-
 		cueVersions[name] = Version{value}
 	}
 
