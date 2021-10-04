@@ -13,8 +13,8 @@ import (
   ports: [string]: int32
   envFrom: [string]: corev1.#EnvVarSource
   env: [string]: string
-  volumeMounts: [...corev1.#VolumeMount]
-  volumes: [...corev1.#VolumeSource]
+  volumeMounts: [string]: corev1.#VolumeMount
+  volumes: [string]: corev1.#VolumeSource
 }
 
 proxy: #Component & {
@@ -35,12 +35,7 @@ edge: #Component & proxy & {
 control: #Component & {
   name: "control"
   image: =~"^docker.greymatter.io/(release|development)/gm-control:" & !~"latest$"
-  // ports: [
-  //   {
-  //     name: "grpc"
-  //     containerPort: 50000
-  //   }
-  // ]
+  ports: grpc: 50000
   env: {
     GM_CONTROL_CMD: "kubernetes"
     GM_CONTROL_KUBERNETES_CLUSTER_LABEL: "greymatter.io/cluster"
@@ -54,12 +49,7 @@ control: #Component & {
 control_api: #Component & {
   name: "control-api"
   image: =~"^docker.greymatter.io/(release|development)/gm-control-api:" & !~"latest$"
-  // ports: [
-  //   {
-  //     name: "api"
-  //     containerPort: 5555
-  //   }
-  // ]
+  ports: api: 5555
   env: {
     GM_CONTROL_API_ADDRESS: "0.0.0.0:5555"
     GM_CONTROL_API_DISABLE_VERSION_CHECK: "false"
@@ -72,12 +62,7 @@ control_api: #Component & {
 catalog: #Component & {
   name: "catalog"
   image: =~"^docker.greymatter.io/(release|development)/gm-catalog:" & !~"latest$"
-  // ports: [
-  //   {
-  //     name: "api"
-  //     containerPort: 8080
-  //   }
-  // ]
+  ports: api: 8080
   env: {
     CONFIG_SOURCE: "redis"
     REDIS_MAX_RETRIES: "50"
@@ -88,12 +73,7 @@ catalog: #Component & {
 dashboard: #Component & {
   name: "dashboard"
   image: =~"^docker.greymatter.io/(release|development)/gm-dashboard:" & !~"latest$"
-  // ports: [
-  //   {
-  //     name: "app"
-  //     containerPort: 1337
-  //   }
-  // ]
+  ports: app: 1337
   env: {
     BASE_URL: =~"^/services/dashboard/" & =~"/$"
     FABRIC_SERVER: =~"/services/catalog/" & =~"/$"
@@ -109,27 +89,22 @@ dashboard: #Component & {
 jwt_security: #Component & {
   name: "jwt-security"
   image: =~"^docker.greymatter.io/(release|development)/gm-jwt-security:" & !~"latest$"
-  // ports: [
-  //   {
-  //     name: "api"
-  //     containerPort: 3000
-  //   }
-  // ]
+  ports: api: 3000
   env: {
     HTTP_PORT: "3000"
   }
-  // volumes: {
-  //   "jwt-users": {
-  //     configMap: {
-  //       defaultMode: 420
-  //     }
-  //   }
-  // }
-  // volumeMounts: {
-  //   "jwt-users": {
-  //     mountPath: "/gm-jwt-security/etc"
-  //   }
-  // }
+  volumeMounts: {
+    "jwt-users": {
+      mountPath: "/gm-jwt-security/etc"
+    }
+  }
+  volumes: {
+    "jwt-users": {
+      configMap: {
+        defaultMode: 420
+      }
+    }
+  }
 }
 
 redis: #Component & {
@@ -144,12 +119,7 @@ redis: #Component & {
     "--dir",
     "/data"
   ]
-  // ports: [
-  //   {
-  //     name: "redis"
-  //     containerPort: 6379
-  //   }
-  // ]
+  ports: redis: 6379
 }
 
 prometheus: #Component & {

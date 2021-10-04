@@ -10,34 +10,34 @@ sidecar: corev1.#Container & {
 }
 
 manifests: [...#ManifestGroup] & [
-  { _components: [edge] }, 
-  { _components: [control, control_api] },
-  { _components: [catalog] },
-  { _components: [dashboard] },
-  { _components: [jwt_security] },
-  { _components: [redis] },
-  { _components: [prometheus] },
+  { _c: [edge] }, 
+  { _c: [control, control_api] },
+  { _c: [catalog] },
+  { _c: [dashboard] },
+  { _c: [jwt_security] },
+  { _c: [redis] },
+  { _c: [prometheus] },
 ]
 
 #ManifestGroup: {
-  _components: [...#Component]
+  _c: [...#Component]
   deployment: appsv1.#Deployment & {
     apiVersion: "apps/v1"
     kind: "Deployment"
-    metadata: name: _components[0].name
+    metadata: name: _c[0].name
     spec: {
       selector: matchLabels: {
-        "greymatter.io/component": _components[0].name
-        "greymatter.io/cluster": _components[0].name
+        "greymatter.io/component": _c[0].name
+        "greymatter.io/cluster": _c[0].name
       }
       template: {
         metadata: labels: {
-          "greymatter.io/component": _components[0].name
-          "greymatter.io/cluster": _components[0].name
+          "greymatter.io/component": _c[0].name
+          "greymatter.io/cluster": _c[0].name
         }
         spec: {
           containers: [
-            for _, c in _components {
+            for _, c in _c {
               {
                 name: c.name
                 image: c.image
@@ -45,17 +45,38 @@ manifests: [...#ManifestGroup] & [
                 args: c.args
                 ports: [
                   for k, v in c.ports {
-                    { name: k, containerPort: v }
+                    { 
+                      name: k
+                      containerPort: v
+                    }
                   }
                 ]
                 envFrom: [ for _, v in c.envFrom { v } ]
                 env: [
                   for k, v in c.env {
-                    { name: k, value: v }
+                    {
+                      name: k
+                      value: v
+                    }
                   }
                 ]
-                // resources: c.resources
-                // volumeMounts: c.volumeMounts
+                resources: c.resources
+                volumeMounts: [
+                  for k, v in c.volumeMounts {
+                    name: k
+                    v
+                  }
+                ]
+              }
+            }
+          ]
+          volumes: [
+            for _, c in _c if len(c.volumes) > 0 {
+              for k, v in c.volumes {
+                {
+                  name: k
+                  v
+                }
               }
             }
           ]
@@ -63,26 +84,26 @@ manifests: [...#ManifestGroup] & [
       }
     }
   }
-  // services: [...corev1.#Service] & [
-  //   for _, c in _components {
-  //     {
-  //       apiVersion: "v1"
-  //       kind: "Service"
-  //       metadata: name: c.name
-  //       spec: {
-  //         selector: "greymatter.io/component": c.name
-  //         ports: [
-  //           for name, port in c.ports {
-  //             {
-  //               name: name
-  //               protocol: "TCP"
-  //               port: port
-  //               targetPort: port
-  //             }
-  //           }
-  //         ]
-  //       }
-  //     }
-  //   }
-  // ]
+  services: [...corev1.#Service] & [
+    for _, c in _c {
+      {
+        apiVersion: "v1"
+        kind: "Service"
+        metadata: name: c.name
+        spec: {
+          selector: "greymatter.io/component": c.name
+          ports: [
+            for k, v in c.ports {
+              {
+                name: k
+                protocol: "TCP"
+                port: v
+                targetPort: v
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
 }
