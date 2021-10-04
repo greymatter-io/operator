@@ -32,6 +32,8 @@ type MeshSpec struct {
 	// +optional
 	// +nullable
 	ExternalRedis *version.ExternalRedisConfig `json:"redis,omitempty"`
+
+	// WatchNamespaces []string
 }
 
 // Describes the observed state of a Grey Matter mesh.
