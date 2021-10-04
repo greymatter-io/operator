@@ -92,11 +92,11 @@ case $1 in
     install_staticcheck
     go mod tidy
     go mod vendor
+    install_cue_deps
     ./scripts/test lint
     ./scripts/test
     ;;
   container)
-    install_cue_deps
     ./scripts/build docker
     ;;
   release)

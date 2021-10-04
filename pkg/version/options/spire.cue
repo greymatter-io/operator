@@ -12,7 +12,7 @@ proxy: {
 			mountPath: "/run/spire/socket"
 		}
 	}
-	envs: {
+	env: {
 		"SPIRE_PATH": "/run/spire/socket/agent.sock"
 	}
 }

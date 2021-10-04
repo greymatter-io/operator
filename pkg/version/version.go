@@ -64,6 +64,17 @@ var (
 	redisExternal *cue.Value
 )
 
+func Namespace(namespace string) InstallOption {
+	return func(v *Version) {
+		injected := Cue(fmt.Sprintf(`Namespace: "%s"`, namespace))
+		if err := injected.Err(); err != nil {
+			logger.Error(err, "failed to inject apply option", "option", "Namespace")
+			return
+		}
+		v.cue = v.cue.Unify(injected)
+	}
+}
+
 // An InstallOption for injecting SPIRE configuration into Proxy values.
 func SPIRE(v *Version) {
 	if spire == nil {
@@ -77,28 +88,23 @@ func SPIRE(v *Version) {
 }
 
 // An InstallOption for injecting configuration for an internal Redis deployment.
-func InternalRedis(namespace string) InstallOption {
-	return func(v *Version) {
-		if redisInternal == nil {
-			value, err := loadOption("redis_internal.cue")
-			if err != nil {
-				return
-			}
-			redisInternal = &value
-		}
-		b := make([]byte, 10)
-		rand.Read(b)
-		password := base64.URLEncoding.EncodeToString(b)
-		injected := Cue(fmt.Sprintf(`
-			namespace: "%s"
-			password: "%s"
-		`, namespace, password))
-		if err := injected.Err(); err != nil {
-			logger.Error(err, "failed to inject apply option", "option", "internal Redis")
+func InternalRedis(v *Version) {
+	if redisInternal == nil {
+		value, err := loadOption("redis_internal.cue")
+		if err != nil {
 			return
 		}
-		v.cue = v.cue.Unify(*redisInternal).Unify(injected)
+		redisInternal = &value
 	}
+	b := make([]byte, 10)
+	rand.Read(b)
+	password := base64.URLEncoding.EncodeToString(b)
+	injected := Cue(fmt.Sprintf(`password: "%s"`, password))
+	if err := injected.Err(); err != nil {
+		logger.Error(err, "failed to inject apply option", "option", "internal Redis")
+		return
+	}
+	v.cue = v.cue.Unify(*redisInternal).Unify(injected)
 }
 
 // TODO: Instead of `url`, require host, port, password, dbs. No username option.

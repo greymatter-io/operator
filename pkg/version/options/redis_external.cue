@@ -4,7 +4,7 @@ password: string
 db: string
 
 control_api: {
-	envs: {
+	env: {
 		"GM_CONTROL_API_REDIS_HOST": "\(host)"
 		"GM_CONTROL_API_REDIS_PORT": "\(port)"
 		"GM_CONTROL_API_REDIS_PASS": "\(password)"
@@ -12,7 +12,7 @@ control_api: {
 	}
 }
 catalog: {
-	envs: {
+	env: {
 		"REDIS_HOST": "\(host)"
 		"REDIS_PORT": "\(port)"
 		"REDIS_PASS": "\(password)"
@@ -20,7 +20,7 @@ catalog: {
 	}
 }
 jwt_security: {
-	envs: {
+	env: {
 		"REDIS_HOST": "\(host)"
 		"REDIS_PORT": "\(port)"
 		"REDIS_PASS": "\(password)"

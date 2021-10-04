@@ -4,6 +4,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+Namespace: string
+proxyPort: int32
+
 #Component: {
   name: string
   image: string
@@ -19,7 +22,6 @@ import (
 
 proxy: #Component & {
   image: =~"^docker.greymatter.io/(release|development)/gm-proxy:" & !~"latest$"
-  ports: metrics: 8081
   env: {
     ENVOY_ADMIN_LOG_PATH: "/dev/stdout",
     PROXY_DYNAMIC: "true"

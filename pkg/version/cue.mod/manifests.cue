@@ -5,10 +5,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-sidecar: corev1.#Container & {
-  name: "sidecar"
-}
-
 manifests: [...#ManifestGroup] & [
   { _c: [edge] }, 
   { _c: [control, control_api] },
@@ -24,15 +20,16 @@ manifests: [...#ManifestGroup] & [
   deployment: appsv1.#Deployment & {
     apiVersion: "apps/v1"
     kind: "Deployment"
-    metadata: name: _c[0].name
+    metadata: {
+      name: _c[0].name
+      namespace: Namespace
+    }
     spec: {
       selector: matchLabels: {
-        "greymatter.io/component": _c[0].name
         "greymatter.io/cluster": _c[0].name
       }
       template: {
         metadata: labels: {
-          "greymatter.io/component": _c[0].name
           "greymatter.io/cluster": _c[0].name
         }
         spec: {
@@ -45,7 +42,7 @@ manifests: [...#ManifestGroup] & [
                 args: c.args
                 ports: [
                   for k, v in c.ports {
-                    { 
+                    {
                       name: k
                       containerPort: v
                     }
@@ -91,7 +88,7 @@ manifests: [...#ManifestGroup] & [
         kind: "Service"
         metadata: name: c.name
         spec: {
-          selector: "greymatter.io/component": c.name
+          selector: "greymatter.io/cluster": c.name
           ports: [
             for k, v in c.ports {
               {
@@ -106,4 +103,9 @@ manifests: [...#ManifestGroup] & [
       }
     }
   ]
+}
+
+sidecar: corev1.#Container & {
+  name: "sidecar"
+  // TODO
 }
