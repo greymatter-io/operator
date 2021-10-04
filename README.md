@@ -6,15 +6,21 @@ This project is currently in an unstable alpha stage. This README will be update
 
 ## Development
 
-### Requirements
+### Dependencies
 
-This project is built on the [Operator SDK](https://sdk.operatorframework.io) which relies on [Kubebuilder](https://kubebuilder.io) for its CLI and the [controller-runtime project](https://github.com/kubernetes-sigs/controller-runtime). As such, this project adheres to conventions and best practices recommended by those projects.
+Grey Matter Operator is built using the [Operator SDK](https://sdk.operatorframework.io). As such, this project adheres to its conventions and recommended best practices.
 
 Download the [Operator SDK CLI v1.12.0](https://sdk.operatorframework.io/docs/installation/) for maintaining the project API, manifests, and general project structure.
 
+It also uses [Cue](https://cuelang.org/docs/install/) for maintaining much of its internal API.
+
 If building for [OpenShift](https://www.redhat.com/en/technologies/cloud-computing/openshift/container-platform), you'll also need the [OpenShift CLI](https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/).
 
-All other dependencies for this project can be added with `go mod vendor`, plus additional `make` targets which will download binaries to the `bin` directory.
+### Setup
+
+Go dependencies can be added with `GO111MODULE=on go mod vendor`. The Go dependencies will be downloaded to the gitignored `vendor` directory.
+
+Cue dependencies should be added inside of the `/pkg/version/cue.mod` directory by running `cue get go k8s.io/api/...` inside of that directory. The Cue dependencies will be downloaded to the gitignored `/pkg/version/cue.mod/gen` directory.
 
 ### Local Quickstart
 
