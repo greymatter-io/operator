@@ -4,9 +4,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-Namespace: string
-proxyPort: int32
-
 #Component: {
   name: string
   image: string
@@ -22,10 +19,19 @@ proxyPort: int32
 
 proxy: #Component & {
   image: =~"^docker.greymatter.io/(release|development)/gm-proxy:" & !~"latest$"
+  ports: proxy: ProxyPort
   env: {
     ENVOY_ADMIN_LOG_PATH: "/dev/stdout",
     PROXY_DYNAMIC: "true"
     XDS_PORT: "50000"
+  }
+  if Spire {
+    env: SPIRE_PATH: "/run/spire/socket/agent.sock"
+    volumeMounts: "spire-socket": mountPath: "/run/spire/socket"
+    volumes: "spire-socket": hostPath: {
+      path: "/run/spire/socket"
+      type: "DirectoryOrCreate"
+    }
   }
 }
 
@@ -58,6 +64,17 @@ control_api: #Component & {
     GM_CONTROL_API_PERSISTER_TYPE: "redis"
     GM_CONTROL_API_REDIS_MAX_RETRIES: "50"
     GM_CONTROL_API_REDIS_RETRY_DELAY: "5s"
+    GM_CONTROL_API_REDIS_PASS: Redis.password
+    if !Redis.external {
+      GM_CONTROL_API_REDIS_HOST: "mesh-redis.\(Namespace).svc.cluster.local"
+		  GM_CONTROL_API_REDIS_PORT: "6379"
+		  GM_CONTROL_API_REDIS_DB: "0"
+    }
+    if Redis.external {
+      GM_CONTROL_API_REDIS_HOST: Redis.host
+      GM_CONTROL_API_REDIS_PORT: Redis.port
+      GM_CONTROL_API_REDIS_DB: Redis.db
+    }
   }
 }
 
@@ -69,6 +86,17 @@ catalog: #Component & {
     CONFIG_SOURCE: "redis"
     REDIS_MAX_RETRIES: "50"
     REDIS_RETRY_DELAY: "5s"
+    REDIS_PASS: Redis.password
+    if !Redis.external {
+      REDIS_HOST: "mesh-redis.\(Namespace).svc.cluster.local"
+		  REDIS_PORT: "6379"
+		  REDIS_DB: "0"
+    }
+    if Redis.external {
+      REDIS_HOST: Redis.host
+      REDIS_PORT: Redis.port
+      REDIS_DB: Redis.db
+    }
   }
 }
 
@@ -94,6 +122,17 @@ jwt_security: #Component & {
   ports: api: 3000
   env: {
     HTTP_PORT: "3000"
+    REDIS_PASS: Redis.password
+    if !Redis.external {
+      REDIS_HOST: "mesh-redis.\(Namespace).svc.cluster.local"
+		  REDIS_PORT: "6379"
+		  REDIS_DB: "0"
+    }
+    if Redis.external {
+      REDIS_HOST: Redis.host
+      REDIS_PORT: Redis.port
+      REDIS_DB: Redis.db
+    }
   }
   volumeMounts: {
     "jwt-users": {
@@ -122,6 +161,9 @@ redis: #Component & {
     "/data"
   ]
   ports: redis: 6379
+  if !Redis.external {
+    env: REDIS_PASSWORD: Redis.password
+  }
 }
 
 prometheus: #Component & {

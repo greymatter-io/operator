@@ -105,7 +105,43 @@ manifests: [...#ManifestGroup] & [
   ]
 }
 
-sidecar: corev1.#Container & {
-  name: "sidecar"
-  // TODO
+sidecar: {
+  container: corev1.#Container & {
+    name: "sidecar"
+    image: proxy.image
+    command: proxy.command
+    args: proxy.args
+    ports: [
+      for k, v in proxy.ports {
+        {
+          name: k
+          containerPort: v
+        }
+      }
+    ]
+    envFrom: [ for _, v in proxy.envFrom { v } ]
+    env: [
+      for k, v in proxy.env {
+        {
+          name: k
+          value: v
+        }
+      }
+    ]
+    resources: proxy.resources
+    volumeMounts: [
+      for k, v in proxy.volumeMounts {
+        name: k
+        v
+      }
+    ]
+  }
+  volumes: [...corev1.#Volume] & [
+    for k, v in proxy.volumes {
+      {
+        name: k
+        v
+      }
+    }
+  ]
 }

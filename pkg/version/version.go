@@ -36,18 +36,25 @@ func (v Version) Manifests() []ManifestGroup {
 	var m struct {
 		Manifests []ManifestGroup `json:"manifests"`
 	}
+	// Encode Cue value into Go struct
 	codec.Encode(v.cue, &m)
 	return m.Manifests
 }
 
-func (v Version) Sidecar() *corev1.Container {
+type Sidecar struct {
+	Container *corev1.Container `json:"container"`
+	Volumes   []corev1.Volume   `json:"volumes"`
+}
+
+func (v Version) Sidecar() Sidecar {
 	//lint:ignore SA1019 will update to Context in next Cue version
 	codec := gocodec.New(&cue.Runtime{}, nil)
-	var c struct {
-		Sidecar *corev1.Container `json:"sidecar"`
+	var s struct {
+		Sidecar `json:"sidecar"`
 	}
-	codec.Encode(v.cue, &c)
-	return c.Sidecar
+	// Encode Cue value into Go struct
+	codec.Encode(v.cue, &s)
+	return s.Sidecar
 }
 
 func (v *Version) Apply(opts ...InstallOption) {
@@ -58,55 +65,19 @@ func (v *Version) Apply(opts ...InstallOption) {
 
 type InstallOption func(*Version)
 
-var (
-	spire         *cue.Value
-	redisInternal *cue.Value
-	redisExternal *cue.Value
-)
-
+// An InstallOption for injecting a Namespace value.
 func Namespace(namespace string) InstallOption {
 	return func(v *Version) {
-		injected := Cue(fmt.Sprintf(`Namespace: "%s"`, namespace))
-		if err := injected.Err(); err != nil {
-			logger.Error(err, "failed to inject apply option", "option", "Namespace")
-			return
-		}
-		v.cue = v.cue.Unify(injected)
+		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`Namespace: "%s"`, namespace)))
 	}
 }
 
-// An InstallOption for injecting SPIRE configuration into Proxy values.
+// An InstallOption for injecting SPIRE configuration.
 func SPIRE(v *Version) {
-	if spire == nil {
-		value, err := loadOption("spire.cue")
-		if err != nil {
-			return
-		}
-		spire = &value
-	}
-	v.cue = v.cue.Unify(*spire)
+	v.cue = v.cue.Unify(Cue(`Spire: true`))
 }
 
-// An InstallOption for injecting configuration for an internal Redis deployment.
-func InternalRedis(v *Version) {
-	if redisInternal == nil {
-		value, err := loadOption("redis_internal.cue")
-		if err != nil {
-			return
-		}
-		redisInternal = &value
-	}
-	b := make([]byte, 10)
-	rand.Read(b)
-	password := base64.URLEncoding.EncodeToString(b)
-	injected := Cue(fmt.Sprintf(`password: "%s"`, password))
-	if err := injected.Err(); err != nil {
-		logger.Error(err, "failed to inject apply option", "option", "internal Redis")
-		return
-	}
-	v.cue = v.cue.Unify(*redisInternal).Unify(injected)
-}
-
+// ExternalRedisConfig instructs core services to use an external Redis server for caching.
 // TODO: Instead of `url`, require host, port, password, dbs. No username option.
 type ExternalRedisConfig struct {
 	URL string `json:"url"`
@@ -114,48 +85,40 @@ type ExternalRedisConfig struct {
 	CertSecretName string `json:"cert_secret_name"`
 }
 
-// An InstallOption for injecting configuration for an external Redis server.
-func ExternalRedis(cfg *ExternalRedisConfig) InstallOption {
-	// TODO: In the Mesh validating webhook, ensure the user provided URL is parseable.
-	// This actually might be OBE if we require the user to supply values separately rather than as a URL.
-	redisOptions, _ := redis.ParseURL(cfg.URL)
-	hostPort := redisOptions.Addr
-	split := strings.Split(hostPort, ":")
-	host, port := split[0], split[1]
-	password := redisOptions.Password
-	db := fmt.Sprintf("%d", redisOptions.DB)
-
+// An InstallOption for injecting Redis configuration for either an external
+// Redis server (if the config is not nil) or otherwise an internal Redis deployment.
+func Redis(cfg *ExternalRedisConfig) InstallOption {
 	return func(v *Version) {
-		if redisExternal == nil {
-			value, err := loadOption("redis_external.cue")
-			if err != nil {
-				return
-			}
-			redisExternal = &value
-		}
-		injected := Cue(fmt.Sprintf(`
-			host: "%s"
-			port: "%s"
-			password: "%s"
-			db: "%s"
-		`, host, port, password, db))
-		if err := injected.Err(); err != nil {
-			logger.Error(err, "failed to inject apply option", "option", "internal Redis")
+		if cfg == nil {
+			b := make([]byte, 10)
+			rand.Read(b)
+			password := base64.URLEncoding.EncodeToString(b)
+			v.cue = v.cue.Unify(Cue(fmt.Sprintf(
+				`Redis: {
+					external: false
+					password: "%s"
+				}`,
+				password)))
 			return
 		}
-		v.cue = v.cue.Unify(*redisExternal).Unify(injected)
-	}
-}
 
-func loadOption(fileName string) (cue.Value, error) {
-	data, err := filesystem.ReadFile(fmt.Sprintf("options/%s", fileName))
-	if err != nil {
-		logger.Error(err, "failed to load option", "file", fileName)
-		return cue.Value{}, err
+		// TODO: In the Mesh validating webhook, ensure the user provided URL is parseable.
+		// This actually might be OBE if we require the user to supply values separately rather than as a URL.
+		redisOptions, _ := redis.ParseURL(cfg.URL)
+		hostPort := redisOptions.Addr
+		split := strings.Split(hostPort, ":")
+		host, port := split[0], split[1]
+		password := redisOptions.Password
+		db := fmt.Sprintf("%d", redisOptions.DB)
+		v.cue = v.cue.Unify(Cue(fmt.Sprintf(
+			`Redis: {
+				external: true
+				host: "%s"
+				port: "%s"
+				password: "%s"
+				db: "%s"
+			}`,
+			password, host, port, db)),
+		)
 	}
-	value := Cue(string(data))
-	if err := value.Err(); err != nil {
-		logger.Error(err, "failed to parse option", "file", fileName)
-	}
-	return value, nil
 }

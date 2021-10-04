@@ -4,7 +4,6 @@ package installer
 
 import (
 	"github.com/greymatter-io/operator/pkg/version"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -14,12 +13,12 @@ var (
 	scheme *runtime.Scheme
 )
 
-// Stores a map of version.Version and a distinct proxy corev1.Container for each mesh.
+// Stores a map of version.Version and a distinct version.Sidecar for each mesh.
 type Installer struct {
 	// A map of Grey Matter version (v*.*) -> Version read from the filesystem.
 	versions map[string]version.Version
-	// A map of meshes -> corev1.Container, used for sidecar injection
-	sidecars map[string]*corev1.Container
+	// A map of meshes -> Sidecar, used for sidecar injection
+	sidecars map[string]version.Sidecar
 }
 
 // Returns *Installer for tracking which Grey Matter version is installed for each mesh
@@ -34,6 +33,6 @@ func New(runtimeScheme *runtime.Scheme) (*Installer, error) {
 
 	return &Installer{
 		versions: versions,
-		sidecars: make(map[string]*corev1.Container),
+		sidecars: make(map[string]version.Sidecar),
 	}, nil
 }
