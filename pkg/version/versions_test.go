@@ -105,8 +105,51 @@ func TestVersions(t *testing.T) {
 					},
 					checkSidecar: func(sidecar Sidecar) error {
 						// unimplemented
+						// y, _ := yaml.Marshal(sidecar)
+						// fmt.Println(string(y))
+						return nil
+					},
+				},
+				{
+					name:    "Ingress port option",
+					options: []InstallOption{ProxyPort(10999)},
+					checkManifests: func(manifests []ManifestGroup) error {
+						// unimplemented
 						// y, _ := yaml.Marshal(manifests)
 						// fmt.Println(string(y))
+						return nil
+					},
+					checkSidecar: func(sidecar Sidecar) error {
+						y, _ := yaml.Marshal(sidecar)
+						fmt.Println(string(y))
+
+						if len(sidecar.Container.Ports) == 0 {
+							t.Error("No proxy Ports found in sidecar")
+						}
+
+						proxyExists := false
+						proxyUniqueCheck := 0
+						for _, p := range sidecar.Container.Ports {
+							// fmt.Printf("\n --test sidecar ---> [name: %s; port: %d] \n", p.Name, p.ContainerPort)
+							// This check can happen when outputs.cue is modified instead of inputs.cue
+							if p.Name == "proxy" && p.ContainerPort == 10999 {
+								proxyExists = true
+								proxyUniqueCheck++
+							}
+							if p.Name == "proxy" && p.ContainerPort != 10999 {
+								t.Error("Container port named proxy found however it does not have the correct port number")
+							}
+							if p.ContainerPort == 10909 || p.Name != "proxy" {
+								t.Error("A duplicate port numbers found matching the proxy port specified")
+							}
+						}
+						if !proxyExists {
+							t.Error("Proxy port not found")
+						}
+						if proxyUniqueCheck > 1 {
+							t.Error("Too Many Proxys with the name proxy and port 10909 were injected")
+						}
+
 						return nil
 					},
 				},

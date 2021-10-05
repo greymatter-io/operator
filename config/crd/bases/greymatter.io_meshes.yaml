@@ -37,6 +37,10 @@ spec:
           spec:
             description: Defines the desired state of a Grey Matter mesh.
             properties:
+              ingress_port:
+                description: Defines internal port for sidecar-to-sidecar communication
+                format: int32
+                type: integer
               redis:
                 description: Adds an external Redis provider for caching Grey Matter
                   configuration state.
@@ -55,6 +59,7 @@ spec:
                 - "1.7"
                 type: string
             required:
+            - ingress_port
             - release_version
             type: object
           status:

@@ -72,6 +72,13 @@ func Namespace(namespace string) InstallOption {
 	}
 }
 
+// An InstallOption for injecting a proxy port into sidecar
+func ProxyPort(port int32) InstallOption {
+	return func(v *Version) {
+		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`ProxyPort: %d`, port)))
+	}
+}
+
 // An InstallOption for injecting SPIRE configuration.
 func SPIRE(v *Version) {
 	v.cue = v.cue.Unify(Cue(`Spire: true`))

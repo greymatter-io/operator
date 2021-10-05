@@ -30,7 +30,8 @@ type MeshSpec struct {
 	// Adds an external Redis provider for caching Grey Matter configuration state.
 	// +optional
 	ExternalRedis ExternalRedisConfig `json:"redis,omitempty"`
-
+	// Defines internal port for sidecar-to-sidecar communication
+	ProxyPort int32 `json:"ingress_port"`
 	// WatchNamespaces []string
 }
 
