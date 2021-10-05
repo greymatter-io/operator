@@ -4,7 +4,7 @@ import "github.com/greymatter-io/operator/pkg/version"
 
 func (m Mesh) InstallOptions() []version.InstallOption {
 	opts := []version.InstallOption{
-		version.ProxyPort(m.Spec.ProxyPort),
+		version.MeshPort(m.Spec.MeshPort),
 		version.Namespace(m.ObjectMeta.Namespace),
 		version.Redis(m.Spec.ExternalRedis.URL),
 		// version.WatchNamespaces(m.Spec.WatchNamespaces...)

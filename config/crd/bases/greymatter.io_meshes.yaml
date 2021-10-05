@@ -37,8 +37,9 @@ spec:
           spec:
             description: Defines the desired state of a Grey Matter mesh.
             properties:
-              ingress_port:
-                description: Defines internal port for sidecar-to-sidecar communication
+              mesh_port:
+                default: 10808
+                description: Defines port for edge and sidecar to sidecar communication
                 format: int32
                 type: integer
               redis:
@@ -54,13 +55,11 @@ spec:
                 type: object
               release_version:
                 default: "1.6"
+                description: The version of Grey Matter to install for this mesh.
                 enum:
                 - "1.6"
                 - "1.7"
                 type: string
-            required:
-            - ingress_port
-            - release_version
             type: object
           status:
             description: Describes the observed state of a Grey Matter mesh.

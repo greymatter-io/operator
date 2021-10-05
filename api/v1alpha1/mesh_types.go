@@ -24,14 +24,18 @@ import (
 
 // Defines the desired state of a Grey Matter mesh.
 type MeshSpec struct {
+	// The version of Grey Matter to install for this mesh.
 	// +kubebuilder:validation:Enum="1.6";"1.7"
 	// +kubebuilder:default="1.6"
+	// +optional
 	ReleaseVersion string `json:"release_version"`
 	// Adds an external Redis provider for caching Grey Matter configuration state.
 	// +optional
 	ExternalRedis ExternalRedisConfig `json:"redis,omitempty"`
-	// Defines internal port for sidecar-to-sidecar communication
-	ProxyPort int32 `json:"ingress_port"`
+	// Defines port for edge and sidecar to sidecar communication
+	// +kubebuilder:default=10808
+	// +optional
+	MeshPort int32 `json:"mesh_port"`
 	// WatchNamespaces []string
 }
 

@@ -73,9 +73,9 @@ func Namespace(namespace string) InstallOption {
 }
 
 // An InstallOption for injecting a proxy port into sidecar
-func ProxyPort(port int32) InstallOption {
+func MeshPort(port int32) InstallOption {
 	return func(v *Version) {
-		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`ProxyPort: %d`, port)))
+		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`MeshPort: %d`, port)))
 	}
 }
 
