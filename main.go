@@ -34,6 +34,7 @@ import (
 	v1alpha1 "github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/bootstrap"
 	"github.com/greymatter-io/operator/pkg/clients"
+	"github.com/greymatter-io/operator/pkg/installer"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -94,16 +95,16 @@ func main() {
 	if configFile != "" {
 		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&cfg))
 		if err != nil {
-			setupLog.Error(err, "unable to load config file", "path", configFile)
+			setupLog.Error(err, "Unable to load bootstrap config", "path", configFile)
 			os.Exit(1)
 		} else {
 			setupLog.Info("Loaded bootstrap config", "Path", configFile)
 		}
 	}
 
-	// Set defaults for OperatorConfig values
-	if cfg.ImagePullSecret == "" {
-		cfg.ImagePullSecret = "gm-docker-secret"
+	// Set defaults for BootstrapConfig values
+	if cfg.ImagePullSecretName == "" {
+		cfg.ImagePullSecretName = "gm-docker-secret"
 	}
 
 	// If the configFile does not define these values, use defaults.
@@ -117,10 +118,15 @@ func main() {
 		options.HealthProbeBindAddress = probeAddr
 	}
 
-	// TODO: Move this further down; it's here for now because ctrl.NewManager requires talking to a K8s cluster.
+	// Initialize interface with greymatter CLI
 	_, err = clients.New()
 	if err != nil {
-		setupLog.Error(err, "unable to initialize clients")
+		os.Exit(1)
+	}
+
+	// Initialize installer
+	_, err = installer.New(scheme)
+	if err != nil {
 		os.Exit(1)
 	}
 

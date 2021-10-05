@@ -4,8 +4,6 @@
 package clients
 
 import (
-	"fmt"
-
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -23,7 +21,8 @@ type Clientset struct {
 func New() (*Clientset, error) {
 	v, err := version()
 	if err != nil {
-		return nil, fmt.Errorf("unable to execute greymatter CLI commands: %w", err)
+		logger.Error(err, "Failed to initialize greymatter CLI")
+		return nil, err
 	}
 
 	logger.Info("Using greymatter CLI", "Version", v)
@@ -32,13 +31,13 @@ func New() (*Clientset, error) {
 }
 
 // If the given Mesh is new, initializes a client.
-// Generates meshobjects.ServiceTemplates from the given Mesh, storing them to be used when configuring services.
+// Generates fabric.ServiceTemplates from the given Mesh, storing them to be used when configuring services.
 func (cs *Clientset) ApplyMesh(mesh v1alpha1.Mesh) {
 	cl, ok := cs.meshes[mesh.Name]
 	if !ok {
 		cl = newClient()
 	}
-	cl.tmpl = mesh.ServiceTemplates()
+	cl.tmpl = mesh.GenerateServiceTemplates()
 	cs.meshes[mesh.Name] = cl
 }
 
@@ -53,14 +52,14 @@ func (cs *Clientset) RemoveMesh(name string) {
 }
 
 // Given the name of an appsv1.Deployment/StatefulSet, a list of its meshes from its `greymatter.io/mesh` label, and
-// a list of corev1.Containers, generates meshobjects from the stored meshobjects.ServiceTemplate for each mesh and
+// a list of corev1.Containers, generates fabric from the stored fabric.ServiceTemplate for each mesh and
 // persists each meshobject to the Redis database assigned to each mesh.
 func (cs *Clientset) ApplyService(name string, meshes []string, containers []corev1.Container) {
 	// TODO: Do not configure local objects for containerPorts with name "gm-proxy"
 }
 
 // Given the name of an appsv1.Deployment/StatefulSet, a list of its meshes from its `greymatter.io/mesh` label, and
-// a list of corev1.Containers, deletes meshobjects generated for the service from each mesh and
+// a list of corev1.Containers, deletes fabric generated for the service from each mesh and
 // persists the deletion changes to the Redis database assigned to each mesh.
 func (cs *Clientset) RemoveService(name string, meshes []string, containers []corev1.Container) {
 	// TODO: Do not attempt to unconfigure local objects for containerPorts with name "gm-proxy"

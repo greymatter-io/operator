@@ -14,7 +14,6 @@ COPY pkg/ pkg/
 
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer
-RUN go mod download
 RUN go mod vendor
 
 # Build
@@ -28,6 +27,7 @@ FROM docker.greymatter.io/release/greymatter:3.0.0 as cli
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /workspace/manager .
+COPY --from=builder /workspace/pkg/version/cue.mod/ cue.mod/
 COPY --from=cli /bin/greymatter /bin/greymatter
 USER 65532:65532
 
