@@ -40,7 +40,6 @@ spec:
               redis:
                 description: Adds an external Redis provider for caching Grey Matter
                   configuration state.
-                nullable: true
                 properties:
                   cert_secret_name:
                     type: string

@@ -81,7 +81,7 @@ func TestVersions(t *testing.T) {
 				},
 				{
 					name:    "Redis internal option",
-					options: []InstallOption{Namespace("ns"), Redis(nil)},
+					options: []InstallOption{Namespace("ns"), Redis("")},
 					checkManifests: func(manifests []ManifestGroup) error {
 						// unimplemented
 						y, _ := yaml.Marshal(manifests)
@@ -97,7 +97,7 @@ func TestVersions(t *testing.T) {
 				},
 				{
 					name:    "Redis external option",
-					options: []InstallOption{Redis(&ExternalRedisConfig{URL: "redis://:pass@extserver:6379/2"})},
+					options: []InstallOption{Redis("redis://:pass@extserver:6379/2")},
 					checkManifests: func(manifests []ManifestGroup) error {
 						// unimplemented
 						y, _ := yaml.Marshal(manifests)

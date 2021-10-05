@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/greymatter-io/operator/pkg/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,8 +29,7 @@ type MeshSpec struct {
 	ReleaseVersion string `json:"release_version"`
 	// Adds an external Redis provider for caching Grey Matter configuration state.
 	// +optional
-	// +nullable
-	ExternalRedis *version.ExternalRedisConfig `json:"redis,omitempty"`
+	ExternalRedis ExternalRedisConfig `json:"redis,omitempty"`
 
 	// WatchNamespaces []string
 }
@@ -40,9 +38,9 @@ type MeshSpec struct {
 type MeshStatus struct {
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:scope=Cluster
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 
 // The schema used to define a Grey Matter mesh's desired state and describe its observed state.
 type Mesh struct {
@@ -53,7 +51,7 @@ type Mesh struct {
 	Status MeshStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // Contains a list of Mesh custom resources managed by the Grey Matter Operator.
 type MeshList struct {

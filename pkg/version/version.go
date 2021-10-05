@@ -77,19 +77,11 @@ func SPIRE(v *Version) {
 	v.cue = v.cue.Unify(Cue(`Spire: true`))
 }
 
-// ExternalRedisConfig instructs core services to use an external Redis server for caching.
-// TODO: Instead of `url`, require host, port, password, dbs. No username option.
-type ExternalRedisConfig struct {
-	URL string `json:"url"`
-	// +optional
-	CertSecretName string `json:"cert_secret_name"`
-}
-
 // An InstallOption for injecting Redis configuration for either an external
 // Redis server (if the config is not nil) or otherwise an internal Redis deployment.
-func Redis(cfg *ExternalRedisConfig) InstallOption {
+func Redis(externalURL string) InstallOption {
 	return func(v *Version) {
-		if cfg == nil {
+		if externalURL == "" {
 			b := make([]byte, 10)
 			rand.Read(b)
 			password := base64.URLEncoding.EncodeToString(b)
@@ -99,7 +91,7 @@ func Redis(cfg *ExternalRedisConfig) InstallOption {
 
 		// TODO: In the Mesh validating webhook, ensure the user provided URL is parseable.
 		// This actually might be OBE if we require the user to supply values separately rather than as a URL.
-		redisOptions, _ := redis.ParseURL(cfg.URL)
+		redisOptions, _ := redis.ParseURL(externalURL)
 		hostPort := redisOptions.Addr
 		split := strings.Split(hostPort, ":")
 		host, port := split[0], split[1]

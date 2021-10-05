@@ -29,7 +29,7 @@ func (i *Installer) ApplyMesh(c client.Client, mesh *v1alpha1.Mesh) {
 	// Generate manifests from install configs and send them to the K8s apiserver.
 INSTALL_LOOP:
 	for _, group := range manifests {
-		if group.Deployment.Name == "greymatter-redis" && mesh.Spec.ExternalRedis != nil && mesh.Spec.ExternalRedis.URL != "" {
+		if group.Deployment.Name == "greymatter-redis" && mesh.Spec.ExternalRedis.URL != "" {
 			continue INSTALL_LOOP
 		}
 		// Set an owner reference on the manifest for garbage collection if the mesh is deleted.
