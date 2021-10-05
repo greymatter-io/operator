@@ -93,12 +93,7 @@ func Redis(cfg *ExternalRedisConfig) InstallOption {
 			b := make([]byte, 10)
 			rand.Read(b)
 			password := base64.URLEncoding.EncodeToString(b)
-			v.cue = v.cue.Unify(Cue(fmt.Sprintf(
-				`Redis: {
-					external: false
-					password: "%s"
-				}`,
-				password)))
+			v.cue = v.cue.Unify(Cue(fmt.Sprintf(`Redis: password: "%s"`, password)))
 			return
 		}
 
@@ -112,13 +107,12 @@ func Redis(cfg *ExternalRedisConfig) InstallOption {
 		db := fmt.Sprintf("%d", redisOptions.DB)
 		v.cue = v.cue.Unify(Cue(fmt.Sprintf(
 			`Redis: {
-				external: true
 				host: "%s"
 				port: "%s"
 				password: "%s"
 				db: "%s"
 			}`,
-			password, host, port, db)),
+			host, port, password, db)),
 		)
 	}
 }

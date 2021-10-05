@@ -64,17 +64,10 @@ control_api: #Component & {
     GM_CONTROL_API_PERSISTER_TYPE: "redis"
     GM_CONTROL_API_REDIS_MAX_RETRIES: "50"
     GM_CONTROL_API_REDIS_RETRY_DELAY: "5s"
+    GM_CONTROL_API_REDIS_HOST: Redis.host
+    GM_CONTROL_API_REDIS_PORT: Redis.port
+    GM_CONTROL_API_REDIS_DB: Redis.db
     GM_CONTROL_API_REDIS_PASS: Redis.password
-    if !Redis.external {
-      GM_CONTROL_API_REDIS_HOST: "mesh-redis.\(Namespace).svc.cluster.local"
-		  GM_CONTROL_API_REDIS_PORT: "6379"
-		  GM_CONTROL_API_REDIS_DB: "0"
-    }
-    if Redis.external {
-      GM_CONTROL_API_REDIS_HOST: Redis.host
-      GM_CONTROL_API_REDIS_PORT: Redis.port
-      GM_CONTROL_API_REDIS_DB: Redis.db
-    }
   }
 }
 
@@ -86,17 +79,10 @@ catalog: #Component & {
     CONFIG_SOURCE: "redis"
     REDIS_MAX_RETRIES: "50"
     REDIS_RETRY_DELAY: "5s"
+    REDIS_HOST: Redis.host
+    REDIS_PORT: Redis.port
+    REDIS_DB: Redis.db
     REDIS_PASS: Redis.password
-    if !Redis.external {
-      REDIS_HOST: "mesh-redis.\(Namespace).svc.cluster.local"
-		  REDIS_PORT: "6379"
-		  REDIS_DB: "0"
-    }
-    if Redis.external {
-      REDIS_HOST: Redis.host
-      REDIS_PORT: Redis.port
-      REDIS_DB: Redis.db
-    }
   }
 }
 
@@ -122,17 +108,10 @@ jwt_security: #Component & {
   ports: api: 3000
   env: {
     HTTP_PORT: "3000"
+    REDIS_HOST: Redis.host
+    REDIS_PORT: Redis.port
+    REDIS_DB: Redis.db
     REDIS_PASS: Redis.password
-    if !Redis.external {
-      REDIS_HOST: "mesh-redis.\(Namespace).svc.cluster.local"
-		  REDIS_PORT: "6379"
-		  REDIS_DB: "0"
-    }
-    if Redis.external {
-      REDIS_HOST: Redis.host
-      REDIS_PORT: Redis.port
-      REDIS_DB: Redis.db
-    }
   }
   volumeMounts: {
     "jwt-users": {
@@ -161,9 +140,7 @@ redis: #Component & {
     "/data"
   ]
   ports: redis: 6379
-  if !Redis.external {
-    env: REDIS_PASSWORD: Redis.password
-  }
+  env: REDIS_PASSWORD: Redis.password
 }
 
 prometheus: #Component & {

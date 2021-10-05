@@ -36,7 +36,7 @@ func TestVersions(t *testing.T) {
 
 			t.Run("sidecar", func(t *testing.T) {
 				// TODO: Check values in sidecar
-				// 	sidecar := version.Sidecar()
+				// sidecar := version.Sidecar()
 				// y, _ := yaml.Marshal(sidecar)
 				// fmt.Println(string(y))
 			})
@@ -68,8 +68,8 @@ func TestVersions(t *testing.T) {
 					options: []InstallOption{SPIRE},
 					checkManifests: func(manifests []ManifestGroup) error {
 						// unimplemented
-						y, _ := yaml.Marshal(manifests)
-						fmt.Println(string(y))
+						// y, _ := yaml.Marshal(manifests)
+						// fmt.Println(string(y))
 						return nil
 					},
 					checkSidecar: func(sidecar Sidecar) error {
@@ -84,8 +84,8 @@ func TestVersions(t *testing.T) {
 					options: []InstallOption{Namespace("ns"), Redis(nil)},
 					checkManifests: func(manifests []ManifestGroup) error {
 						// unimplemented
-						// y, _ := yaml.Marshal(manifests)
-						// fmt.Println(string(y))
+						y, _ := yaml.Marshal(manifests)
+						fmt.Println(string(y))
 						return nil
 					},
 					checkSidecar: func(sidecar Sidecar) error {
@@ -100,8 +100,8 @@ func TestVersions(t *testing.T) {
 					options: []InstallOption{Redis(&ExternalRedisConfig{URL: "redis://:pass@extserver:6379/2"})},
 					checkManifests: func(manifests []ManifestGroup) error {
 						// unimplemented
-						// y, _ := yaml.Marshal(manifests)
-						// fmt.Println(string(y))
+						y, _ := yaml.Marshal(manifests)
+						fmt.Println(string(y))
 						return nil
 					},
 					checkSidecar: func(sidecar Sidecar) error {
