@@ -6,12 +6,12 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/greymatter-io/operator/pkg/meshobjects"
+	"github.com/greymatter-io/operator/pkg/fabric"
 )
 
 type client struct {
 	cmds chan meshCmd
-	tmpl meshobjects.ServiceTemplates
+	tmpl fabric.ServiceTemplates
 }
 
 func newClient() *client {

@@ -24,10 +24,11 @@ import (
 //+kubebuilder:object:root=true
 
 // BootstrapConfig enables defining configuration settings for a Grey Matter Operator.
+// Fields are camelCased rather than snake_cased for compatibility with cfg.ControllerManagerConfigSpec.
 type BootstrapConfig struct {
 	metav1.TypeMeta                        `json:",inline"`
 	cfg.ControllerManagerConfigurationSpec `json:",inline"`
-	// The name of the imagePullSecret in the namespace where the Operator is deployed.
+	// The name of the secret in the namespace where Grey Matter Operator is deployed.
 	// This secret is re-created in each namespace where Grey Matter Core is installed.
-	ImagePullSecret string `json:"imagePullSecret"`
+	ImagePullSecretName string `json:"imagePullSecretName"`
 }

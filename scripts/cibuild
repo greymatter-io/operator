@@ -18,6 +18,11 @@ install_operator-sdk() {
   sudo mv /tmp/operator-sdk /usr/local/bin/operator-sdk
 }
 
+install_cue_deps() {
+  go install cuelang.org/go/cmd/cue@latest
+  (cd ./pkg/version/cue.mod; cue get go k8s.io/api/...)
+}
+
 install_staticcheck() {
   wget https://github.com/dominikh/go-tools/releases/download/2021.1/staticcheck_linux_amd64.tar.gz \
     -O /tmp/staticcheck.tar.gz
@@ -87,6 +92,7 @@ case $1 in
     install_staticcheck
     go mod tidy
     go mod vendor
+    install_cue_deps
     ./scripts/test lint
     ./scripts/test
     ;;

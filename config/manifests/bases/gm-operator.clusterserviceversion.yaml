@@ -10,7 +10,8 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: Mesh is the Schema for the meshes API
+    - description: The schema used to define a Grey Matter mesh's desired state and
+        describe its observed state.
       displayName: Mesh
       kind: Mesh
       name: meshes.greymatter.io

@@ -20,40 +20,44 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// MeshSpec defines the desired state of Mesh
+// Reference: https://book.kubebuilder.io/reference/markers/crd.html
+
+// Defines the desired state of a Grey Matter mesh.
 type MeshSpec struct {
-	RedisConfig *RedisConfig `json:"redis,omitempty"`
+	// +kubebuilder:validation:Enum="1.6";"1.7"
+	// +kubebuilder:default="1.6"
+	ReleaseVersion string `json:"release_version"`
+	// Adds an external Redis provider for caching Grey Matter configuration state.
+	// +optional
+	ExternalRedis ExternalRedisConfig `json:"redis,omitempty"`
+
+	// WatchNamespaces []string
 }
 
-// MeshStatus defines the observed state of Mesh
+// Describes the observed state of a Grey Matter mesh.
 type MeshStatus struct {
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:scope=Cluster
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 
-// Mesh is the Schema for the meshes API
+// The schema used to define a Grey Matter mesh's desired state and describe its observed state.
 type Mesh struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              MeshSpec   `json:"spec,omitempty"`
-	Status            MeshStatus `json:"status,omitempty"`
+	// +kubebuilder:validation:Required
+	Spec   MeshSpec   `json:"spec,omitempty"`
+	Status MeshStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
-// MeshList contains a list of Mesh
+// Contains a list of Mesh custom resources managed by the Grey Matter Operator.
 type MeshList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Mesh `json:"items"`
-}
-
-// RedisConfig contains the redis connection information for a given mesh installation
-type RedisConfig struct {
-	Url        string `json:"url"`
-	SecretName string `json:"certificateSecretName"`
 }
 
 func init() {
