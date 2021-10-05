@@ -7,8 +7,10 @@ do
     if ! which $dependency &> /dev/null; then
         echo "$dependency is missing from your \$PATH"
         exit 1
+    elif [ "$dependency" == "go" ]; then
+        go mod tidy
+        go mod vendor
+    elif [ "$dependency" == "cue" ]; then
+        (cd ./pkg/version/cue.mod; cue get go k8s.io/api/...)
     fi
 done
-
-go mod tidy
-go mod vendor
