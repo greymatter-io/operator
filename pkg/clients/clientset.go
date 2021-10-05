@@ -4,8 +4,6 @@
 package clients
 
 import (
-	"fmt"
-
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -23,7 +21,8 @@ type Clientset struct {
 func New() (*Clientset, error) {
 	v, err := version()
 	if err != nil {
-		return nil, fmt.Errorf("unable to execute greymatter CLI commands: %w", err)
+		logger.Error(err, "Failed to initialize greymatter CLI")
+		return nil, err
 	}
 
 	logger.Info("Using greymatter CLI", "Version", v)

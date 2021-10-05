@@ -12,9 +12,7 @@ var expectedVersions = []string{"1.6"}
 func TestLoad(t *testing.T) {
 	versions, err := Load()
 	if err != nil {
-		for _, e := range errors.Errors(err) {
-			t.Error(e)
-		}
+		logCueErrors(err)
 		t.Fatal("failed to load versions")
 	}
 
@@ -29,11 +27,9 @@ func TestLoad(t *testing.T) {
 	for name, version := range versions {
 		t.Run(fmt.Sprintf("loads valid version %s", name), func(t *testing.T) {
 			if err := version.cue.Err(); err != nil {
-				for _, e := range errors.Errors(err) {
-					t.Error(e)
-				}
+				logCueErrors(err)
+				t.Errorf("found invalid version %s", name)
 			}
-			fmt.Println(version.cue)
 		})
 	}
 }

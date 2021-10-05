@@ -3,6 +3,7 @@ package version
 import (
 	"embed"
 	"fmt"
+	"os"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -13,8 +14,8 @@ import (
 )
 
 var (
-	logger = ctrl.Log.WithName("pkg.installvalues")
-	//go:embed */*.cue
+	logger = ctrl.Log.WithName("pkg.version")
+	//go:embed versions/*.cue
 	filesystem embed.FS
 )
 
@@ -23,75 +24,69 @@ func Load() (map[string]Version, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := base.Err(); err != nil {
-		return nil, err
-	}
 
-	versions, err := loadVersions()
+	versions, err := loadVersions(base)
 	if err != nil {
 		return nil, err
 	}
 
-	var errs errors.Error
-	for name, version := range versions {
-		version.cue = base.Unify(version.cue)
-		if err := version.cue.Err(); err != nil {
-			logger.Error(err, "found invalid install version file", "filename", fmt.Sprintf("%s.cue", name))
-			if errs == nil {
-				errs = errors.Errors(err)[0]
-			} else {
-				errs = errors.Wrap(errs, err)
-			}
-			delete(versions, name)
-		} else {
-			versions[name] = version
-		}
-	}
-
-	return versions, errs
+	return versions, nil
 }
 
 func loadBase() (cue.Value, error) {
-	instances := load.Instances(
-		[]string{"./cue.mod/"},
-		&load.Config{Package: "base"},
-	)
+	wd, err := os.Getwd()
+	if err != nil {
+		return cue.Value{}, fmt.Errorf("failed to determine working directory")
+	}
+	instances := load.Instances([]string{"greymatter.io/operator/cue.mod:base"}, &load.Config{
+		Package:    "base",
+		ModuleRoot: wd,
+		Dir:        fmt.Sprintf("%s/cue.mod", wd),
+	})
 	base := cuecontext.New().BuildInstance(instances[0])
 	if err := base.Err(); err != nil {
-		return base, base.Err()
+		return base, errors.Wrap(err.(errors.Error), fmt.Errorf("failed to load base install configuration module"))
 	}
+
+	logger.Info("Loaded base install configuration module")
 	return base, nil
 }
 
-func loadVersions() (map[string]Version, error) {
+func loadVersions(base cue.Value) (map[string]Version, error) {
 	files, err := filesystem.ReadDir("versions")
 	if err != nil {
-		logger.Error(err, "failed to load install version files")
-		return nil, err
+		return nil, fmt.Errorf("failed to load versioned install configurations")
 	}
 
 	cueVersions := make(map[string]Version)
 	for _, file := range files {
 		data, err := filesystem.ReadFile(fmt.Sprintf("versions/%s", file.Name()))
 		if err != nil {
-			logger.Error(err, "failed to load install version file", "filename", file.Name())
-			return nil, err
+			return nil, fmt.Errorf("failed to load versioned install configuration from %s: %w", file.Name(), err)
 		}
 
-		value := Cue(string(data))
+		// Build Cue value from version file
+		version := Cue(string(data))
+		if err := version.Err(); err != nil {
+			logCueErrors(err)
+			return nil, errors.Wrap(err.(errors.Error), fmt.Errorf("found invalid install configuration defined in %s", file.Name()))
+		}
+
+		// Unify version Cue value with base Cue value
+		value := base.Unify(version)
 		if err := value.Err(); err != nil {
-			logger.Error(err, "failed to parse install version file", "filename", file.Name())
-			return nil, err
+			logCueErrors(err)
+			return nil, errors.Wrap(err.(errors.Error), fmt.Errorf("found incompatible install configuration defined in %s", file.Name()))
 		}
 
 		name := strings.Replace(file.Name(), ".cue", "", 1)
 		cueVersions[name] = Version{value}
+		logger.Info("Loaded versioned install configuration", "name", name)
 	}
 
 	if len(cueVersions) == 0 {
-		logger.Error(err, "no install version files loaded")
-		return nil, err
+		return nil, fmt.Errorf("no versioned install configurations were found")
 	}
 
-	return cueVersions, err
+	return cueVersions, nil
 }
