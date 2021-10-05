@@ -27,7 +27,7 @@ func New(runtimeScheme *runtime.Scheme) (*Installer, error) {
 
 	versions, err := version.Load()
 	if err != nil {
-		logger.Error(err, "failed to start Installer")
+		logger.Error(err, "Failed to initialize installer")
 		return nil, err
 	}
 

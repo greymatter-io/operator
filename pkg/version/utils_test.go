@@ -23,7 +23,8 @@ func TestCue(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			value := Cue(tc.in...)
 			if err := value.Err(); err != nil {
-				t.Fatal(err)
+				logCueErrors(err)
+				t.Fatal()
 			}
 			out := fmt.Sprintf("%v", value)
 			for _, expr := range tc.in {

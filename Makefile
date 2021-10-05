@@ -94,9 +94,11 @@ test: manifests generate fmt vet envtest ## Run tests.
 
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
+	rm -rf bin/cue.mod/
+	mkdir -p bin/cue.mod/ && cp -r pkg/version/cue.mod/ bin/cue.mod
 
 run: manifests generate build ## Run a controller from your host.
-	./bin/manager --config ./config/manager/bootstrap_config.yaml --development
+	cd bin && ./manager --config ../config/manager/bootstrap_config.yaml --development
 
 docker-build: test ## Build docker image with the manager.
 	docker build -t ${IMG} .

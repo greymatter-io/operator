@@ -7,11 +7,28 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/errors"
 	"github.com/kylelemons/godebug/diff"
 )
 
 func Cue(ss ...string) cue.Value {
 	return cuecontext.New().CompileString(strings.Join(ss, "\n"))
+}
+
+func logCueErrors(err error) {
+	// fmt.Printf("%#v\n", cueErr.Position().String())
+	// for _, pos := range errors.Positions(cueErr) {
+	// 	fmt.Printf("%#v\n", pos.String())
+	// }
+	// format, args := cueErr.Msg()
+	// fmt.Printf(format+"\n", args...)
+	for _, e := range errors.Errors(err.(errors.Error)) {
+		// fmt.Printf("%#v\n", e.Position())
+		// fmt.Printf("%#v\n", e.InputPositions())
+		// format, args := e.Msg()
+		// fmt.Printf(format, args...)
+		logger.Error(e, e.Position().String())
+	}
 }
 
 func CueDiff(a, b cue.Value) {

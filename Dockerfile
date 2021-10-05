@@ -27,6 +27,7 @@ FROM docker.greymatter.io/release/greymatter:3.0.0 as cli
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /workspace/manager .
+COPY --from=builder /workspace/pkg/version/cue.mod/ cue.mod/
 COPY --from=cli /bin/greymatter /bin/greymatter
 USER 65532:65532
 
