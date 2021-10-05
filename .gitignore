@@ -25,6 +25,7 @@ testbin/*
 *~
 
 vendor/
+pkg/version/cue.mod/gen/
 tmp.md
 
 # bundle files and dirs
