@@ -118,6 +118,13 @@ func main() {
 		options.HealthProbeBindAddress = probeAddr
 	}
 
+	// Initialize manager with configured options
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
+	if err != nil {
+		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
 	// Initialize interface with greymatter CLI
 	_, err = clients.New()
 	if err != nil {
@@ -125,15 +132,13 @@ func main() {
 	}
 
 	// Initialize installer
-	_, err = installer.New(scheme)
+	inst, err := installer.New(mgr.GetClient())
 	if err != nil {
 		os.Exit(1)
 	}
 
-	// Initialize manager with configured options
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+	if err = (&v1alpha1.Mesh{}).SetupWebhooks(mgr, inst.ApplyMesh, inst.RemoveMesh); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Mesh")
 		os.Exit(1)
 	}
 

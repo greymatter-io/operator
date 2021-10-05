@@ -4,17 +4,17 @@ package installer
 
 import (
 	"github.com/greymatter-io/operator/pkg/version"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
 	logger = ctrl.Log.WithName("pkg.installer")
-	scheme *runtime.Scheme
 )
 
 // Stores a map of version.Version and a distinct version.Sidecar for each mesh.
 type Installer struct {
+	client client.Client
 	// A map of Grey Matter version (v*.*) -> Version read from the filesystem.
 	versions map[string]version.Version
 	// A map of meshes -> Sidecar, used for sidecar injection
@@ -22,9 +22,7 @@ type Installer struct {
 }
 
 // Returns *Installer for tracking which Grey Matter version is installed for each mesh
-func New(runtimeScheme *runtime.Scheme) (*Installer, error) {
-	scheme = runtimeScheme
-
+func New(c client.Client) (*Installer, error) {
 	versions, err := version.Load()
 	if err != nil {
 		logger.Error(err, "Failed to initialize installer")
@@ -32,6 +30,7 @@ func New(runtimeScheme *runtime.Scheme) (*Installer, error) {
 	}
 
 	return &Installer{
+		client:   c,
 		versions: versions,
 		sidecars: make(map[string]version.Sidecar),
 	}, nil
