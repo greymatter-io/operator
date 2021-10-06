@@ -83,6 +83,9 @@ manifests: [...#ManifestGroup] & [
               }
             }
           ]
+          if _c[0].name == "control" {
+            serviceAccountName: "gm-control"
+          }
         }
       }
     }
@@ -127,17 +130,6 @@ manifests: [...#ManifestGroup] & [
       }
     }
   ]
-  for _, c in _c if c.serviceAccount {
-    serviceAccount: corev1.#ServiceAccount & {
-      apiVersion: "v1"
-      kind: "ServiceAccount"
-      metadata: {
-        name: c.name
-        namespace: InstallNamespace
-      }
-      automountServiceAccountToken: true
-    }
-  }
 }
 
 sidecar: {

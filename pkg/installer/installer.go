@@ -23,6 +23,8 @@ type Installer struct {
 	client client.Client
 	// The Docker image pull secret to create in namespaces where core services are installed.
 	imagePullSecret *corev1.Secret
+	// The service account to create in namespaces to be used by Control for watching pods
+	serviceAccount *corev1.ServiceAccount
 	// A map of Grey Matter version (v*.*) -> Version read from the filesystem.
 	versions map[string]version.Version
 	// A map of meshes -> Sidecar, used for sidecar injection
@@ -47,6 +49,13 @@ func New(c client.Client, imagePullSecretName string) (*Installer, error) {
 	// This secret will be re-created in each install namespace where our core services are pulled.
 	installer.cacheImagePullSecret(c, imagePullSecretName)
 
+	// Copy the pod watcher service account from the apiserver. This will be created by OLM.
+	// This service account will be re-created in each install namespace to be used by Control.
+	if err := installer.cacheServiceAccount(c); err != nil {
+		logger.Error(err, "Failed to initialize installer")
+		return nil, err
+	}
+
 	return installer, nil
 }
 
@@ -68,4 +77,22 @@ func (i *Installer) cacheImagePullSecret(c client.Client, imagePullSecretName st
 		Type:       operatorSecret.Type,
 		Data:       operatorSecret.Data,
 	}
+}
+
+func (i *Installer) cacheServiceAccount(c client.Client) error {
+	key := client.ObjectKey{Name: "gm-control", Namespace: "gm-operator"}
+	sa := &corev1.ServiceAccount{}
+	if err := c.Get(context.TODO(), key, sa); err != nil {
+		return err
+	}
+
+	i.serviceAccount = &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{Name: sa.Name},
+		AutomountServiceAccountToken: func() *bool {
+			b := true
+			return &b
+		}(),
+	}
+
+	return nil
 }

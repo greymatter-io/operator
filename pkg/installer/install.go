@@ -2,12 +2,13 @@ package installer
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/version"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -39,20 +40,23 @@ func (i *Installer) ApplyMesh(mesh *v1alpha1.Mesh, init bool) {
 	// Obtain the scheme used by our client for
 	scheme := i.client.Scheme()
 
+	// TODO: ERROR HANDLE APPLY CALLS !!!
+
 	// Create the imagePullSecret in the namespace prior to installing core services
 	if init {
 		secret := i.imagePullSecret.DeepCopy()
 		secret.Namespace = mesh.Namespace
 		i.apply(secret, mesh, scheme)
+
+		sa := i.serviceAccount.DeepCopy()
+		sa.Namespace = mesh.Namespace
+		i.applyServiceAccount(sa, mesh, scheme)
 	}
 
 MANIFEST_LOOP:
 	for _, group := range manifests {
 		if group.Deployment.Name == "gm-redis" && mesh.Spec.ExternalRedis.URL != "" {
 			continue MANIFEST_LOOP
-		}
-		if group.ServiceAccount != nil {
-			i.apply(group.ServiceAccount, mesh, scheme)
 		}
 		for _, configMap := range group.ConfigMaps {
 			i.apply(configMap, mesh, scheme)
@@ -74,25 +78,54 @@ func (i *Installer) apply(obj client.Object, mesh *v1alpha1.Mesh, scheme *runtim
 	}
 
 	// Set an owner reference on the manifest for garbage collection if the mesh is deleted.
-	if err := controllerutil.SetOwnerReference(mesh, obj, scheme); err != nil {
-		logger.Error(err, "Failed SetOwnerReference", "Namespace", mesh.Namespace, "Mesh", mesh.Name, kind, obj.GetName())
-		return err
+	if mesh != nil && scheme != nil {
+		if err := controllerutil.SetOwnerReference(mesh, obj, scheme); err != nil {
+			logger.Error(err, "Failed SetOwnerReference", "Namespace", mesh.Namespace, "Mesh", mesh.Name, kind, obj.GetName())
+			return err
+		}
 	}
 	// https://github.com/kubernetes-sigs/controller-runtime/blob/master/pkg/controller/controllerutil/example_test.go#L35
 	// TODO: Ensure no mutateFn callback is needed for updates.
 	// TODO: Use controllerutil.OperationResult to update Mesh.Status with an event stream of what was created, updated, etc.
-	fmt.Printf("CreateOrUpdate: %#v\n", obj)
 	if _, err := controllerutil.CreateOrUpdate(context.TODO(), i.client, obj, func() error { return nil }); err != nil {
 		logger.Error(err, "Failed CreateOrUpdate", "Namespace", mesh.Namespace, "Mesh", mesh.Name, kind, obj.GetName())
 		return err
 	}
+	logger.Info("Applied", "Namespace", mesh.Namespace, "Mesh", mesh.Name, kind, obj.GetName())
 
 	return nil
 }
 
-// TODO: Add service account to cluster role binding subjects list.
-func (i *Installer) linkServiceAccount(sa *corev1.ServiceAccount) error {
-	// unimplemented
+func (i *Installer) applyServiceAccount(sa *corev1.ServiceAccount, mesh *v1alpha1.Mesh, scheme *runtime.Scheme) error {
+	if err := i.apply(sa, mesh, scheme); err != nil {
+		return err
+	}
+
+	crb := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "gm-pod-watcher"}}
+	if err := i.client.Get(context.TODO(), client.ObjectKeyFromObject(crb), crb); err != nil {
+		logger.Error(err, "Failed Get", "ClusterRoleBinding", "gm-pod-watcher")
+		return err
+	}
+
+	var found bool
+	for _, sub := range crb.Subjects {
+		if sub.Kind == "ServiceAccount" && sub.Name == sa.Name && sub.Namespace == sa.Namespace {
+			found = true
+		}
+	}
+	if found {
+		return nil
+	}
+
+	crb.Subjects = append(crb.Subjects, rbacv1.Subject{
+		Kind:      "ServiceAccount",
+		Name:      sa.Name,
+		Namespace: sa.Namespace,
+	})
+	if err := i.apply(crb, nil, nil); err != nil {
+		return err
+	}
+
 	return nil
 }
 

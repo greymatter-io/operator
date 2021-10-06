@@ -1,7 +1,4 @@
 resources:
-# Register a pod watcher ClusterRole and ClusterRoleBinding
-# to be used by Grey Matter Control in each mesh.
-- greymatter_pod_watcher.yaml
 # All RBAC will be applied under this service account in
 # the deployment namespace. You may comment out this resource
 # if your manager will use a service account that exists at
@@ -19,3 +16,6 @@ resources:
 - auth_proxy_role.yaml
 - auth_proxy_role_binding.yaml
 - auth_proxy_client_clusterrole.yaml
+# Register a ClusterRole, ClusterRoleBinding, and ServiceAccount
+# to be re-created and used by Grey Matter Control in each mesh.
+- control_pod_watcher.yaml

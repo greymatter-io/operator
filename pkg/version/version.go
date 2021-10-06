@@ -22,10 +22,9 @@ func (v Version) Copy() Version {
 }
 
 type ManifestGroup struct {
-	Deployment     *appsv1.Deployment     `json:"deployment"`
-	Services       []*corev1.Service      `json:"services"`
-	ConfigMaps     []*corev1.ConfigMap    `json:"configMaps"`
-	ServiceAccount *corev1.ServiceAccount `json:"serviceAccount"`
+	Deployment *appsv1.Deployment  `json:"deployment"`
+	Services   []*corev1.Service   `json:"services"`
+	ConfigMaps []*corev1.ConfigMap `json:"configMaps"`
 	// TODO: PVCs, etc.
 	// TODO: Inject certs, base64, etc. using Cue; see Redis options for example
 	// Possibly use templating: https://cuetorials.com/first-steps/generate-all-the-things/

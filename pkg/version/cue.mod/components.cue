@@ -16,7 +16,6 @@ import (
   volumeMounts: [string]: corev1.#VolumeMount
   volumes: [string]: corev1.#VolumeSource
   configMaps: [string]: [string]: string
-  serviceAccount: bool
 }
 
 proxy: #Component & {
@@ -36,7 +35,6 @@ proxy: #Component & {
       type: "DirectoryOrCreate"
     }
   }
-  serviceAccount: false
 }
 
 edge: #Component & proxy & {
@@ -62,7 +60,6 @@ control: #Component & {
     GM_CONTROL_API_ZONE_NAME: Zone
     GM_CONTROL_DIFF_IGNORE_CREATE: "true"
   }
-  serviceAccount: true
 }
 
 control_api: #Component & {
@@ -83,7 +80,6 @@ control_api: #Component & {
     GM_CONTROL_API_REDIS_DB: Redis.db
     GM_CONTROL_API_REDIS_PASS: Redis.password
   }
-  serviceAccount: false
 }
 
 catalog: #Component & {
@@ -99,7 +95,6 @@ catalog: #Component & {
     REDIS_DB: Redis.db
     REDIS_PASS: Redis.password
   }
-  serviceAccount: false
 }
 
 dashboard: #Component & {
@@ -116,7 +111,6 @@ dashboard: #Component & {
     DISABLE_PROMETHEUS_ROUTES_UI: "false"
     ENABLE_INLINE_DOCS: "true"
   }
-  serviceAccount: false
 }
 
 jwt_security: #Component & {
@@ -140,7 +134,6 @@ jwt_security: #Component & {
     }
   }
   configMaps: "jwt-users": "users.json": UserTokens
-  serviceAccount: false
 }
 
 redis: #Component & {
@@ -157,7 +150,6 @@ redis: #Component & {
   ]
   ports: redis: 6379
   env: REDIS_PASSWORD: Redis.password
-  serviceAccount: false
   // TODO: Add VolumeClaimTemplate
 }
 
@@ -178,5 +170,4 @@ prometheus: #Component & {
     "--web.route-prefix=/"
   ]
   ports: prom: 9090
-  serviceAccount: false
 }
