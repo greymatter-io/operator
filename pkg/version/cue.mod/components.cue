@@ -15,6 +15,8 @@ import (
   env: [string]: string
   volumeMounts: [string]: corev1.#VolumeMount
   volumes: [string]: corev1.#VolumeSource
+  configMaps: [string]: [string]: string
+  serviceAccount: bool
 }
 
 proxy: #Component & {
@@ -23,6 +25,7 @@ proxy: #Component & {
   env: {
     ENVOY_ADMIN_LOG_PATH: "/dev/stdout",
     PROXY_DYNAMIC: "true"
+    XDS_ZONE: Zone
     XDS_PORT: "50000"
   }
   if Spire {
@@ -33,6 +36,7 @@ proxy: #Component & {
       type: "DirectoryOrCreate"
     }
   }
+  serviceAccount: false
 }
 
 edge: #Component & proxy & {
@@ -46,12 +50,19 @@ control: #Component & {
   ports: grpc: 50000
   env: {
     GM_CONTROL_CMD: "kubernetes"
+    GM_CONTROL_KUBERNETES_NAMESPACES: "\(InstallNamespace)" // TODO: Add watch namespaces via strings.Join
     GM_CONTROL_KUBERNETES_CLUSTER_LABEL: "greymatter.io/cluster"
     GM_CONTROL_KUBERNETES_PORT_NAME: "proxy"
-    GM_CONTROL_API_HOST: "127.0.0.1:5555" // share one deployment!
+    GM_CONTROL_XDS_ADS_ENABLED: "true"
+    GM_CONTROL_XDS_RESOLVE_DNS: "true"
+    GM_CONTROL_API_HOST: "127.0.0.1:5555"
     GM_CONTROL_API_INSECURE: "true"
     GM_CONTROL_API_SSL: "false"
+    GM_CONTROL_API_KEY: "xxx"
+    GM_CONTROL_API_ZONE_NAME: Zone
+    GM_CONTROL_DIFF_IGNORE_CREATE: "true"
   }
+  serviceAccount: true
 }
 
 control_api: #Component & {
@@ -60,8 +71,11 @@ control_api: #Component & {
   ports: api: 5555
   env: {
     GM_CONTROL_API_ADDRESS: "0.0.0.0:5555"
+    GM_CONTROL_API_USE_TLS: "false"
+    GM_CONTROL_API_ZONE_NAME: Zone
+    GM_CONTROL_API_ZONE_KEY: Zone
     GM_CONTROL_API_DISABLE_VERSION_CHECK: "false"
-    GM_CONTROL_API_PERSISTER_TYPE: "redis"
+    // GM_CONTROL_API_PERSISTER_TYPE: "redis" // TODO
     GM_CONTROL_API_REDIS_MAX_RETRIES: "50"
     GM_CONTROL_API_REDIS_RETRY_DELAY: "5s"
     GM_CONTROL_API_REDIS_HOST: Redis.host
@@ -69,6 +83,7 @@ control_api: #Component & {
     GM_CONTROL_API_REDIS_DB: Redis.db
     GM_CONTROL_API_REDIS_PASS: Redis.password
   }
+  serviceAccount: false
 }
 
 catalog: #Component & {
@@ -84,6 +99,7 @@ catalog: #Component & {
     REDIS_DB: Redis.db
     REDIS_PASS: Redis.password
   }
+  serviceAccount: false
 }
 
 dashboard: #Component & {
@@ -100,6 +116,7 @@ dashboard: #Component & {
     DISABLE_PROMETHEUS_ROUTES_UI: "false"
     ENABLE_INLINE_DOCS: "true"
   }
+  serviceAccount: false
 }
 
 jwt_security: #Component & {
@@ -113,22 +130,21 @@ jwt_security: #Component & {
     REDIS_DB: Redis.db
     REDIS_PASS: Redis.password
   }
-  volumeMounts: {
-    "jwt-users": {
-      mountPath: "/gm-jwt-security/etc"
+  volumeMounts: "jwt-users": {
+    mountPath: "/gm-jwt-security/etc"
+  }
+  volumes: "jwt-users": {
+    configMap: {
+      name: "jwt-users"
+      defaultMode: 420
     }
   }
-  volumes: {
-    "jwt-users": {
-      configMap: {
-        defaultMode: 420
-      }
-    }
-  }
+  configMaps: "jwt-users": "users.json": UserTokens
+  serviceAccount: false
 }
 
 redis: #Component & {
-  name: "greymatter-redis"
+  name: "gm-redis"
   image: =~"redis:"
   command: ["redis-server"]
   args: [
@@ -141,9 +157,26 @@ redis: #Component & {
   ]
   ports: redis: 6379
   env: REDIS_PASSWORD: Redis.password
+  serviceAccount: false
+  // TODO: Add VolumeClaimTemplate
 }
 
+// TODO: Not currently being installed
 prometheus: #Component & {
-  name: "greymatter-prometheus"
+  name: "gm-prometheus"
   image: =~"^prom/prometheus:"
+  command: ["/bin/prometheus"]
+  args: [
+    "--query.timeout=4m",
+    "--query.max-samples=5000000000",
+    "--storage.tsdb.path=/var/lib/prometheus/data/data",
+    "--config.file=/etc/prometheus/prometheus.yaml",
+    "--web.console.libraries=/usr/share/prometheus/console_libraries",
+    "--web.console.templates=/usr/share/prometheus/consoles",
+    "--web.enable-admin-api",
+    "--web.external-url=http://anything/services/prometheus/latest", // TODO
+    "--web.route-prefix=/"
+  ]
+  ports: prom: 9090
+  serviceAccount: false
 }

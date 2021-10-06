@@ -27,11 +27,23 @@ type MeshSpec struct {
 	// +kubebuilder:validation:Enum="1.6";"1.7"
 	// +kubebuilder:default="1.6"
 	ReleaseVersion string `json:"release_version"`
+
 	// Adds an external Redis provider for caching Grey Matter configuration state.
 	// +optional
-	ExternalRedis ExternalRedisConfig `json:"redis,omitempty"`
+	ExternalRedis ExternalRedisConfig `json:"redis"`
 
 	// WatchNamespaces []string
+
+	// Label this mesh as belonging to a particular zone.
+	// +optional
+	Zone string `json:"zone,omitempty"`
+
+	// Enable discovering the zone via Downward API
+	// DiscoverZone bool `json:"discover_zone"`
+
+	// Add user tokens to the JWT Security Service.
+	// +optional
+	UserTokens []UserToken `json:"user_tokens,omitempty"`
 }
 
 // Describes the observed state of a Grey Matter mesh.
@@ -40,7 +52,7 @@ type MeshStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Namespaced
 
 // The schema used to define a Grey Matter mesh's desired state and describe its observed state.
 type Mesh struct {

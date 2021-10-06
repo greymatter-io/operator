@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"testing"
 
-	"cuelang.org/go/cue/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var expectedVersions = []string{"1.6"}
 
 func TestLoad(t *testing.T) {
-	versions, err := Load()
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	versions, err := loadBaseWithVersions()
 	if err != nil {
 		logCueErrors(err)
 		t.Fatal("failed to load versions")
@@ -35,9 +38,9 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoadBase(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	if _, err := loadBase(); err != nil {
-		for _, e := range errors.Errors(err) {
-			t.Error(e)
-		}
+		logCueErrors(err)
+		t.Fatal()
 	}
 }

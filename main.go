@@ -20,6 +20,11 @@ import (
 	"flag"
 	"os"
 
+	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/bootstrap"
+	"github.com/greymatter-io/operator/pkg/clients"
+	"github.com/greymatter-io/operator/pkg/installer"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -28,19 +33,15 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	v1alpha1 "github.com/greymatter-io/operator/api/v1alpha1"
-	"github.com/greymatter-io/operator/pkg/bootstrap"
-	"github.com/greymatter-io/operator/pkg/clients"
-	"github.com/greymatter-io/operator/pkg/installer"
 	//+kubebuilder:scaffold:imports
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = runtime.NewScheme()
+	logger = ctrl.Log.WithName("setup")
 )
 
 func init() {
@@ -53,6 +54,9 @@ func init() {
 // Add tags here for generating RBAC rules for the role that will be used by the Operator.
 //+kubebuilder:rbac:groups=greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=greymatter.io,resources=meshes/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=services;configmaps;serviceaccounts;secrets;pods,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 
 func main() {
 	var configFile string
@@ -95,16 +99,11 @@ func main() {
 	if configFile != "" {
 		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&cfg))
 		if err != nil {
-			setupLog.Error(err, "Unable to load bootstrap config", "path", configFile)
+			logger.Error(err, "Unable to load bootstrap config", "path", configFile)
 			os.Exit(1)
 		} else {
-			setupLog.Info("Loaded bootstrap config", "Path", configFile)
+			logger.Info("Loaded bootstrap config", "Path", configFile)
 		}
-	}
-
-	// Set defaults for BootstrapConfig values
-	if cfg.ImagePullSecretName == "" {
-		cfg.ImagePullSecretName = "gm-docker-secret"
 	}
 
 	// If the configFile does not define these values, use defaults.
@@ -118,10 +117,23 @@ func main() {
 		options.HealthProbeBindAddress = probeAddr
 	}
 
-	// Initialize manager with configured options
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
+	// Create a rest.Config that has settings for communicating with the K8s cluster.
+	restConfig := ctrl.GetConfigOrDie()
+
+	// Create a write+read client for making requests to the API server.
+	c, err := ctrlclient.New(restConfig, ctrlclient.Options{Scheme: scheme})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		logger.Error(err, "Unable to create initial client")
+	}
+
+	// Set default image pull secret name in bootstrap config.
+	if cfg.ImagePullSecretName == "" {
+		cfg.ImagePullSecretName = "gm-docker-secret"
+	}
+
+	// Initialize installer
+	inst, err := installer.New(c, cfg.ImagePullSecretName)
+	if err != nil {
 		os.Exit(1)
 	}
 
@@ -131,31 +143,32 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize installer
-	inst, err := installer.New(mgr.GetClient())
+	// Initialize manager with configured options
+	mgr, err := ctrl.NewManager(restConfig, options)
 	if err != nil {
+		logger.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
 	if err = (&v1alpha1.Mesh{}).SetupWebhooks(mgr, inst.ApplyMesh, inst.RemoveMesh); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Mesh")
+		logger.Error(err, "unable to create webhook", "webhook", "Mesh")
 		os.Exit(1)
 	}
 
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
+		logger.Error(err, "unable to set up health check")
 		os.Exit(1)
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
+		logger.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
 
-	setupLog.Info("starting manager")
+	logger.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
+		logger.Error(err, "problem running manager")
 		os.Exit(1)
 	}
 }

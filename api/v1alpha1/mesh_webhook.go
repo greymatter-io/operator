@@ -17,18 +17,21 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-// Installer callbacks defined in the Webhook setup function which will be called by each Webhook event
+// Installer callbacks declared in the Webhook setup function which will be called by each Webhook event
+// These are initialized here as no-ops for testing.
 var (
-	applyInstall   = func(*Mesh) {}
+	applyInstall   = func(*Mesh, bool) {}
 	applyUninstall = func(string) {}
 )
 
-func (r *Mesh) SetupWebhooks(mgr ctrl.Manager, install func(*Mesh), uninstall func(string)) error {
+func (r *Mesh) SetupWebhooks(mgr ctrl.Manager, install func(*Mesh, bool), uninstall func(string)) error {
 	applyInstall = install
 	applyUninstall = uninstall
 
@@ -43,30 +46,33 @@ var _ webhook.Defaulter = &Mesh{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *Mesh) Default() {
+	fmt.Printf("Default: %#v\n", r.Spec)
 	// TODO(user): fill in your defaulting logic.
 }
 
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-greymatter-io-v1alpha1-mesh,mutating=false,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update,versions=v1alpha1,name=vmesh.kb.io,admissionReviewVersions={v1,v1beta1}
+//+kubebuilder:webhook:path=/validate-greymatter-io-v1alpha1-mesh,mutating=false,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update;delete,versions=v1alpha1,name=vmesh.kb.io,admissionReviewVersions={v1,v1beta1}
 
 var _ webhook.Validator = &Mesh{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Mesh) ValidateCreate() error {
 	// TODO: validate prior to applying install
-	applyInstall(r)
+	fmt.Printf("ValidateCreate: %#v\n", r.Spec)
+	go applyInstall(r, true)
 	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Mesh) ValidateUpdate(old runtime.Object) error {
 	// TODO: validate prior to applying install
-	applyInstall(r)
+	fmt.Printf("ValidateUpdate: %#v\n", r.Spec)
+	go applyInstall(r, false)
 	return nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *Mesh) ValidateDelete() error {
-	applyUninstall(r.Name)
+	fmt.Printf("ValidateDelete: %#v\n", r.Spec)
+	go applyUninstall(r.Name)
 	return nil
 }

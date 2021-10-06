@@ -27,9 +27,12 @@ case $1 in
     ;;
   upgrade)
     ./scripts/dev cleanup
-    echo "waiting for cleanup process"
-    sleep 10
+    make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
+    make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
     ./scripts/dev run
+    ;;
+  logs)
+    oc logs -n gm-operator -l control-plane=controller-manager -c manager -f
     ;;
   cleanup)
     operator-sdk cleanup -n gm-operator gm-operator

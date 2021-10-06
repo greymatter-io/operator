@@ -1,21 +1,21 @@
 proxy: {
-  image: "docker.greymatter.io/release/gm-proxy:1.6.4"
+  image: "docker.greymatter.io/release/gm-proxy:1.6.3"
 }
 
 control: {
-  image: "docker.greymatter.io/release/gm-control:1.6.4"
+  image: "docker.greymatter.io/release/gm-control:1.6.5"
 }
 
 control_api: {
-  image: "docker.greymatter.io/release/gm-control-api:1.6.4"
+  image: "docker.greymatter.io/release/gm-control-api:1.6.5"
 }
 
 catalog: {
-  image: "docker.greymatter.io/release/gm-catalog:2.0.0"
+  image: "docker.greymatter.io/release/gm-catalog:2.0.1"
 }
 
 dashboard: {
-  image: "docker.greymatter.io/release/gm-dashboard:5.0.0"
+  image: "docker.greymatter.io/release/gm-dashboard:5.1.1"
   env: {
     BASE_URL: "/services/dashboard/5.0/"
     FABRIC_SERVER: "/services/catalog/2.0/"

@@ -22,9 +22,11 @@ func (v Version) Copy() Version {
 }
 
 type ManifestGroup struct {
-	Deployment *appsv1.Deployment `json:"deployment"`
-	Services   []*corev1.Service  `json:"services"`
-	// TODO: ConfigMaps, PVCs, etc.
+	Deployment     *appsv1.Deployment     `json:"deployment"`
+	Services       []*corev1.Service      `json:"services"`
+	ConfigMaps     []*corev1.ConfigMap    `json:"configMaps"`
+	ServiceAccount *corev1.ServiceAccount `json:"serviceAccount"`
+	// TODO: PVCs, etc.
 	// TODO: Inject certs, base64, etc. using Cue; see Redis options for example
 	// Possibly use templating: https://cuetorials.com/first-steps/generate-all-the-things/
 	// Tools for templates: https://github.com/Masterminds/sprig
@@ -65,10 +67,25 @@ func (v *Version) Apply(opts ...InstallOption) {
 
 type InstallOption func(*Version)
 
-// An InstallOption for injecting a Namespace value.
-func Namespace(namespace string) InstallOption {
+// An InstallOption for injecting an InstallNamespace value.
+func InstallNamespace(namespace string) InstallOption {
 	return func(v *Version) {
-		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`Namespace: "%s"`, namespace)))
+		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`InstallNamespace: "%s"`, namespace)))
+	}
+}
+
+// An InstallOption for injectign a Zone value.
+func Zone(zone string) InstallOption {
+	return func(v *Version) {
+		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`Zone: "%s"`, zone)))
+	}
+}
+
+// An InstallOption for injecting an ImagePullSecretName value.
+// Note that this value is not sourced from the Mesh CR spec, but by the Installer.
+func ImagePullSecretName(imagePullSecretName string) InstallOption {
+	return func(v *Version) {
+		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`ImagePullSecretName: "%s"`, imagePullSecretName)))
 	}
 }
 
@@ -106,5 +123,11 @@ func Redis(externalURL string) InstallOption {
 			}`,
 			host, port, password, db)),
 		)
+	}
+}
+
+func UserTokens(users string) InstallOption {
+	return func(v *Version) {
+		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`UserTokens: "%s"`, users)))
 	}
 }

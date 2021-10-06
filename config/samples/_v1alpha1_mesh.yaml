@@ -2,6 +2,6 @@ apiVersion: greymatter.io/v1alpha1
 kind: Mesh
 metadata:
   name: mesh-sample
+  namespace: default
 spec:
-  # Add fields here
-  foo: bar
+  release_version: '1.6'

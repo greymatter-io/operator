@@ -12,7 +12,7 @@ manifests: [...#ManifestGroup] & [
   { _c: [dashboard] },
   { _c: [jwt_security] },
   { _c: [redis] },
-  { _c: [prometheus] },
+  // { _c: [prometheus] }, // TODO
 ]
 
 #ManifestGroup: {
@@ -22,17 +22,23 @@ manifests: [...#ManifestGroup] & [
     kind: "Deployment"
     metadata: {
       name: _c[0].name
-      namespace: Namespace
+      namespace: InstallNamespace
     }
     spec: {
       selector: matchLabels: {
         "greymatter.io/cluster": _c[0].name
       }
       template: {
-        metadata: labels: {
-          "greymatter.io/cluster": _c[0].name
+        metadata: {
+          namespace: InstallNamespace
+          labels: {
+            "greymatter.io/cluster": _c[0].name
+          }
         }
         spec: {
+          imagePullSecrets: [
+            { name: ImagePullSecretName }
+          ]
           containers: [
             for _, c in _c {
               {
@@ -86,7 +92,10 @@ manifests: [...#ManifestGroup] & [
       {
         apiVersion: "v1"
         kind: "Service"
-        metadata: name: c.name
+        metadata: {
+          name: c.name
+          namespace: InstallNamespace
+        }
         spec: {
           selector: "greymatter.io/cluster": c.name
           ports: [
@@ -103,6 +112,32 @@ manifests: [...#ManifestGroup] & [
       }
     }
   ]
+  configMaps: [...corev1.#ConfigMap] & [
+    for _, c in _c if len(c.configMaps) > 0 {
+      for k, v in c.configMaps {
+        {
+          apiVersion: "v1"
+          kind: "ConfigMap"
+          metadata: {
+            name: k
+            namespace: InstallNamespace
+          }
+          data: v
+        }
+      }
+    }
+  ]
+  for _, c in _c if c.serviceAccount {
+    serviceAccount: corev1.#ServiceAccount & {
+      apiVersion: "v1"
+      kind: "ServiceAccount"
+      metadata: {
+        name: c.name
+        namespace: InstallNamespace
+      }
+      automountServiceAccountToken: true
+    }
+  }
 }
 
 sidecar: {

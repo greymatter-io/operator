@@ -12,7 +12,7 @@ import (
 func TestVersions(t *testing.T) {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	versions, err := Load()
+	versions, err := loadBaseWithVersions()
 	if err != nil {
 		logCueErrors(err)
 		t.Fatal()
@@ -28,9 +28,9 @@ func TestVersions(t *testing.T) {
 			t.Run("manifests", func(t *testing.T) {
 				// fmt.Println(version.cue.LookupPath(cue.ParsePath("edge")))
 				// TODO: Check values in manifests
-				manifests := version.Manifests()
-				y, _ := yaml.Marshal(manifests)
-				fmt.Println(string(y))
+				// manifests := version.Manifests()
+				// y, _ := yaml.Marshal(manifests)
+				// fmt.Println(string(y))
 			})
 
 			t.Run("sidecar", func(t *testing.T) {
@@ -47,12 +47,12 @@ func TestVersions(t *testing.T) {
 				checkSidecar   func(Sidecar) error
 			}{
 				{
-					name:    "Namespace option",
-					options: []InstallOption{Namespace("ns")},
+					name:    "InstallNamespace option",
+					options: []InstallOption{InstallNamespace("ns")},
 					checkManifests: func(manifests []ManifestGroup) error {
 						// unimplemented
-						// y, _ := yaml.Marshal(manifests)
-						// fmt.Println(string(y))
+						y, _ := yaml.Marshal(manifests)
+						fmt.Println(string(y))
 						return nil
 					},
 					checkSidecar: func(sidecar Sidecar) error {
@@ -80,7 +80,7 @@ func TestVersions(t *testing.T) {
 				},
 				{
 					name:    "Redis internal option",
-					options: []InstallOption{Namespace("ns"), Redis("")},
+					options: []InstallOption{InstallNamespace("ns"), Redis("")},
 					checkManifests: func(manifests []ManifestGroup) error {
 						// unimplemented
 						// y, _ := yaml.Marshal(manifests)
@@ -112,19 +112,24 @@ func TestVersions(t *testing.T) {
 				},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					vCopy := version.Copy()
-					vCopy.Apply(tc.options...)
-					if err := vCopy.cue.Err(); err != nil {
+					v := version.Copy()
+					v.Apply(tc.options...)
+
+					// if tc.name == "InstallNamespace option" {
+					// 	fmt.Println(v.cue)
+					// }
+
+					if err := v.cue.Err(); err != nil {
 						logCueErrors(err)
 						t.Fatal()
 					}
 					t.Run("manifests", func(t *testing.T) {
-						if err := tc.checkManifests(vCopy.Manifests()); err != nil {
+						if err := tc.checkManifests(v.Manifests()); err != nil {
 							t.Fatal(err)
 						}
 					})
 					t.Run("sidecar", func(t *testing.T) {
-						if err := tc.checkSidecar(vCopy.Sidecar()); err != nil {
+						if err := tc.checkSidecar(v.Sidecar()); err != nil {
 							t.Fatal(err)
 						}
 					})
