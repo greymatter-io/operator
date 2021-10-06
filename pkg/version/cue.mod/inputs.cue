@@ -6,8 +6,7 @@ Zone: *"default-zone" | string
 
 ImagePullSecretName: *"gm-docker-secret" | string
 
-// TODO: Make option for applying ProxyPort
-ProxyPort: *10808 | int32
+MeshPort: *10808 | int32
 
 Spire: *false | bool
 

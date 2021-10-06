@@ -13,7 +13,7 @@ var (
 
 func (m Mesh) InstallOptions() []version.InstallOption {
 	opts := []version.InstallOption{
-		// version.IngressPort(...)
+		version.MeshPort(m.Spec.MeshPort),
 		version.InstallNamespace(m.ObjectMeta.Namespace),
 		version.Redis(m.Spec.ExternalRedis.URL),
 		// version.WatchNamespaces(m.Spec.WatchNamespaces...)

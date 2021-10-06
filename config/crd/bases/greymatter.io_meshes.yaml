@@ -37,6 +37,11 @@ spec:
           spec:
             description: Defines the desired state of a Grey Matter mesh.
             properties:
+              mesh_port:
+                default: 10808
+                description: Defines port for edge and sidecar to sidecar communication
+                format: int32
+                type: integer
               redis:
                 description: Adds an external Redis provider for caching Grey Matter
                   configuration state.
@@ -50,6 +55,7 @@ spec:
                 type: object
               release_version:
                 default: "1.6"
+                description: The version of Grey Matter to install for this mesh.
                 enum:
                 - "1.6"
                 - "1.7"
@@ -74,8 +80,6 @@ spec:
               zone:
                 description: Label this mesh as belonging to a particular zone.
                 type: string
-            required:
-            - release_version
             type: object
           status:
             description: Describes the observed state of a Grey Matter mesh.

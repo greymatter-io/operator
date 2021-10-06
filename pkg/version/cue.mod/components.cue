@@ -20,7 +20,7 @@ import (
 
 proxy: #Component & {
   image: =~"^docker.greymatter.io/(release|development)/gm-proxy:" & !~"latest$"
-  ports: proxy: ProxyPort
+  ports: proxy: MeshPort
   env: {
     ENVOY_ADMIN_LOG_PATH: "/dev/stdout",
     PROXY_DYNAMIC: "true"

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ghodss/yaml"
+	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -43,71 +44,134 @@ func TestVersions(t *testing.T) {
 			for _, tc := range []struct {
 				name           string
 				options        []InstallOption
-				checkManifests func([]ManifestGroup) error
-				checkSidecar   func(Sidecar) error
+				checkManifests func(*testing.T, []ManifestGroup)
+				checkSidecar   func(*testing.T, Sidecar)
 			}{
 				{
 					name:    "InstallNamespace option",
 					options: []InstallOption{InstallNamespace("ns")},
-					checkManifests: func(manifests []ManifestGroup) error {
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
 						y, _ := yaml.Marshal(manifests)
 						fmt.Println(string(y))
-						return nil
 					},
-					checkSidecar: func(sidecar Sidecar) error {
+					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
 						// y, _ := yaml.Marshal(sidecar)
 						// fmt.Println(string(y))
-						return nil
 					},
 				},
 				{
 					name:    "SPIRE option",
 					options: []InstallOption{SPIRE},
-					checkManifests: func(manifests []ManifestGroup) error {
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
 						// y, _ := yaml.Marshal(manifests)
 						// fmt.Println(string(y))
-						return nil
 					},
-					checkSidecar: func(sidecar Sidecar) error {
+					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
 						// y, _ := yaml.Marshal(sidecar)
 						// fmt.Println(string(y))
-						return nil
 					},
 				},
 				{
 					name:    "Redis internal option",
 					options: []InstallOption{InstallNamespace("ns"), Redis("")},
-					checkManifests: func(manifests []ManifestGroup) error {
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
 						// y, _ := yaml.Marshal(manifests)
 						// fmt.Println(string(y))
-						return nil
 					},
-					checkSidecar: func(sidecar Sidecar) error {
+					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
 						// y, _ := yaml.Marshal(sidecar)
 						// fmt.Println(string(y))
-						return nil
 					},
 				},
 				{
 					name:    "Redis external option",
 					options: []InstallOption{Redis("redis://:pass@extserver:6379/2")},
-					checkManifests: func(manifests []ManifestGroup) error {
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
 						// y, _ := yaml.Marshal(manifests)
 						// fmt.Println(string(y))
-						return nil
 					},
-					checkSidecar: func(sidecar Sidecar) error {
+					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
-						// y, _ := yaml.Marshal(manifests)
+						// y, _ := yaml.Marshal(sidecar)
 						// fmt.Println(string(y))
-						return nil
+					},
+				},
+				{
+					name:    "MeshPort option",
+					options: []InstallOption{MeshPort(10999)},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						edge := manifests[0]
+						// y, _ := yaml.Marshal(edge)
+						// fmt.Println(string(y))
+
+						edgeContainer := edge.Deployment.Spec.Template.Spec.Containers[0]
+
+						if len(edgeContainer.Ports) == 0 {
+							t.Fatal("No ports found in edge")
+						}
+
+						var proxyPort *corev1.ContainerPort
+						for _, p := range edgeContainer.Ports {
+							if p.Name == "proxy" {
+								proxyPort = &p
+							}
+						}
+						if proxyPort == nil {
+							t.Fatal("No proxy port found in edge")
+						}
+						actualProxyPort := proxyPort.ContainerPort
+						// Should not have 0
+						if actualProxyPort == 0 {
+							t.Fatal("Proxy Port is set to 0.  Was not updated")
+						}
+						// Should not have default value 10808
+						if actualProxyPort == 10808 {
+							t.Fatalf("Proxy Port is set to [%d] the default value and was not updated to [10999]", actualProxyPort)
+						}
+						// Should have the value we expect (10999)
+						if actualProxyPort != 10999 {
+							t.Fatalf("Proxy Port is set to [%d] and was not updated to [10999]", actualProxyPort)
+						}
+
+					},
+					checkSidecar: func(t *testing.T, sidecar Sidecar) {
+						// y, _ := yaml.Marshal(sidecar)
+						// fmt.Println(string(y))
+
+						if len(sidecar.Container.Ports) == 0 {
+							t.Fatal("No ports found in sidecar")
+						}
+
+						var proxyPort *corev1.ContainerPort
+						for _, p := range sidecar.Container.Ports {
+							if p.Name == "proxy" {
+								proxyPort = &p
+							}
+						}
+						if proxyPort == nil {
+							t.Fatal("No proxy port found in sidecar")
+						}
+						actualProxyPort := proxyPort.ContainerPort
+						// Should not have 0
+						if actualProxyPort == 0 {
+							t.Fatal("Proxy Port is set to 0.  Was not updated")
+						}
+						// Should not have default value 10808
+						if actualProxyPort == 10808 {
+							t.Fatalf("Proxy Port is set to [%d] the default value and was not updated to [10999]", actualProxyPort)
+						}
+						// Should have the value we expect (10999)
+						if actualProxyPort != 10999 {
+							t.Fatalf("Proxy Port is set to [%d] and was not updated to [10999]", actualProxyPort)
+						}
+
 					},
 				},
 			} {
@@ -124,14 +188,10 @@ func TestVersions(t *testing.T) {
 						t.Fatal()
 					}
 					t.Run("manifests", func(t *testing.T) {
-						if err := tc.checkManifests(v.Manifests()); err != nil {
-							t.Fatal(err)
-						}
+						tc.checkManifests(t, v.Manifests())
 					})
 					t.Run("sidecar", func(t *testing.T) {
-						if err := tc.checkSidecar(v.Sidecar()); err != nil {
-							t.Fatal(err)
-						}
+						tc.checkSidecar(t, v.Sidecar())
 					})
 				})
 			}
