@@ -2,8 +2,7 @@ package base
 
 Namespace: string
 
-// TODO: Make option for applying ProxyPort
-ProxyPort: *10808 | int32
+MeshPort: *10808 | int32
 
 Spire: *false | bool
 
