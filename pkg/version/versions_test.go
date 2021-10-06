@@ -1,10 +1,8 @@
 package version
 
 import (
-	"fmt"
 	"testing"
 
-	"github.com/ghodss/yaml"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -107,11 +105,43 @@ func TestVersions(t *testing.T) {
 					name:    "MeshPort option",
 					options: []InstallOption{MeshPort(10999)},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						edge := manifests[0]
+						// y, _ := yaml.Marshal(edge)
+						// fmt.Println(string(y))
+
+						edgeContainer := edge.Deployment.Spec.Template.Spec.Containers[0]
+
+						if len(edgeContainer.Ports) == 0 {
+							t.Fatal("No ports found in edge")
+						}
+
+						var proxyPort *corev1.ContainerPort
+						for _, p := range edgeContainer.Ports {
+							if p.Name == "proxy" {
+								proxyPort = &p
+							}
+						}
+						if proxyPort == nil {
+							t.Fatal("No proxy port found in edge")
+						}
+						actualProxyPort := proxyPort.ContainerPort
+						// Should not have 0
+						if actualProxyPort == 0 {
+							t.Fatal("Proxy Port is set to 0.  Was not updated")
+						}
+						// Should not have default value 10808
+						if actualProxyPort == 10808 {
+							t.Fatalf("Proxy Port is set to [%d] the default value and was not updated to [10999]", actualProxyPort)
+						}
+						// Should have the value we expect (10999)
+						if actualProxyPort != 10999 {
+							t.Fatalf("Proxy Port is set to [%d] and was not updated to [10999]", actualProxyPort)
+						}
 
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
-						y, _ := yaml.Marshal(sidecar)
-						fmt.Println(string(y))
+						// y, _ := yaml.Marshal(sidecar)
+						// fmt.Println(string(y))
 
 						if len(sidecar.Container.Ports) == 0 {
 							t.Fatal("No ports found in sidecar")
@@ -123,13 +153,10 @@ func TestVersions(t *testing.T) {
 								proxyPort = &p
 							}
 						}
-
 						if proxyPort == nil {
 							t.Fatal("No proxy port found in sidecar")
 						}
-
 						actualProxyPort := proxyPort.ContainerPort
-						// Test proxyPort
 						// Should not have 0
 						if actualProxyPort == 0 {
 							t.Fatal("Proxy Port is set to 0.  Was not updated")
