@@ -128,32 +128,19 @@ func TestVersions(t *testing.T) {
 							t.Fatal("No proxy port found in sidecar")
 						}
 
+						actualProxyPort := proxyPort.ContainerPort
 						// Test proxyPort
 						// Should not have 0
+						if actualProxyPort == 0 {
+							t.Fatal("Proxy Port is set to 0.  Was not updated")
+						}
 						// Should not have default value 10808
+						if actualProxyPort == 10808 {
+							t.Fatalf("Proxy Port is set to [%d] the default value and was not updated to [10999]", actualProxyPort)
+						}
 						// Should have the value we expect (10999)
-
-						proxyExists := false
-						proxyUniqueCheck := 0
-						for _, p := range sidecar.Container.Ports {
-							// fmt.Printf("\n --test sidecar ---> [name: %s; port: %d] \n", p.Name, p.ContainerPort)
-							// This check can happen when outputs.cue is modified instead of inputs.cue
-							if p.Name == "proxy" && p.ContainerPort == 10999 {
-								proxyExists = true
-								proxyUniqueCheck++
-							}
-							if p.Name == "proxy" && p.ContainerPort != 10999 {
-								t.Error("Container port named proxy found however it does not have the correct port number")
-							}
-							if p.ContainerPort == 10909 || p.Name != "proxy" {
-								t.Error("A duplicate port numbers found matching the proxy port specified")
-							}
-						}
-						if !proxyExists {
-							t.Error("Proxy port not found")
-						}
-						if proxyUniqueCheck > 1 {
-							t.Error("Too Many Proxys with the name proxy and port 10909 were injected")
+						if actualProxyPort != 10999 {
+							t.Fatalf("Proxy Port is set to [%d] and was not updated to [10999]", actualProxyPort)
 						}
 
 					},
