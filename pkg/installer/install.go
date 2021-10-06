@@ -55,7 +55,7 @@ func (i *Installer) ApplyMesh(mesh *v1alpha1.Mesh, init bool) {
 
 MANIFEST_LOOP:
 	for _, group := range manifests {
-		if group.Deployment.Name == "gm-redis" && mesh.Spec.ExternalRedis.URL != "" {
+		if group.Deployment.Name == "gm-redis" && mesh.Spec.ExternalRedis != nil && mesh.Spec.ExternalRedis.URL != "" {
 			continue MANIFEST_LOOP
 		}
 		for _, configMap := range group.ConfigMaps {
@@ -101,9 +101,9 @@ func (i *Installer) applyServiceAccount(sa *corev1.ServiceAccount, mesh *v1alpha
 		return err
 	}
 
-	crb := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "gm-pod-watcher"}}
+	crb := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "gm-control"}}
 	if err := i.client.Get(context.TODO(), client.ObjectKeyFromObject(crb), crb); err != nil {
-		logger.Error(err, "Failed Get", "ClusterRoleBinding", "gm-pod-watcher")
+		logger.Error(err, "Failed Get", "ClusterRoleBinding", "gm-control")
 		return err
 	}
 
