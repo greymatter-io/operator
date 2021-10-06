@@ -36,6 +36,9 @@ type MeshSpec struct {
 	// +kubebuilder:default=10808
 	// +optional
 	MeshPort int32 `json:"mesh_port"`
+	// The other namespaces the control shouls monitor (Should not include the namespace the mesh lives in)
+	// +kubebuilder:validation:Pattern=`([\S]+,)*([\S]+)`
+	WatchNamespaces string `json:"watch_namespaces",omitempty`
 	// WatchNamespaces []string
 }
 

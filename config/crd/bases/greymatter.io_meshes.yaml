@@ -60,6 +60,13 @@ spec:
                 - "1.6"
                 - "1.7"
                 type: string
+              watch_namespaces:
+                description: The other namespaces the control shouls monitor (Should
+                  not include the namespace the mesh lives in)
+                pattern: ([\S]+,)*([\S]+)
+                type: string
+            required:
+            - watch_namespaces
             type: object
           status:
             description: Describes the observed state of a Grey Matter mesh.

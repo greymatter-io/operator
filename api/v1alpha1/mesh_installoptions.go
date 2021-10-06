@@ -7,7 +7,8 @@ func (m Mesh) InstallOptions() []version.InstallOption {
 		version.MeshPort(m.Spec.MeshPort),
 		version.Namespace(m.ObjectMeta.Namespace),
 		version.Redis(m.Spec.ExternalRedis.URL),
-		// version.WatchNamespaces(m.Spec.WatchNamespaces...)
+		// add the mesh's home namespace as well as any additional watch namespaces to the control deployment.
+		version.WatchNamespaces(m.ObjectMeta.Namespace, m.Spec.WatchNamespaces),
 	}
 
 	// opts = append(opts, ...)

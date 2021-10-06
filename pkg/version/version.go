@@ -115,3 +115,32 @@ func Redis(externalURL string) InstallOption {
 		)
 	}
 }
+
+// An InstallOption for injection watch namespaces
+func WatchNamespaces(meshNamespace string, watchNamespaces string) InstallOption {
+	return func(v *Version) {
+		var wn []string
+		if watchNamespaces != "" {
+			wn = strings.Split(watchNamespaces, ",")
+		}
+		wn = append(wn, meshNamespace)
+		//remove any duplicates in watchNamespaces
+		wn = unique(wn)
+		output := strings.Join(wn, `,`)
+
+		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`WatchNamespaces: "%s"`, output)))
+
+	}
+}
+
+func unique(slice []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, entry := range slice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
+}
