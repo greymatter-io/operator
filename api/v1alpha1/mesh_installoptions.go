@@ -15,12 +15,17 @@ func (m Mesh) InstallOptions() []version.InstallOption {
 	opts := []version.InstallOption{
 		version.MeshPort(m.Spec.MeshPort),
 		version.InstallNamespace(m.ObjectMeta.Namespace),
-		version.Redis(m.Spec.ExternalRedis.URL),
 		// version.WatchNamespaces(m.Spec.WatchNamespaces...)
 	}
 
 	if m.Spec.Zone != "" {
 		opts = append(opts, version.Zone(m.Spec.Zone))
+	}
+
+	if m.Spec.ExternalRedis != nil {
+		opts = append(opts, version.Redis(m.Spec.ExternalRedis.URL))
+	} else {
+		opts = append(opts, version.Redis(""))
 	}
 
 	if len(m.Spec.UserTokens) > 0 {

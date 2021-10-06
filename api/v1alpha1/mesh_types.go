@@ -32,19 +32,20 @@ type MeshSpec struct {
 
 	// Adds an external Redis provider for caching Grey Matter configuration state.
 	// +optional
-	ExternalRedis ExternalRedisConfig `json:"redis"`
+	ExternalRedis *ExternalRedisConfig `json:"redis,omitempty"`
+
 	// Defines port for edge and sidecar to sidecar communication
 	// +kubebuilder:default=10808
 	// +optional
 	MeshPort int32 `json:"mesh_port"`
-	// WatchNamespaces []string
+
+	// Namespaces belonging to the mesh network in addition to the namespace this Mesh is in.
+	// +optional
+	// WatchNamespaces []string `json:"watch_namespaces"`
 
 	// Label this mesh as belonging to a particular zone.
 	// +optional
 	Zone string `json:"zone,omitempty"`
-
-	// Enable discovering the zone via Downward API
-	// DiscoverZone bool `json:"discover_zone"`
 
 	// Add user tokens to the JWT Security Service.
 	// +optional
