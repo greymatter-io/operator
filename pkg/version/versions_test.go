@@ -1,6 +1,7 @@
 package version
 
 import (
+	"strings"
 	"testing"
 
 	// "github.com/ghodss/yaml"
@@ -60,14 +61,23 @@ func TestVersions(t *testing.T) {
 					options: []InstallOption{WatchNamespaces("install", "install", "apples", "oranges", "apples")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						control := manifests[3].Deployment.Spec.Template.Spec.Containers[0]
-						var namespaces string
+						var namespaces []string
 						for _, e := range control.Env {
 							if e.Name == "GM_CONTROL_KUBERNETES_NAMESPACES" {
-								namespaces = e.Value
+								namespaces = strings.Split(e.Value, ",")
 							}
 						}
-						if namespaces != "install,apples,oranges" {
-							t.Errorf("Expected len(namespaces) to be 'install,apples,oranges' but got %s", namespaces)
+						if count := len(namespaces); count != 3 {
+							t.Fatalf("Expected len(namespaces) to be 3 but got %d: %v", count, namespaces)
+						}
+						set := make(map[string]struct{})
+						for _, namespace := range namespaces {
+							set[namespace] = struct{}{}
+						}
+						for _, namespace := range []string{"install", "apples", "oranges"} {
+							if _, ok := set[namespace]; !ok {
+								t.Errorf("Expected namespaces to contain %s: got %v", namespace, namespaces)
+							}
 						}
 					},
 				},
