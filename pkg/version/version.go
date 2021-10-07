@@ -124,7 +124,7 @@ func WatchNamespaces(meshNamespace string, watchNamespaces []string) InstallOpti
 		watchNamespaces = unique(watchNamespaces)
 		wns := strings.Join(watchNamespaces, ",")
 		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`WatchNamespaces: "%s"`, wns)))
-		// fmt.Printf("%#v", v.cue)
+		// TODo: ensure uniqueness using cue
 	}
 }
 
