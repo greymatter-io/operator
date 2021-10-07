@@ -55,12 +55,12 @@ func (cs *Clientset) RemoveMesh(name string) {
 // a list of corev1.Containers, generates fabric from the stored fabric.ServiceTemplate for each mesh and
 // persists each meshobject to the Redis database assigned to each mesh.
 func (cs *Clientset) ApplyService(name string, meshes []string, containers []corev1.Container) {
-	// TODO: Do not configure local objects for containerPorts with name "gm-proxy"
+	// TODO: Do not configure local objects for containerPorts with name "proxy"
 }
 
 // Given the name of an appsv1.Deployment/StatefulSet, a list of its meshes from its `greymatter.io/mesh` label, and
 // a list of corev1.Containers, deletes fabric generated for the service from each mesh and
 // persists the deletion changes to the Redis database assigned to each mesh.
 func (cs *Clientset) RemoveService(name string, meshes []string, containers []corev1.Container) {
-	// TODO: Do not attempt to unconfigure local objects for containerPorts with name "gm-proxy"
+	// TODO: Do not attempt to unconfigure local objects for containerPorts with name "proxy"
 }

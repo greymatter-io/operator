@@ -47,7 +47,6 @@ var _ webhook.Defaulter = &Mesh{}
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *Mesh) Default() {
 	fmt.Printf("Default: %#v\n", r.Spec)
-	// TODO(user): fill in your defaulting logic.
 }
 
 //+kubebuilder:webhook:path=/validate-greymatter-io-v1alpha1-mesh,mutating=false,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update;delete,versions=v1alpha1,name=vmesh.kb.io,admissionReviewVersions={v1,v1beta1}
@@ -56,7 +55,6 @@ var _ webhook.Validator = &Mesh{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Mesh) ValidateCreate() error {
-	// TODO: validate prior to applying install
 	fmt.Printf("ValidateCreate: %#v\n", r.Spec)
 	go applyInstall(r, true)
 	return nil
@@ -64,7 +62,6 @@ func (r *Mesh) ValidateCreate() error {
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Mesh) ValidateUpdate(old runtime.Object) error {
-	// TODO: validate prior to applying install
 	fmt.Printf("ValidateUpdate: %#v\n", r.Spec)
 	go applyInstall(r, false)
 	return nil

@@ -27,18 +27,11 @@ func TestVersions(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Run("manifests", func(t *testing.T) {
-				// fmt.Println(version.cue.LookupPath(cue.ParsePath("edge")))
-				// TODO: Check values in manifests
-				// manifests := version.Manifests()
-				// y, _ := yaml.Marshal(manifests)
-				// fmt.Println(string(y))
+				// unimplemented
 			})
 
 			t.Run("sidecar", func(t *testing.T) {
-				// TODO: Check values in sidecar
-				// sidecar := version.Sidecar()
-				// y, _ := yaml.Marshal(sidecar)
-				// fmt.Println(string(y))
+				// unimplemented
 			})
 
 			for _, tc := range []struct {
