@@ -175,7 +175,7 @@ func TestVersions(t *testing.T) {
 				},
 				{
 					name:    "Watch Namespace Option- no additional namespaces",
-					options: []InstallOption{WatchNamespaces("mygreymatter", []string{""})},
+					options: []InstallOption{WatchNamespaces("mygreymatter", []string{})},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 
 						controlContainer := manifests[1].Deployment.Spec.Template.Spec.Containers[0]
@@ -212,6 +212,9 @@ func TestVersions(t *testing.T) {
 					name:    "Watch Namespace Option- additional namespaces",
 					options: []InstallOption{WatchNamespaces("mygreymatter", []string{"apples", "oranges", "mygreymatter"})},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+
+						// y, _ := yaml.Marshal(manifests)
+						// fmt.Println(string(y))
 
 						controlContainer := manifests[1].Deployment.Spec.Template.Spec.Containers[0]
 
