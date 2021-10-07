@@ -29,25 +29,25 @@ type MeshSpec struct {
 	// +kubebuilder:default="1.6"
 	ReleaseVersion string `json:"release_version"`
 
-	// Adds an external Redis provider for caching Grey Matter configuration state.
-	// +optional
-	ExternalRedis *ExternalRedisConfig `json:"redis,omitempty"`
-
 	// Defines the port for ingress traffic into the mesh.
 	// +kubebuilder:default=10808
 	MeshPort int32 `json:"mesh_port"`
+
+	// Label this mesh as belonging to a particular zone.
+	// +kubebuilder:default=default-zone
+	Zone string `json:"zone"`
 
 	// Namespaces included in the mesh network.
 	// +optional
 	WatchNamespaces []string `json:"watch_namespaces,omitempty"`
 
-	// Label this mesh as belonging to a particular zone.
-	// +optional
-	Zone string `json:"zone,omitempty"`
-
 	// Add user tokens to the JWT Security Service.
 	// +optional
 	UserTokens []UserToken `json:"user_tokens,omitempty"`
+
+	// Adds an external Redis provider for caching Grey Matter configuration state.
+	// +optional
+	ExternalRedis *ExternalRedisConfig `json:"redis,omitempty"`
 }
 
 // Describes the observed state of a Grey Matter mesh.

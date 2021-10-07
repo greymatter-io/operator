@@ -83,11 +83,13 @@ spec:
                   type: string
                 type: array
               zone:
+                default: default-zone
                 description: Label this mesh as belonging to a particular zone.
                 type: string
             required:
             - mesh_port
             - release_version
+            - zone
             type: object
           status:
             description: Describes the observed state of a Grey Matter mesh.
