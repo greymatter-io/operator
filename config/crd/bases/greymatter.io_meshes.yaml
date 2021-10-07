@@ -39,7 +39,7 @@ spec:
             properties:
               mesh_port:
                 default: 10808
-                description: Defines port for edge and sidecar to sidecar communication
+                description: Defines the port for ingress traffic into the mesh.
                 format: int32
                 type: integer
               redis:
@@ -76,6 +76,11 @@ spec:
                   - label
                   - values
                   type: object
+                type: array
+              watch_namespaces:
+                description: Namespaces included in the mesh network.
+                items:
+                  type: string
                 type: array
               zone:
                 description: Label this mesh as belonging to a particular zone.

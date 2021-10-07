@@ -2,6 +2,7 @@ package installer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/version"
@@ -38,6 +39,7 @@ func (i *Installer) ApplyMesh(mesh *v1alpha1.Mesh, init bool) {
 	manifests := v.Manifests()
 
 	// Save this mesh's Proxy InstallConfig to use later for sidecar injection
+	// TODO: Inject sidecars into existing deployments and statefulsets!
 	i.sidecars[mesh.Name] = v.Sidecar()
 
 	// Obtain the scheme used by our client for
@@ -54,6 +56,10 @@ func (i *Installer) ApplyMesh(mesh *v1alpha1.Mesh, init bool) {
 		sa := i.serviceAccount.DeepCopy()
 		sa.Namespace = mesh.Namespace
 		i.applyServiceAccount(sa, mesh, scheme)
+	}
+
+	for _, namespace := range mesh.Spec.WatchNamespaces {
+		fmt.Println("TODO: Inject imagePullSecret into watch namespace", namespace)
 	}
 
 MANIFEST_LOOP:

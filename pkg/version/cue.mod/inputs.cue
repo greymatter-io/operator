@@ -1,6 +1,9 @@
 package base
 
+// Where to install components
 InstallNamespace: string
+// The scope of the mesh network; includes InstallNamespace
+WatchNamespaces: string
 
 Zone: *"default-zone" | string
 

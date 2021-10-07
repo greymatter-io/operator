@@ -53,8 +53,7 @@ control: #Component & {
   ports: grpc: 50000
   env: {
     GM_CONTROL_CMD: "kubernetes"
-    // TODO: Add watch namespaces via strings.Join
-    GM_CONTROL_KUBERNETES_NAMESPACES: "\(InstallNamespace)"
+    GM_CONTROL_KUBERNETES_NAMESPACES: WatchNamespaces
     GM_CONTROL_KUBERNETES_CLUSTER_LABEL: "greymatter.io/cluster"
     GM_CONTROL_KUBERNETES_PORT_NAME: "proxy"
     GM_CONTROL_XDS_ADS_ENABLED: "true"

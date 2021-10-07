@@ -63,6 +63,8 @@ func (r *Mesh) ValidateCreate() error {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Mesh) ValidateUpdate(old runtime.Object) error {
 	fmt.Printf("ValidateUpdate: %#v\n", r.Spec)
+	// TODO: Identify watch namespaces we need to delete imagePullSecrets for.
+	// Maybe "applyInstall" needs to take both the old and new mesh to do a diff.
 	go applyInstall(r, false)
 	return nil
 }

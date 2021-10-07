@@ -31,6 +31,8 @@ func (v Version) Manifests() []ManifestGroup {
 type Sidecar struct {
 	Container *corev1.Container `json:"container"`
 	Volumes   []corev1.Volume   `json:"volumes"`
+	// TODO: Add ref here to inject in Deployments and StatefulSets
+	ImagePullSecretRef corev1.LocalObjectReference `json:"imagePullSecretRef"`
 }
 
 // Extracts sidecar manifests from a Version's cue.Value.

@@ -14,8 +14,9 @@ var (
 func (m Mesh) InstallOptions() []version.InstallOption {
 	opts := []version.InstallOption{
 		version.MeshPort(m.Spec.MeshPort),
+		version.Redis(m.Spec.ExternalRedis.URL),
 		version.InstallNamespace(m.ObjectMeta.Namespace),
-		// version.WatchNamespaces(m.Spec.WatchNamespaces...)
+		version.WatchNamespaces(append(m.Spec.WatchNamespaces, m.ObjectMeta.Namespace)...),
 	}
 
 	if m.Spec.Zone != "" {

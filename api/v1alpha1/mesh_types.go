@@ -33,13 +33,13 @@ type MeshSpec struct {
 	// +optional
 	ExternalRedis *ExternalRedisConfig `json:"redis,omitempty"`
 
-	// Defines port for edge and sidecar to sidecar communication
+	// Defines the port for ingress traffic into the mesh.
 	// +kubebuilder:default=10808
 	MeshPort int32 `json:"mesh_port"`
 
-	// Namespaces belonging to the mesh network in addition to the namespace this Mesh is in.
+	// Namespaces included in the mesh network.
 	// +optional
-	// WatchNamespaces []string `json:"watch_namespaces"`
+	WatchNamespaces []string `json:"watch_namespaces,omitempty"`
 
 	// Label this mesh as belonging to a particular zone.
 	// +optional

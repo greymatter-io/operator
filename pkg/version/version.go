@@ -40,6 +40,27 @@ func InstallNamespace(namespace string) InstallOption {
 	}
 }
 
+// An InstallOption for injecting a WatchNamespaces value.
+func WatchNamespaces(watchNamespaces ...string) InstallOption {
+	return func(v *Version) {
+		watchNamespaces = unique(watchNamespaces)
+		wns := strings.Join(watchNamespaces, ",")
+		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`WatchNamespaces: "%s"`, wns)))
+	}
+}
+
+func unique(slice []string) []string {
+	keys := make(map[string]struct{})
+	for _, entry := range slice {
+		keys[strings.ToLower(entry)] = struct{}{}
+	}
+	var list []string
+	for k := range keys {
+		list = append(list, k)
+	}
+	return list
+}
+
 // An InstallOption for injecting a Zone value.
 func Zone(zone string) InstallOption {
 	return func(v *Version) {

@@ -1,10 +1,9 @@
 package version
 
 import (
-	"fmt"
 	"testing"
 
-	"github.com/ghodss/yaml"
+	// "github.com/ghodss/yaml"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -19,19 +18,23 @@ func TestVersions(t *testing.T) {
 		t.Fatal()
 	}
 
-	for name, version := range versions {
-		if version.cue.Err(); err != nil {
+	for name, v := range versions {
+		if v.cue.Err(); err != nil {
 			logCueErrors(err)
 			t.Fatal()
 		}
 
 		t.Run(name, func(t *testing.T) {
 			t.Run("manifests", func(t *testing.T) {
+				v.Manifests()
 				// unimplemented
+				// all expected manifests exist
 			})
 
 			t.Run("sidecar", func(t *testing.T) {
+				v.Sidecar()
 				// unimplemented
+				// all expected manifests exist
 			})
 
 			for _, tc := range []struct {
@@ -45,9 +48,27 @@ func TestVersions(t *testing.T) {
 					options: []InstallOption{InstallNamespace("ns")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
+						// each manifest references install namespace
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
+						// each manifest references install namespace
+					},
+				},
+				{
+					name:    "WatchNamespaces",
+					options: []InstallOption{WatchNamespaces("install", "install", "apples", "oranges", "apples")},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						control := manifests[3].Deployment.Spec.Template.Spec.Containers[0]
+						var namespaces string
+						for _, e := range control.Env {
+							if e.Name == "GM_CONTROL_KUBERNETES_NAMESPACES" {
+								namespaces = e.Value
+							}
+						}
+						if namespaces != "install,apples,oranges" {
+							t.Errorf("Expected len(namespaces) to be 'install,apples,oranges' but got %s", namespaces)
+						}
 					},
 				},
 				{
@@ -55,9 +76,12 @@ func TestVersions(t *testing.T) {
 					options: []InstallOption{Zone("myzone")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
+						// edge XDS_ZONE env var references zone
+						// control and control api env vars reference zone (key and name)
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
+						// sidecar XDS_ZONE env var references zone
 					},
 				},
 				{
@@ -65,9 +89,11 @@ func TestVersions(t *testing.T) {
 					options: []InstallOption{Zone("mysecret")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
+						// core service deployments reference image pull secret name
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
+						// sidecar.ImagePullSecretRef should reference image pull secret name
 					},
 				},
 				{
@@ -108,9 +134,11 @@ func TestVersions(t *testing.T) {
 					options: []InstallOption{SPIRE},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
+						// edge should have SPIRE settings
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
+						// sidecar should have SPIRE settings, plus a volume
 					},
 				},
 				{
@@ -118,9 +146,7 @@ func TestVersions(t *testing.T) {
 					options: []InstallOption{InstallNamespace("ns"), Redis("")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-					},
-					checkSidecar: func(t *testing.T, sidecar Sidecar) {
-						// unimplemented
+						// check for expected values
 					},
 				},
 				{
@@ -128,9 +154,7 @@ func TestVersions(t *testing.T) {
 					options: []InstallOption{Redis("redis://:pass@extserver:6379/2")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-					},
-					checkSidecar: func(t *testing.T, sidecar Sidecar) {
-						// unimplemented
+						// check for expected values
 					},
 				},
 				{
@@ -147,11 +171,7 @@ func TestVersions(t *testing.T) {
 					]`)},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-						y, _ := yaml.Marshal(manifests)
-						fmt.Println(string(y))
-					},
-					checkSidecar: func(t *testing.T, sidecar Sidecar) {
-						// unimplemented
+						// check for expected configMap and reference to configMap
 					},
 				},
 				{
@@ -159,25 +179,27 @@ func TestVersions(t *testing.T) {
 					options: []InstallOption{JWTSecrets},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-					},
-					checkSidecar: func(t *testing.T, sidecar Sidecar) {
-						// unimplemented
+						// check for expected secret and references to secret
 					},
 				},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					v := version.Copy()
-					v.Apply(tc.options...)
-					if err := v.cue.Err(); err != nil {
+					vc := v.Copy()
+					vc.Apply(tc.options...)
+					if err := vc.cue.Err(); err != nil {
 						logCueErrors(err)
 						t.Fatal()
 					}
-					t.Run("manifests", func(t *testing.T) {
-						tc.checkManifests(t, v.Manifests())
-					})
-					t.Run("sidecar", func(t *testing.T) {
-						tc.checkSidecar(t, v.Sidecar())
-					})
+					if tc.checkManifests != nil {
+						t.Run("manifests", func(t *testing.T) {
+							tc.checkManifests(t, vc.Manifests())
+						})
+					}
+					if tc.checkSidecar != nil {
+						t.Run("sidecar", func(t *testing.T) {
+							tc.checkSidecar(t, vc.Sidecar())
+						})
+					}
 				})
 			}
 		})
