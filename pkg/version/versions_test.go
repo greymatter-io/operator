@@ -1,6 +1,7 @@
 package version
 
 import (
+	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -170,6 +171,79 @@ func TestVersions(t *testing.T) {
 							t.Fatalf("Proxy Port is set to [%d] and was not updated to [10999]", actualProxyPort)
 						}
 
+					},
+				},
+				{
+					name:    "Watch Namespace Option- no additional namespaces",
+					options: []InstallOption{WatchNamespaces("mygreymatter", []string{})},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+
+						controlContainer := manifests[1].Deployment.Spec.Template.Spec.Containers[0]
+
+						var watchNamespacesEnvVar *corev1.EnvVar
+						for _, e := range controlContainer.Env {
+							if e.Name == "GM_CONTROL_KUBERNETES_NAMESPACES" {
+								watchNamespacesEnvVar = &e
+							}
+						}
+						envarValue := watchNamespacesEnvVar.Value
+
+						s := strings.Split(envarValue, ",")
+						if len(s) > 1 {
+							t.Fatalf("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] includes too Many Namespaces.  actual: [%s]  expected: [%s]", envarValue, "mygreymatter")
+						}
+
+						// envar not set
+						if watchNamespacesEnvVar == nil {
+							t.Fatal("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] is not set in Control container")
+						}
+						// envar blank
+						if envarValue == "" {
+							t.Fatal("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] has no value specified in Control container")
+						}
+					},
+					checkSidecar: func(t *testing.T, sidecar Sidecar) {
+						// unimplemented
+						// y, _ := yaml.Marshal(sidecar)
+						// fmt.Println(string(y))
+					},
+				},
+				{
+					name:    "Watch Namespace Option- additional namespaces",
+					options: []InstallOption{WatchNamespaces("mygreymatter", []string{"apples", "oranges", "mygreymatter"})},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+
+						// y, _ := yaml.Marshal(manifests)
+						// fmt.Println(string(y))
+
+						controlContainer := manifests[1].Deployment.Spec.Template.Spec.Containers[0]
+
+						var watchNamespacesEnvVar *corev1.EnvVar
+						for _, e := range controlContainer.Env {
+							if e.Name == "GM_CONTROL_KUBERNETES_NAMESPACES" {
+								watchNamespacesEnvVar = &e
+							}
+						}
+						envarValue := watchNamespacesEnvVar.Value
+
+						s := strings.Split(envarValue, ",")
+						if len(s) > 3 {
+							t.Fatalf("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] includes too Many Namespaces.  actual: [%s]  expected: [%s]", envarValue, "mygreymatter")
+						}
+
+						// envar not set
+						if watchNamespacesEnvVar == nil {
+							t.Fatal("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] is not set in Control container")
+						}
+						// envar blank
+						if envarValue == "" {
+							t.Fatal("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] has no value specified in Control container")
+						}
+					},
+					checkSidecar: func(t *testing.T, sidecar Sidecar) {
+						// unimplemented
+						// y, _ := yaml.Marshal(sidecar)
+						// fmt.Println(string(y))
 					},
 				},
 			} {

@@ -36,6 +36,8 @@ type MeshSpec struct {
 	// +kubebuilder:default=10808
 	// +optional
 	MeshPort int32 `json:"mesh_port"`
+	// Namespaces the mesh data plane should include in its network (in addition to the namespace where the Mesh control plane is being installed)
+	WatchNamespaces []string `json:"watch_namespaces,omitempty"`
 	// WatchNamespaces []string
 }
 

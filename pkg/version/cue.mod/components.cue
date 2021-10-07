@@ -51,6 +51,7 @@ control: #Component & {
     GM_CONTROL_API_HOST: "127.0.0.1:5555" // share one deployment!
     GM_CONTROL_API_INSECURE: "true"
     GM_CONTROL_API_SSL: "false"
+    GM_CONTROL_KUBERNETES_NAMESPACES: WatchNamespaces
   }
 }
 

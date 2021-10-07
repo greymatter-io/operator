@@ -12,3 +12,5 @@ Redis: {
   password: "" | string
   db: *"0" | string
 }
+
+WatchNamespaces: string
