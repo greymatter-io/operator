@@ -7,19 +7,19 @@ import (
 
 manifests: [...#ManifestGroup] & [
   { _c: [edge] }, 
+  { _c: [redis] },
+  { _c: [jwt_security] },
   { _c: [control, control_api] },
   { _c: [catalog] },
   { _c: [dashboard] },
-  { _c: [jwt_security] },
-  { _c: [redis] },
   // { _c: [prometheus] }, // TODO
 ]
 
 #ManifestGroup: {
+  // _c and _tmpl are "inputs" following the "function" pattern.
+  // See https://cuetorials.com/patterns/functions/.
   _c: [...#Component]
-  deployment: appsv1.#Deployment & {
-    apiVersion: "apps/v1"
-    kind: "Deployment"
+  _tmpl: {
     metadata: {
       name: _c[0].name
       namespace: InstallNamespace
@@ -36,9 +36,11 @@ manifests: [...#ManifestGroup] & [
           }
         }
         spec: {
-          imagePullSecrets: [
-            { name: ImagePullSecretName }
-          ]
+          if _c[0].name != "gm-redis" && _c[0].name != "gm-prometheus" {
+            imagePullSecrets: [
+              { name: ImagePullSecretName }
+            ]
+          }
           containers: [
             for _, c in _c {
               {
@@ -54,12 +56,17 @@ manifests: [...#ManifestGroup] & [
                     }
                   }
                 ]
-                envFrom: [ for _, v in c.envFrom { v } ]
                 env: [
                   for k, v in c.env {
                     {
                       name: k
                       value: v
+                    }
+                  }
+                  for k, v in c.envFrom {
+                    {
+                      name: k
+                      valueFrom: v
                     }
                   }
                 ]
@@ -87,6 +94,33 @@ manifests: [...#ManifestGroup] & [
             serviceAccountName: "gm-control"
           }
         }
+      }
+    }
+  }
+  if !_c[0].isStatefulset {
+    deployment: appsv1.#Deployment & _tmpl & {
+      apiVersion: "apps/v1"
+      kind: "Deployment"
+    }
+  }
+  if _c[0].isStatefulset {
+    statefulset: appsv1.#StatefulSet & _tmpl & {
+      apiVersion: "apps/v1"
+      kind: "StatefulSet"
+      spec: {
+        serviceName: _c[0].name
+        volumeClaimTemplates: [
+          for _, c in _c if len(c.persistentVolumeClaims) > 0 {
+            for k, v in c.persistentVolumeClaims {
+              {
+                apiVersion: "v1"
+                kind: "PersistentVolumeClaim"
+                metadata: name: k
+                spec: v
+              }
+            }
+          }
+        ]
       }
     }
   }
@@ -126,6 +160,21 @@ manifests: [...#ManifestGroup] & [
             namespace: InstallNamespace
           }
           data: v
+        }
+      }
+    }
+  ]
+  secrets: [...corev1.#Secret] & [
+    for _, c in _c if len(c.secrets) > 0 {
+      for k, v in c.secrets {
+        {
+          apiVersion: "v1"
+          kind: "Secret"
+          metadata: {
+            name: k
+            namespace: InstallNamespace
+          }
+          stringData: v
         }
       }
     }

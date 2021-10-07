@@ -27,7 +27,6 @@ type MeshSpec struct {
 	// The version of Grey Matter to install for this mesh.
 	// +kubebuilder:validation:Enum="1.6";"1.7"
 	// +kubebuilder:default="1.6"
-	// +optional
 	ReleaseVersion string `json:"release_version"`
 
 	// Adds an external Redis provider for caching Grey Matter configuration state.
@@ -36,7 +35,6 @@ type MeshSpec struct {
 
 	// Defines port for edge and sidecar to sidecar communication
 	// +kubebuilder:default=10808
-	// +optional
 	MeshPort int32 `json:"mesh_port"`
 
 	// Namespaces belonging to the mesh network in addition to the namespace this Mesh is in.

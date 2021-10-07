@@ -10,7 +10,11 @@ MeshPort: *10808 | int32
 
 Spire: *false | bool
 
-UserTokens: *"[]" | string
+JWT: {
+  userTokens: *"[]" | string
+  apiKey: "" | string
+  privateKey: "" | string
+}
 
 Redis: {
   host: *"gm-redis.\(InstallNamespace).svc.cluster.local" | string

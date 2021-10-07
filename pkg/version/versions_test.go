@@ -48,77 +48,42 @@ func TestVersions(t *testing.T) {
 				checkSidecar   func(*testing.T, Sidecar)
 			}{
 				{
-					name:    "InstallNamespace option",
+					name:    "InstallNamespace",
 					options: []InstallOption{InstallNamespace("ns")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-						y, _ := yaml.Marshal(manifests)
-						fmt.Println(string(y))
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
-						// y, _ := yaml.Marshal(sidecar)
-						// fmt.Println(string(y))
 					},
 				},
 				{
-					name:    "SPIRE option",
-					options: []InstallOption{SPIRE},
+					name:    "Zone",
+					options: []InstallOption{Zone("myzone")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-						// y, _ := yaml.Marshal(manifests)
-						// fmt.Println(string(y))
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
-						// y, _ := yaml.Marshal(sidecar)
-						// fmt.Println(string(y))
 					},
 				},
 				{
-					name:    "Redis internal option",
-					options: []InstallOption{InstallNamespace("ns"), Redis("")},
+					name:    "ImagePullSecretName",
+					options: []InstallOption{Zone("mysecret")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-						// y, _ := yaml.Marshal(manifests)
-						// fmt.Println(string(y))
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
-						// y, _ := yaml.Marshal(sidecar)
-						// fmt.Println(string(y))
 					},
 				},
 				{
-					name:    "Redis external option",
-					options: []InstallOption{Redis("redis://:pass@extserver:6379/2")},
-					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-						// unimplemented
-						// y, _ := yaml.Marshal(manifests)
-						// fmt.Println(string(y))
-					},
-					checkSidecar: func(t *testing.T, sidecar Sidecar) {
-						// unimplemented
-						// y, _ := yaml.Marshal(sidecar)
-						// fmt.Println(string(y))
-					},
-				},
-				{
-					name:    "MeshPort option",
+					name:    "MeshPort",
 					options: []InstallOption{MeshPort(10999)},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-						edge := manifests[0]
-						// y, _ := yaml.Marshal(edge)
-						// fmt.Println(string(y))
-
-						edgeContainer := edge.Deployment.Spec.Template.Spec.Containers[0]
-
-						if len(edgeContainer.Ports) == 0 {
-							t.Fatal("No ports found in edge")
-						}
-
+						edge := manifests[0].Deployment.Spec.Template.Spec.Containers[0]
 						var proxyPort *corev1.ContainerPort
-						for _, p := range edgeContainer.Ports {
+						for _, p := range edge.Ports {
 							if p.Name == "proxy" {
 								proxyPort = &p
 							}
@@ -126,29 +91,11 @@ func TestVersions(t *testing.T) {
 						if proxyPort == nil {
 							t.Fatal("No proxy port found in edge")
 						}
-						actualProxyPort := proxyPort.ContainerPort
-						// Should not have 0
-						if actualProxyPort == 0 {
-							t.Fatal("Proxy Port is set to 0.  Was not updated")
+						if proxyPort.ContainerPort != 10999 {
+							t.Errorf("Expected proxy port to be 10999 but got %d", proxyPort.ContainerPort)
 						}
-						// Should not have default value 10808
-						if actualProxyPort == 10808 {
-							t.Fatalf("Proxy Port is set to [%d] the default value and was not updated to [10999]", actualProxyPort)
-						}
-						// Should have the value we expect (10999)
-						if actualProxyPort != 10999 {
-							t.Fatalf("Proxy Port is set to [%d] and was not updated to [10999]", actualProxyPort)
-						}
-
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
-						// y, _ := yaml.Marshal(sidecar)
-						// fmt.Println(string(y))
-
-						if len(sidecar.Container.Ports) == 0 {
-							t.Fatal("No ports found in sidecar")
-						}
-
 						var proxyPort *corev1.ContainerPort
 						for _, p := range sidecar.Container.Ports {
 							if p.Name == "proxy" {
@@ -156,33 +103,78 @@ func TestVersions(t *testing.T) {
 							}
 						}
 						if proxyPort == nil {
-							t.Fatal("No proxy port found in sidecar")
+							t.Fatal("No proxy port found in edge")
 						}
-						actualProxyPort := proxyPort.ContainerPort
-						// Should not have 0
-						if actualProxyPort == 0 {
-							t.Fatal("Proxy Port is set to 0.  Was not updated")
+						if proxyPort.ContainerPort != 10999 {
+							t.Errorf("Expected proxy port to be 10999 but got %d", proxyPort.ContainerPort)
 						}
-						// Should not have default value 10808
-						if actualProxyPort == 10808 {
-							t.Fatalf("Proxy Port is set to [%d] the default value and was not updated to [10999]", actualProxyPort)
+					},
+				},
+				{
+					name:    "SPIRE",
+					options: []InstallOption{SPIRE},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						// unimplemented
+					},
+					checkSidecar: func(t *testing.T, sidecar Sidecar) {
+						// unimplemented
+					},
+				},
+				{
+					name:    "Redis internal",
+					options: []InstallOption{InstallNamespace("ns"), Redis("")},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						// unimplemented
+					},
+					checkSidecar: func(t *testing.T, sidecar Sidecar) {
+						// unimplemented
+					},
+				},
+				{
+					name:    "Redis external",
+					options: []InstallOption{Redis("redis://:pass@extserver:6379/2")},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						// unimplemented
+					},
+					checkSidecar: func(t *testing.T, sidecar Sidecar) {
+						// unimplemented
+					},
+				},
+				{
+					name: "UserTokens",
+					options: []InstallOption{UserTokens(`[
+						{
+							"label": "CN=engineer,OU=engineering,O=Decipher,=Alexandria,=Virginia,C=US",
+							"values": {
+								"email": ["engineering@greymatter.io"],
+								"org": ["www.greymatter.io"],
+								"privilege": ["root"]
+							}
 						}
-						// Should have the value we expect (10999)
-						if actualProxyPort != 10999 {
-							t.Fatalf("Proxy Port is set to [%d] and was not updated to [10999]", actualProxyPort)
-						}
-
+					]`)},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						// unimplemented
+						y, _ := yaml.Marshal(manifests)
+						fmt.Println(string(y))
+					},
+					checkSidecar: func(t *testing.T, sidecar Sidecar) {
+						// unimplemented
+					},
+				},
+				{
+					name:    "JWTSecrets",
+					options: []InstallOption{JWTSecrets},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						// unimplemented
+					},
+					checkSidecar: func(t *testing.T, sidecar Sidecar) {
+						// unimplemented
 					},
 				},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
 					v := version.Copy()
 					v.Apply(tc.options...)
-
-					// if tc.name == "InstallNamespace option" {
-					// 	fmt.Println(v.cue)
-					// }
-
 					if err := v.cue.Err(); err != nil {
 						logCueErrors(err)
 						t.Fatal()

@@ -26,9 +26,12 @@ func (i *Installer) ApplyMesh(mesh *v1alpha1.Mesh, init bool) {
 	// Assume the value is valid since the CRD enumerates acceptable values for the apiserver.
 	v := i.versions[mesh.Spec.ReleaseVersion].Copy()
 
-	// Apply options for mutating the version copy's internal Cue value
-	// These options are defined in the Mesh CR as well as the bootstrap config.
-	opts := append(mesh.InstallOptions(), version.ImagePullSecretName(i.imagePullSecret.Name))
+	// Apply options for mutating the version copy's internal Cue value.
+	opts := append(
+		mesh.InstallOptions(),
+		version.ImagePullSecretName(i.imagePullSecret.Name),
+		version.JWTSecrets,
+	)
 	v.Apply(opts...)
 
 	// Generate manifests from install configs and send them to the apiserver.
@@ -42,7 +45,7 @@ func (i *Installer) ApplyMesh(mesh *v1alpha1.Mesh, init bool) {
 
 	// TODO: ERROR HANDLE APPLY CALLS !!!
 
-	// Create the imagePullSecret in the namespace prior to installing core services
+	// Create a Docker image pull secret and service account in this namespace if this Mesh is new.
 	if init {
 		secret := i.imagePullSecret.DeepCopy()
 		secret.Namespace = mesh.Namespace
@@ -55,32 +58,44 @@ func (i *Installer) ApplyMesh(mesh *v1alpha1.Mesh, init bool) {
 
 MANIFEST_LOOP:
 	for _, group := range manifests {
-		if group.Deployment.Name == "gm-redis" && mesh.Spec.ExternalRedis != nil && mesh.Spec.ExternalRedis.URL != "" {
+		// If an external Redis server is configured, don't install an internal Redis.
+		if group.StatefulSet != nil &&
+			group.StatefulSet.Name == "gm-redis" &&
+			mesh.Spec.ExternalRedis != nil &&
+			mesh.Spec.ExternalRedis.URL != "" {
 			continue MANIFEST_LOOP
 		}
+
 		for _, configMap := range group.ConfigMaps {
 			i.apply(configMap, mesh, scheme)
 		}
-		i.apply(group.Deployment, mesh, scheme)
+		for _, secret := range group.Secrets {
+			i.apply(secret, mesh, scheme)
+		}
 		for _, service := range group.Services {
 			i.apply(service, mesh, scheme)
+		}
+		if group.Deployment != nil {
+			i.apply(group.Deployment, mesh, scheme)
+		}
+		if group.StatefulSet != nil {
+			i.apply(group.StatefulSet, mesh, scheme)
 		}
 	}
 }
 
 func (i *Installer) apply(obj client.Object, mesh *v1alpha1.Mesh, scheme *runtime.Scheme) error {
 	var kind string
-	gvk, err := apiutil.GVKForObject(obj.(runtime.Object), scheme)
-	if err != nil {
+	if gvk, err := apiutil.GVKForObject(obj.(runtime.Object), scheme); err != nil {
 		kind = "Object"
 	} else {
 		kind = gvk.Kind
 	}
 
 	// Set an owner reference on the manifest for garbage collection if the mesh is deleted.
-	if mesh != nil && scheme != nil {
+	if mesh != nil {
 		if err := controllerutil.SetOwnerReference(mesh, obj, scheme); err != nil {
-			logger.Error(err, "Failed SetOwnerReference", "Namespace", mesh.Namespace, "Mesh", mesh.Name, kind, obj.GetName())
+			logger.Error(err, "Failed SetOwnerReference", "Mesh", mesh.Name, "Namespace", obj.GetNamespace(), kind, obj.GetName())
 			return err
 		}
 	}
@@ -88,10 +103,19 @@ func (i *Installer) apply(obj client.Object, mesh *v1alpha1.Mesh, scheme *runtim
 	// TODO: Ensure no mutateFn callback is needed for updates.
 	// TODO: Use controllerutil.OperationResult to update Mesh.Status with an event stream of what was created, updated, etc.
 	if _, err := controllerutil.CreateOrUpdate(context.TODO(), i.client, obj, func() error { return nil }); err != nil {
-		logger.Error(err, "Failed CreateOrUpdate", "Namespace", mesh.Namespace, "Mesh", mesh.Name, kind, obj.GetName())
+		if mesh != nil {
+			logger.Error(err, "Failed CreateOrUpdate", "Mesh", mesh.Name, "Namespace", obj.GetNamespace(), kind, obj.GetName())
+		} else {
+			logger.Error(err, "Failed CreateOrUpdate", "Namespace", obj.GetNamespace(), kind, obj.GetName())
+		}
 		return err
 	}
-	logger.Info("Applied", "Namespace", mesh.Namespace, "Mesh", mesh.Name, kind, obj.GetName())
+
+	if mesh != nil {
+		logger.Info("Applied", "Mesh", mesh.Name, "Namespace", obj.GetNamespace(), kind, obj.GetName())
+	} else {
+		logger.Info("Applied", "Namespace", obj.GetNamespace(), kind, obj.GetName())
+	}
 
 	return nil
 }
@@ -122,7 +146,7 @@ func (i *Installer) applyServiceAccount(sa *corev1.ServiceAccount, mesh *v1alpha
 		Name:      sa.Name,
 		Namespace: sa.Namespace,
 	})
-	if err := i.apply(crb, nil, nil); err != nil {
+	if err := i.apply(crb, nil, scheme); err != nil {
 		return err
 	}
 
