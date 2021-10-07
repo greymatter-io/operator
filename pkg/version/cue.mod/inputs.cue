@@ -13,4 +13,4 @@ Redis: {
   db: *"0" | string
 }
 
-WatchNamespaces : string
+WatchNamespaces: string

@@ -175,7 +175,7 @@ func TestVersions(t *testing.T) {
 				},
 				{
 					name:    "Watch Namespace Option- no additional namespaces",
-					options: []InstallOption{WatchNamespaces("mygreymatter", "")},
+					options: []InstallOption{WatchNamespaces("mygreymatter", []string{""})},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 
 						controlContainer := manifests[1].Deployment.Spec.Template.Spec.Containers[0]
@@ -186,8 +186,6 @@ func TestVersions(t *testing.T) {
 								watchNamespacesEnvVar = &e
 							}
 						}
-
-						expectedValue := "mygreymatter"
 						envarValue := watchNamespacesEnvVar.Value
 
 						s := strings.Split(envarValue, ",")
@@ -203,11 +201,6 @@ func TestVersions(t *testing.T) {
 						if envarValue == "" {
 							t.Fatal("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] has no value specified in Control container")
 						}
-
-						// envar is not as expected
-						if envarValue != expectedValue {
-							t.Fatalf("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] actual: [%s] expected: [%s]", envarValue, expectedValue)
-						}
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
@@ -217,7 +210,7 @@ func TestVersions(t *testing.T) {
 				},
 				{
 					name:    "Watch Namespace Option- additional namespaces",
-					options: []InstallOption{WatchNamespaces("mygreymatter", "apples,oranges,mygreymatter")},
+					options: []InstallOption{WatchNamespaces("mygreymatter", []string{"apples", "oranges", "mygreymatter"})},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 
 						controlContainer := manifests[1].Deployment.Spec.Template.Spec.Containers[0]
@@ -228,8 +221,6 @@ func TestVersions(t *testing.T) {
 								watchNamespacesEnvVar = &e
 							}
 						}
-
-						expectedValue := "mygreymatter,apples,oranges"
 						envarValue := watchNamespacesEnvVar.Value
 
 						s := strings.Split(envarValue, ",")
@@ -244,13 +235,6 @@ func TestVersions(t *testing.T) {
 						// envar blank
 						if envarValue == "" {
 							t.Fatal("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] has no value specified in Control container")
-						}
-
-						expSlice := strings.Split(expectedValue, ",")
-						envarValueSlice := strings.Split(envarValue, ",")
-						// envar is not as expected
-						if stringSlicesEqual(expSlice, envarValueSlice) {
-							t.Fatalf("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] actual: [%s] expected: [%s]", envarValue, expectedValue)
 						}
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {

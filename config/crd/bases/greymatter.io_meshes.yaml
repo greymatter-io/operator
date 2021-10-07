@@ -61,12 +61,12 @@ spec:
                 - "1.7"
                 type: string
               watch_namespaces:
-                description: The other namespaces the control shouls monitor (Should
-                  not include the namespace the mesh lives in)
-                pattern: ([\S]+,)*([\S]+)
-                type: string
-            required:
-            - watch_namespaces
+                description: Namespaces the mesh data plane should include in its
+                  network (in addition to the namespace where the Mesh control plane
+                  is being installed)
+                items:
+                  type: string
+                type: array
             type: object
           status:
             description: Describes the observed state of a Grey Matter mesh.
