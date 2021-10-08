@@ -17,9 +17,9 @@ case $1 in
   push)
     make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
     make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
-    oc delete pod -n gm-operator -l control-plane=controller-manager
     ;;
-  run)
+  deploy)
+    ./scripts/dev push
     make packagemanifests VERSION=0.0.1 CHANNEL=alpha IS_CHANNEL_DEFAULT=1
     format_packagemanifests 0.0.1
     operator-sdk run packagemanifests -n gm-operator --version 0.0.1
@@ -29,13 +29,14 @@ case $1 in
     ./scripts/dev cleanup
     make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
     make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
-    ./scripts/dev run
+    ./scripts/dev deploy
     ;;
   logs)
     oc logs -n gm-operator -l control-plane=controller-manager -c manager -f
     ;;
   cleanup)
     operator-sdk cleanup -n gm-operator gm-operator
+    oc delete clusterrole gm-control
     ;;
   *)
     echo "invalid argument $1"

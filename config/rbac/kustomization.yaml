@@ -16,6 +16,3 @@ resources:
 - auth_proxy_role.yaml
 - auth_proxy_role_binding.yaml
 - auth_proxy_client_clusterrole.yaml
-# Register a ClusterRole, ClusterRoleBinding, and ServiceAccount
-# to be re-created and used by Grey Matter Control in each mesh.
-- control_pod_watcher.yaml

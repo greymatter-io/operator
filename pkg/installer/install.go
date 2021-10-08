@@ -9,6 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,28 +39,33 @@ func (i *Installer) ApplyMesh(mesh *v1alpha1.Mesh, init bool) {
 	// Generate manifests from install configs and send them to the apiserver.
 	manifests := v.Manifests()
 
+	// Obtain the scheme used by our client for
+	scheme := i.client.Scheme()
+
+	// Create a Docker image pull secret and service account in this namespace if this Mesh is new.
+	if init {
+		if mesh.Namespace != "gm-operator" {
+			secret := i.imagePullSecret.DeepCopy()
+			secret.Namespace = mesh.Namespace
+			i.apply(secret, mesh, scheme)
+		}
+		// If this is the first mesh, setup RBAC for control plane service accounts to view pods.
+		if len(i.sidecars) == 0 {
+			i.applyClusterRBAC()
+		}
+		i.applyServiceAccount(mesh, scheme)
+	}
+
 	// Save this mesh's Proxy InstallConfig to use later for sidecar injection
 	// TODO: Inject sidecars into existing deployments and statefulsets!
 	i.sidecars[mesh.Name] = v.Sidecar()
 
-	// Obtain the scheme used by our client for
-	scheme := i.client.Scheme()
-
-	// TODO: ERROR HANDLE APPLY CALLS !!!
-
-	// Create a Docker image pull secret and service account in this namespace if this Mesh is new.
-	if init {
-		secret := i.imagePullSecret.DeepCopy()
-		secret.Namespace = mesh.Namespace
-		i.apply(secret, mesh, scheme)
-
-		sa := i.serviceAccount.DeepCopy()
-		sa.Namespace = mesh.Namespace
-		i.applyServiceAccount(sa, mesh, scheme)
-	}
-
 	for _, namespace := range mesh.Spec.WatchNamespaces {
-		fmt.Println("TODO: Inject imagePullSecret into watch namespace", namespace)
+		if namespace != mesh.Namespace {
+			secret := i.imagePullSecret.DeepCopy()
+			secret.Namespace = namespace
+			i.apply(secret, mesh, scheme)
+		}
 	}
 
 MANIFEST_LOOP:
@@ -90,7 +96,7 @@ MANIFEST_LOOP:
 	}
 }
 
-func (i *Installer) apply(obj client.Object, mesh *v1alpha1.Mesh, scheme *runtime.Scheme) error {
+func (i *Installer) apply(obj, owner client.Object, scheme *runtime.Scheme) {
 	var kind string
 	if gvk, err := apiutil.GVKForObject(obj.(runtime.Object), scheme); err != nil {
 		kind = "Object"
@@ -99,52 +105,103 @@ func (i *Installer) apply(obj client.Object, mesh *v1alpha1.Mesh, scheme *runtim
 	}
 
 	// Set an owner reference on the manifest for garbage collection if the mesh is deleted.
-	if mesh != nil {
-		if err := controllerutil.SetOwnerReference(mesh, obj, scheme); err != nil {
-			logger.Error(err, "Failed SetOwnerReference", "Mesh", mesh.Name, "Namespace", obj.GetNamespace(), kind, obj.GetName())
-			return err
+	if owner != nil {
+		if err := controllerutil.SetOwnerReference(owner, obj, scheme); err != nil {
+			logger.Error(err, "Failed SetOwnerReference", "Owner", owner.GetName(), "Namespace", obj.GetNamespace(), kind, obj.GetName())
+			return
 		}
 	}
-	// https://github.com/kubernetes-sigs/controller-runtime/blob/master/pkg/controller/controllerutil/example_test.go#L35
-	// TODO: Ensure no mutateFn callback is needed for updates.
-	// TODO: Use controllerutil.OperationResult to update Mesh.Status with an event stream of what was created, updated, etc.
-	if _, err := controllerutil.CreateOrUpdate(context.TODO(), i.client, obj, func() error { return nil }); err != nil {
-		if mesh != nil {
-			logger.Error(err, "Failed CreateOrUpdate", "Mesh", mesh.Name, "Namespace", obj.GetNamespace(), kind, obj.GetName())
+
+	action, result, err := createOrUpdate(context.TODO(), i.client, obj)
+	if err != nil {
+		if owner != nil {
+			logger.Error(err, fmt.Sprintf("Failed %s", action), "Owner", owner.GetName(), "Namespace", obj.GetNamespace(), kind, obj.GetName())
 		} else {
-			logger.Error(err, "Failed CreateOrUpdate", "Namespace", obj.GetNamespace(), kind, obj.GetName())
+			logger.Error(err, fmt.Sprintf("Failed %s", action), "Namespace", obj.GetNamespace(), kind, obj.GetName())
 		}
-		return err
+		return
 	}
 
-	if mesh != nil {
-		logger.Info("Applied", "Mesh", mesh.Name, "Namespace", obj.GetNamespace(), kind, obj.GetName())
+	if owner != nil {
+		logger.Info(fmt.Sprintf("Applied %s", action), "Result", result, "Mesh", owner.GetName(), "Namespace", obj.GetNamespace(), kind, obj.GetName())
 	} else {
-		logger.Info("Applied", "Namespace", obj.GetNamespace(), kind, obj.GetName())
+		logger.Info(fmt.Sprintf("Applied %s", action), "Result", result, "Namespace", obj.GetNamespace(), kind, obj.GetName())
 	}
-
-	return nil
 }
 
-func (i *Installer) applyServiceAccount(sa *corev1.ServiceAccount, mesh *v1alpha1.Mesh, scheme *runtime.Scheme) error {
-	if err := i.apply(sa, mesh, scheme); err != nil {
-		return err
-	}
+func createOrUpdate(ctx context.Context, c client.Client, obj client.Object) (string, controllerutil.OperationResult, error) {
+	key := client.ObjectKeyFromObject(obj)
 
-	crb := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "gm-control"}}
-	if err := i.client.Get(context.TODO(), client.ObjectKeyFromObject(crb), crb); err != nil {
-		logger.Error(err, "Failed Get", "ClusterRoleBinding", "gm-control")
-		return err
-	}
-
-	var found bool
-	for _, sub := range crb.Subjects {
-		if sub.Kind == "ServiceAccount" && sub.Name == sa.Name && sub.Namespace == sa.Namespace {
-			found = true
+	// Make a pointer copy of the object so that our actual object is not modified by client.Get.
+	// This way, the object passed into client.Update still has our desired state.
+	existing := obj.DeepCopyObject()
+	if err := c.Get(ctx, key, existing.(client.Object)); err != nil {
+		if !errors.IsNotFound(err) {
+			return "create/update", controllerutil.OperationResultNone, err
 		}
+		if err := c.Create(ctx, obj); err != nil {
+			return "create", controllerutil.OperationResultNone, err
+		}
+		return "create", controllerutil.OperationResultCreated, nil
 	}
-	if found {
-		return nil
+
+	if err := c.Update(ctx, obj); err != nil {
+		return "update", controllerutil.OperationResultNone, err
+	}
+
+	return "update", controllerutil.OperationResultUpdated, nil
+}
+
+func (i *Installer) applyClusterRBAC() {
+	cr := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{Name: "gm-control"},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods"},
+				Verbs:     []string{"get", "list"},
+			},
+		},
+	}
+	i.apply(cr, nil, i.client.Scheme())
+
+	crb := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: "gm-control"},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "gm-control",
+		},
+		Subjects: []rbacv1.Subject{},
+	}
+	i.apply(crb, cr, i.client.Scheme())
+}
+
+func (i *Installer) applyServiceAccount(mesh *v1alpha1.Mesh, scheme *runtime.Scheme) {
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "gm-control",
+			Namespace: mesh.Namespace,
+		},
+		AutomountServiceAccountToken: func() *bool {
+			b := true
+			return &b
+		}(),
+	}
+	i.apply(sa, mesh, scheme)
+
+	crb := &rbacv1.ClusterRoleBinding{}
+	if err := i.client.Get(context.TODO(), client.ObjectKey{Name: "gm-control"}, crb); err != nil {
+		logger.Error(err, "Failed Get", "ClusterRoleBinding", "gm-control")
+		return
+	}
+
+	for _, subject := range crb.Subjects {
+		if subject.Kind == "ServiceAccount" &&
+			subject.Name == sa.Name &&
+			subject.Namespace == sa.Namespace {
+			return
+		}
 	}
 
 	crb.Subjects = append(crb.Subjects, rbacv1.Subject{
@@ -152,11 +209,8 @@ func (i *Installer) applyServiceAccount(sa *corev1.ServiceAccount, mesh *v1alpha
 		Name:      sa.Name,
 		Namespace: sa.Namespace,
 	})
-	if err := i.apply(crb, nil, scheme); err != nil {
-		return err
-	}
 
-	return nil
+	i.apply(crb, nil, scheme)
 }
 
 // Removes all resources created for installing Grey Matter core components of a mesh.

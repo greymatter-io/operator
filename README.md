@@ -80,7 +80,7 @@ kubectl create secret docker-registry gm-docker-secret \
 Finally, the following commands will build an internal container image, push it to Nexus, and install the operator to a custom catalog in your configured OpenShift cluster to be managed by the Operator Lifecycle Manager:
 
 ```
-./scripts/dev run
+./scripts/dev deploy
 ```
 
 To remove the operator from your configured OpenShift cluster:
