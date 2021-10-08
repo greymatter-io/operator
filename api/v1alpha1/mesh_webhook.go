@@ -24,6 +24,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
+//+kubebuilder:webhook:path=/mutate-mesh,mutating=true,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update,versions=v1alpha1,name=mutate-mesh-webhook.greymatter.io,admissionReviewVersions={v1,v1beta1}
+//+kubebuilder:webhook:path=/validate-mesh,mutating=false,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update;delete,versions=v1alpha1,name=validate-mesh-webhook.greymatter.io,admissionReviewVersions={v1,v1beta1}
+
 // Installer callbacks declared in the Webhook setup function which will be called by each Webhook event
 // These are initialized here as no-ops for testing.
 var (
@@ -40,7 +43,7 @@ func (r *Mesh) SetupWebhooks(mgr ctrl.Manager, install func(*Mesh, bool), uninst
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-greymatter-io-v1alpha1-mesh,mutating=true,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update,versions=v1alpha1,name=mmesh.kb.io,admissionReviewVersions={v1,v1beta1}
+///+kubebuilder:webhook:path=/mutate-greymatter-io-v1alpha1-mesh,mutating=true,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update,versions=v1alpha1,name=mmesh.kb.io,admissionReviewVersions={v1,v1beta1}
 
 var _ webhook.Defaulter = &Mesh{}
 
@@ -49,7 +52,7 @@ func (r *Mesh) Default() {
 	fmt.Printf("Default: %#v\n", r.Spec)
 }
 
-//+kubebuilder:webhook:path=/validate-greymatter-io-v1alpha1-mesh,mutating=false,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update;delete,versions=v1alpha1,name=vmesh.kb.io,admissionReviewVersions={v1,v1beta1}
+///+kubebuilder:webhook:path=/validate-greymatter-io-v1alpha1-mesh,mutating=false,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update;delete,versions=v1alpha1,name=vmesh.kb.io,admissionReviewVersions={v1,v1beta1}
 
 var _ webhook.Validator = &Mesh{}
 

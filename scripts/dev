@@ -27,8 +27,6 @@ case $1 in
     ;;
   upgrade)
     ./scripts/dev cleanup
-    make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
-    make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
     ./scripts/dev deploy
     ;;
   logs)

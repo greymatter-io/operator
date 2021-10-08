@@ -123,13 +123,13 @@ func (i *Installer) apply(obj, owner client.Object, scheme *runtime.Scheme) {
 	}
 
 	if owner != nil {
-		logger.Info(fmt.Sprintf("Applied %s", action), "Result", result, "Mesh", owner.GetName(), "Namespace", obj.GetNamespace(), kind, obj.GetName())
+		logger.Info(action, "Result", result, "Mesh", owner.GetName(), "Namespace", obj.GetNamespace(), kind, obj.GetName())
 	} else {
-		logger.Info(fmt.Sprintf("Applied %s", action), "Result", result, "Namespace", obj.GetNamespace(), kind, obj.GetName())
+		logger.Info(action, "Result", result, "Namespace", obj.GetNamespace(), kind, obj.GetName())
 	}
 }
 
-func createOrUpdate(ctx context.Context, c client.Client, obj client.Object) (string, controllerutil.OperationResult, error) {
+func createOrUpdate(ctx context.Context, c client.Client, obj client.Object) (string, string, error) {
 	key := client.ObjectKeyFromObject(obj)
 
 	// Make a pointer copy of the object so that our actual object is not modified by client.Get.
@@ -137,19 +137,19 @@ func createOrUpdate(ctx context.Context, c client.Client, obj client.Object) (st
 	existing := obj.DeepCopyObject()
 	if err := c.Get(ctx, key, existing.(client.Object)); err != nil {
 		if !errors.IsNotFound(err) {
-			return "create/update", controllerutil.OperationResultNone, err
+			return "create/update", "fail", err
 		}
 		if err := c.Create(ctx, obj); err != nil {
-			return "create", controllerutil.OperationResultNone, err
+			return "create", "fail", err
 		}
-		return "create", controllerutil.OperationResultCreated, nil
+		return "create", "success", nil
 	}
 
 	if err := c.Update(ctx, obj); err != nil {
-		return "update", controllerutil.OperationResultNone, err
+		return "update", "fail", err
 	}
 
-	return "update", controllerutil.OperationResultUpdated, nil
+	return "update", "success", nil
 }
 
 func (i *Installer) applyClusterRBAC() {

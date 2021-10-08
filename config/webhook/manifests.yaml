@@ -13,9 +13,9 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-greymatter-io-v1alpha1-mesh
+      path: /mutate-mesh
   failurePolicy: Fail
-  name: mmesh.kb.io
+  name: mutate-mesh-webhook.greymatter.io
   rules:
   - apiGroups:
     - greymatter.io
@@ -42,9 +42,9 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-greymatter-io-v1alpha1-mesh
+      path: /validate-mesh
   failurePolicy: Fail
-  name: vmesh.kb.io
+  name: validate-mesh-webhook.greymatter.io
   rules:
   - apiGroups:
     - greymatter.io

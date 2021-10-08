@@ -24,6 +24,7 @@ import (
 	"github.com/greymatter-io/operator/pkg/bootstrap"
 	"github.com/greymatter-io/operator/pkg/clients"
 	"github.com/greymatter-io/operator/pkg/installer"
+	"github.com/greymatter-io/operator/pkg/webhooks"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -149,11 +150,12 @@ func main() {
 		logger.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+	webhooks.Register(mgr, inst)
 
-	if err = (&v1alpha1.Mesh{}).SetupWebhooks(mgr, inst.ApplyMesh, inst.RemoveMesh); err != nil {
-		logger.Error(err, "unable to create webhook", "webhook", "Mesh")
-		os.Exit(1)
-	}
+	// if err = (&v1alpha1.Mesh{}).SetupWebhooks(mgr, inst.ApplyMesh, inst.RemoveMesh); err != nil {
+	// 	logger.Error(err, "unable to create webhook", "webhook", "Mesh")
+	// 	os.Exit(1)
+	// }
 
 	//+kubebuilder:scaffold:builder
 
