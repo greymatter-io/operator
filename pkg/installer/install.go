@@ -219,7 +219,7 @@ func (i *Installer) applyServiceAccount(mesh *v1alpha1.Mesh, scheme *runtime.Sch
 func (i *Installer) RemoveMesh(name string) {
 }
 
-// Given a slice of corev1.Containers, injects sidecar(s) to enable traffic for each mesh specified.
-func (i *Installer) Inject(containers []corev1.Container, xdsCluster string, meshes []string) []corev1.Container {
+// Given a slice of corev1.Containers, injects a sidecar to enable traffic for each mesh specified.
+func (i *Installer) InjectSidecar(containers []corev1.Container, xdsCluster, mesh string) []corev1.Container {
 	return containers
 }

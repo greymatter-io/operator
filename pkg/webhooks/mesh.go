@@ -5,14 +5,13 @@ import (
 	"net/http"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
-	"github.com/greymatter-io/operator/pkg/installer"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 type meshDefaulter struct {
-	inst    *installer.Installer
+	inst
 	decoder *admission.Decoder
 }
 
@@ -36,7 +35,7 @@ func (md *meshDefaulter) InjectDecoder(d *admission.Decoder) error {
 }
 
 type meshValidator struct {
-	inst    *installer.Installer
+	inst
 	decoder *admission.Decoder
 }
 
@@ -48,11 +47,11 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 
 	switch req.Operation {
 	case admissionv1.Create:
-		go mv.inst.ApplyMesh(mesh, true)
+		go mv.ApplyMesh(mesh, true)
 	case admissionv1.Update:
-		go mv.inst.ApplyMesh(mesh, false)
+		go mv.ApplyMesh(mesh, false)
 	case admissionv1.Delete:
-		go mv.inst.RemoveMesh(mesh.Name)
+		go mv.RemoveMesh(mesh.Name)
 	}
 
 	return admission.ValidationResponse(true, "allowed")
