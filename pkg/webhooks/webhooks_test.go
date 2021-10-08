@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package webhooks
 
 import (
 	"context"
@@ -25,8 +25,9 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
 
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	//+kubebuilder:scaffold:imports
@@ -49,19 +50,22 @@ var ctx context.Context
 var cancel context.CancelFunc
 
 func TestAPIs(t *testing.T) {
-	RegisterFailHandler(Fail)
+	// TODO: Hook up test suite
+	t.Skip()
 
-	RunSpecsWithDefaultAndCustomReporters(t,
+	gomega.RegisterFailHandler(ginkgo.Fail)
+
+	ginkgo.RunSpecsWithDefaultAndCustomReporters(t,
 		"Webhook Suite",
-		[]Reporter{printer.NewlineReporter{}})
+		[]ginkgo.Reporter{printer.NewlineReporter{}})
 }
 
-var _ = BeforeSuite(func() {
-	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
+var _ = ginkgo.BeforeSuite(func() {
+	logf.SetLogger(zap.New(zap.WriteTo(ginkgo.GinkgoWriter), zap.UseDevMode(true)))
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
-	By("bootstrapping test environment")
+	ginkgo.By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: false,
@@ -71,21 +75,21 @@ var _ = BeforeSuite(func() {
 	}
 
 	cfg, err := testEnv.Start()
-	Expect(err).NotTo(HaveOccurred())
-	Expect(cfg).NotTo(BeNil())
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	gomega.Expect(cfg).NotTo(gomega.BeNil())
 
 	scheme := runtime.NewScheme()
-	err = AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
+	err = v1alpha1.AddToScheme(scheme)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 	err = admissionv1beta1.AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
 
 	k8sClient, err := client.New(cfg, client.Options{Scheme: scheme})
-	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	gomega.Expect(k8sClient).NotTo(gomega.BeNil())
 
 	// start webhook server using Manager
 	webhookInstallOptions := &testEnv.WebhookInstallOptions
@@ -97,37 +101,36 @@ var _ = BeforeSuite(func() {
 		LeaderElection:     false,
 		MetricsBindAddress: "0",
 	})
-	Expect(err).NotTo(HaveOccurred())
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	err = (&Mesh{}).SetupWebhooks(mgr, applyInstall, applyUninstall)
-	Expect(err).NotTo(HaveOccurred())
+	// webhooks.Register(mgr, interface)
 
 	//+kubebuilder:scaffold:webhook
 
 	go func() {
 		err = mgr.Start(ctx)
 		if err != nil {
-			Expect(err).NotTo(HaveOccurred())
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		}
 	}()
 
 	// wait for the webhook server to get ready
 	dialer := &net.Dialer{Timeout: time.Second}
 	addrPort := fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort)
-	Eventually(func() error {
+	gomega.Eventually(func() error {
 		conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true})
 		if err != nil {
 			return err
 		}
 		conn.Close()
 		return nil
-	}).Should(Succeed())
+	}).Should(gomega.Succeed())
 
 }, 60)
 
-var _ = AfterSuite(func() {
+var _ = ginkgo.AfterSuite(func() {
 	cancel()
-	By("tearing down the test environment")
+	ginkgo.By("tearing down the test environment")
 	err := testEnv.Stop()
-	Expect(err).NotTo(HaveOccurred())
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 })
