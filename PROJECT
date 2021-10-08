@@ -9,8 +9,13 @@ repo: github.com/greymatter-io/operator
 resources:
 - api:
     crdVersion: v1
+    namespaced: true
   domain: greymatter.io
   kind: Mesh
   path: github.com/greymatter-io/operator/api/v1alpha1
   version: v1alpha1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
 version: "3"

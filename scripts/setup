@@ -2,6 +2,4 @@
 
 set -e
 
-# TODO: Create required files, print help
-
 ./scripts/bootstrap

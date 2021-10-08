@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	// "github.com/ghodss/yaml"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -12,32 +13,29 @@ import (
 func TestVersions(t *testing.T) {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	versions, err := Load()
+	versions, err := loadBaseWithVersions()
 	if err != nil {
 		logCueErrors(err)
 		t.Fatal()
 	}
 
-	for name, version := range versions {
-		if version.cue.Err(); err != nil {
+	for name, v := range versions {
+		if v.cue.Err(); err != nil {
 			logCueErrors(err)
 			t.Fatal()
 		}
 
 		t.Run(name, func(t *testing.T) {
 			t.Run("manifests", func(t *testing.T) {
-				// fmt.Println(version.cue.LookupPath(cue.ParsePath("edge")))
-				// TODO: Check values in manifests
-				// manifests := version.Manifests()
-				// y, _ := yaml.Marshal(manifests)
-				// fmt.Println(string(y))
+				v.Manifests()
+				// unimplemented
+				// all expected manifests exist
 			})
 
 			t.Run("sidecar", func(t *testing.T) {
-				// TODO: Check values in sidecar
-				// sidecar := version.Sidecar()
-				// y, _ := yaml.Marshal(sidecar)
-				// fmt.Println(string(y))
+				v.Sidecar()
+				// unimplemented
+				// all expected manifests exist
 			})
 
 			for _, tc := range []struct {
@@ -47,77 +45,74 @@ func TestVersions(t *testing.T) {
 				checkSidecar   func(*testing.T, Sidecar)
 			}{
 				{
-					name:    "Namespace option",
-					options: []InstallOption{Namespace("ns")},
+					name:    "InstallNamespace",
+					options: []InstallOption{InstallNamespace("ns")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-						// y, _ := yaml.Marshal(manifests)
-						// fmt.Println(string(y))
+						// each manifest references install namespace
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
-						// y, _ := yaml.Marshal(sidecar)
-						// fmt.Println(string(y))
+						// each manifest references install namespace
 					},
 				},
 				{
-					name:    "SPIRE option",
-					options: []InstallOption{SPIRE},
+					name:    "WatchNamespaces",
+					options: []InstallOption{WatchNamespaces("install", "install", "apples", "oranges", "apples")},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						control := manifests[3].Deployment.Spec.Template.Spec.Containers[0]
+						var namespaces []string
+						for _, e := range control.Env {
+							if e.Name == "GM_CONTROL_KUBERNETES_NAMESPACES" {
+								namespaces = strings.Split(e.Value, ",")
+							}
+						}
+						if count := len(namespaces); count != 3 {
+							t.Fatalf("Expected len(namespaces) to be 3 but got %d: %v", count, namespaces)
+						}
+						set := make(map[string]struct{})
+						for _, namespace := range namespaces {
+							set[namespace] = struct{}{}
+						}
+						for _, namespace := range []string{"install", "apples", "oranges"} {
+							if _, ok := set[namespace]; !ok {
+								t.Errorf("Expected namespaces to contain %s: got %v", namespace, namespaces)
+							}
+						}
+					},
+				},
+				{
+					name:    "Zone",
+					options: []InstallOption{Zone("myzone")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-						// y, _ := yaml.Marshal(manifests)
-						// fmt.Println(string(y))
+						// edge XDS_ZONE env var references zone
+						// control and control api env vars reference zone (key and name)
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
-						// y, _ := yaml.Marshal(sidecar)
-						// fmt.Println(string(y))
+						// sidecar XDS_ZONE env var references zone
 					},
 				},
 				{
-					name:    "Redis internal option",
-					options: []InstallOption{Namespace("ns"), Redis("")},
+					name:    "ImagePullSecretName",
+					options: []InstallOption{Zone("mysecret")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-						// y, _ := yaml.Marshal(manifests)
-						// fmt.Println(string(y))
+						// core service deployments reference image pull secret name
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
-						// y, _ := yaml.Marshal(sidecar)
-						// fmt.Println(string(y))
+						// sidecar.ImagePullSecretRef should reference image pull secret name
 					},
 				},
 				{
-					name:    "Redis external option",
-					options: []InstallOption{Redis("redis://:pass@extserver:6379/2")},
-					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-						// unimplemented
-						// y, _ := yaml.Marshal(manifests)
-						// fmt.Println(string(y))
-					},
-					checkSidecar: func(t *testing.T, sidecar Sidecar) {
-						// unimplemented
-						// y, _ := yaml.Marshal(sidecar)
-						// fmt.Println(string(y))
-					},
-				},
-				{
-					name:    "MeshPort option",
+					name:    "MeshPort",
 					options: []InstallOption{MeshPort(10999)},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-						edge := manifests[0]
-						// y, _ := yaml.Marshal(edge)
-						// fmt.Println(string(y))
-
-						edgeContainer := edge.Deployment.Spec.Template.Spec.Containers[0]
-
-						if len(edgeContainer.Ports) == 0 {
-							t.Fatal("No ports found in edge")
-						}
-
+						edge := manifests[0].Deployment.Spec.Template.Spec.Containers[0]
 						var proxyPort *corev1.ContainerPort
-						for _, p := range edgeContainer.Ports {
+						for _, p := range edge.Ports {
 							if p.Name == "proxy" {
 								proxyPort = &p
 							}
@@ -125,29 +120,11 @@ func TestVersions(t *testing.T) {
 						if proxyPort == nil {
 							t.Fatal("No proxy port found in edge")
 						}
-						actualProxyPort := proxyPort.ContainerPort
-						// Should not have 0
-						if actualProxyPort == 0 {
-							t.Fatal("Proxy Port is set to 0.  Was not updated")
+						if proxyPort.ContainerPort != 10999 {
+							t.Errorf("Expected proxy port to be 10999 but got %d", proxyPort.ContainerPort)
 						}
-						// Should not have default value 10808
-						if actualProxyPort == 10808 {
-							t.Fatalf("Proxy Port is set to [%d] the default value and was not updated to [10999]", actualProxyPort)
-						}
-						// Should have the value we expect (10999)
-						if actualProxyPort != 10999 {
-							t.Fatalf("Proxy Port is set to [%d] and was not updated to [10999]", actualProxyPort)
-						}
-
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
-						// y, _ := yaml.Marshal(sidecar)
-						// fmt.Println(string(y))
-
-						if len(sidecar.Container.Ports) == 0 {
-							t.Fatal("No ports found in sidecar")
-						}
-
 						var proxyPort *corev1.ContainerPort
 						for _, p := range sidecar.Container.Ports {
 							if p.Name == "proxy" {
@@ -155,111 +132,84 @@ func TestVersions(t *testing.T) {
 							}
 						}
 						if proxyPort == nil {
-							t.Fatal("No proxy port found in sidecar")
+							t.Fatal("No proxy port found in edge")
 						}
-						actualProxyPort := proxyPort.ContainerPort
-						// Should not have 0
-						if actualProxyPort == 0 {
-							t.Fatal("Proxy Port is set to 0.  Was not updated")
+						if proxyPort.ContainerPort != 10999 {
+							t.Errorf("Expected proxy port to be 10999 but got %d", proxyPort.ContainerPort)
 						}
-						// Should not have default value 10808
-						if actualProxyPort == 10808 {
-							t.Fatalf("Proxy Port is set to [%d] the default value and was not updated to [10999]", actualProxyPort)
-						}
-						// Should have the value we expect (10999)
-						if actualProxyPort != 10999 {
-							t.Fatalf("Proxy Port is set to [%d] and was not updated to [10999]", actualProxyPort)
-						}
-
 					},
 				},
 				{
-					name:    "Watch Namespace Option- no additional namespaces",
-					options: []InstallOption{WatchNamespaces("mygreymatter", []string{})},
+					name:    "SPIRE",
+					options: []InstallOption{SPIRE},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-
-						controlContainer := manifests[1].Deployment.Spec.Template.Spec.Containers[0]
-
-						var watchNamespacesEnvVar *corev1.EnvVar
-						for _, e := range controlContainer.Env {
-							if e.Name == "GM_CONTROL_KUBERNETES_NAMESPACES" {
-								watchNamespacesEnvVar = &e
-							}
-						}
-						envarValue := watchNamespacesEnvVar.Value
-
-						s := strings.Split(envarValue, ",")
-						if len(s) > 1 {
-							t.Fatalf("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] includes too Many Namespaces.  actual: [%s]  expected: [%s]", envarValue, "mygreymatter")
-						}
-
-						// envar not set
-						if watchNamespacesEnvVar == nil {
-							t.Fatal("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] is not set in Control container")
-						}
-						// envar blank
-						if envarValue == "" {
-							t.Fatal("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] has no value specified in Control container")
-						}
+						// unimplemented
+						// edge should have SPIRE settings
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
-						// y, _ := yaml.Marshal(sidecar)
-						// fmt.Println(string(y))
+						// sidecar should have SPIRE settings, plus a volume
 					},
 				},
 				{
-					name:    "Watch Namespace Option- additional namespaces",
-					options: []InstallOption{WatchNamespaces("mygreymatter", []string{"apples", "oranges", "mygreymatter"})},
+					name:    "Redis internal",
+					options: []InstallOption{InstallNamespace("ns"), Redis("")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-
-						// y, _ := yaml.Marshal(manifests)
-						// fmt.Println(string(y))
-
-						controlContainer := manifests[1].Deployment.Spec.Template.Spec.Containers[0]
-
-						var watchNamespacesEnvVar *corev1.EnvVar
-						for _, e := range controlContainer.Env {
-							if e.Name == "GM_CONTROL_KUBERNETES_NAMESPACES" {
-								watchNamespacesEnvVar = &e
+						// unimplemented
+						// check for expected values
+					},
+				},
+				{
+					name:    "Redis external",
+					options: []InstallOption{Redis("redis://:pass@extserver:6379/2")},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						// unimplemented
+						// check for expected values
+					},
+				},
+				{
+					name: "UserTokens",
+					options: []InstallOption{UserTokens(`[
+						{
+							"label": "CN=engineer,OU=engineering,O=Decipher,=Alexandria,=Virginia,C=US",
+							"values": {
+								"email": ["engineering@greymatter.io"],
+								"org": ["www.greymatter.io"],
+								"privilege": ["root"]
 							}
 						}
-						envarValue := watchNamespacesEnvVar.Value
-
-						s := strings.Split(envarValue, ",")
-						if len(s) > 3 {
-							t.Fatalf("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] includes too Many Namespaces.  actual: [%s]  expected: [%s]", envarValue, "mygreymatter")
-						}
-
-						// envar not set
-						if watchNamespacesEnvVar == nil {
-							t.Fatal("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] is not set in Control container")
-						}
-						// envar blank
-						if envarValue == "" {
-							t.Fatal("Environment Variable [GM_CONTROL_KUBERNETES_NAMESPACES] has no value specified in Control container")
-						}
-					},
-					checkSidecar: func(t *testing.T, sidecar Sidecar) {
+					]`)},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-						// y, _ := yaml.Marshal(sidecar)
-						// fmt.Println(string(y))
+						// check for expected configMap and reference to configMap
+					},
+				},
+				{
+					name:    "JWTSecrets",
+					options: []InstallOption{JWTSecrets},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						// unimplemented
+						// check for expected secret and references to secret
 					},
 				},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					vCopy := version.Copy()
-					vCopy.Apply(tc.options...)
-					if err := vCopy.cue.Err(); err != nil {
+					vc := v.Copy()
+					vc.Apply(tc.options...)
+					if err := vc.cue.Err(); err != nil {
 						logCueErrors(err)
 						t.Fatal()
 					}
-					t.Run("manifests", func(t *testing.T) {
-						tc.checkManifests(t, vCopy.Manifests())
-					})
-					t.Run("sidecar", func(t *testing.T) {
-						tc.checkSidecar(t, vCopy.Sidecar())
-					})
+					if tc.checkManifests != nil {
+						t.Run("manifests", func(t *testing.T) {
+							tc.checkManifests(t, vc.Manifests())
+						})
+					}
+					if tc.checkSidecar != nil {
+						t.Run("sidecar", func(t *testing.T) {
+							tc.checkSidecar(t, vc.Sidecar())
+						})
+					}
 				})
 			}
 		})

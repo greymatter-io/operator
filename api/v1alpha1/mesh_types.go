@@ -27,27 +27,40 @@ type MeshSpec struct {
 	// The version of Grey Matter to install for this mesh.
 	// +kubebuilder:validation:Enum="1.6";"1.7"
 	// +kubebuilder:default="1.6"
-	// +optional
 	ReleaseVersion string `json:"release_version"`
+
+	// Defines the port for ingress traffic into the mesh.
+	// +kubebuilder:default=10808
+	MeshPort int32 `json:"mesh_port"`
+
+	// Label this mesh as belonging to a particular zone.
+	// +kubebuilder:default=default-zone
+	Zone string `json:"zone"`
+
+	// Namespaces included in the mesh network.
+	// +optional
+	WatchNamespaces []string `json:"watch_namespaces,omitempty"`
+
+	// Add user tokens to the JWT Security Service.
+	// +optional
+	UserTokens []UserToken `json:"user_tokens,omitempty"`
+
 	// Adds an external Redis provider for caching Grey Matter configuration state.
 	// +optional
-	ExternalRedis ExternalRedisConfig `json:"redis,omitempty"`
-	// Defines port for edge and sidecar to sidecar communication
-	// +kubebuilder:default=10808
-	// +optional
-	MeshPort int32 `json:"mesh_port"`
-	// Namespaces the mesh data plane should include in its network (in addition to the namespace where the Mesh control plane is being installed)
-	WatchNamespaces []string `json:"watch_namespaces,omitempty"`
-	// WatchNamespaces []string
+	ExternalRedis *ExternalRedisConfig `json:"redis,omitempty"`
 }
 
 // Describes the observed state of a Grey Matter mesh.
 type MeshStatus struct {
 }
 
+// Markers for generating manifests for Mesh webhooks.
+//+kubebuilder:webhook:path=/mutate-mesh,mutating=true,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update,versions=v1alpha1,name=mutate-mesh-webhook.greymatter.io,admissionReviewVersions={v1,v1beta1}
+//+kubebuilder:webhook:path=/validate-mesh,mutating=false,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update;delete,versions=v1alpha1,name=validate-mesh-webhook.greymatter.io,admissionReviewVersions={v1,v1beta1}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Namespaced
 
 // The schema used to define a Grey Matter mesh's desired state and describe its observed state.
 type Mesh struct {

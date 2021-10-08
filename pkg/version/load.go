@@ -20,6 +20,14 @@ var (
 )
 
 func Load() (map[string]Version, error) {
+	versions, err := loadBaseWithVersions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load versioned install configurations: %w", err)
+	}
+	return versions, nil
+}
+
+func loadBaseWithVersions() (map[string]Version, error) {
 	base, err := loadBase()
 	if err != nil {
 		return nil, err
@@ -45,7 +53,7 @@ func loadBase() (cue.Value, error) {
 	})
 	base := cuecontext.New().BuildInstance(instances[0])
 	if err := base.Err(); err != nil {
-		return base, errors.Wrap(err.(errors.Error), fmt.Errorf("failed to load base install configuration module"))
+		return base, err
 	}
 
 	logger.Info("Loaded base install configuration module")

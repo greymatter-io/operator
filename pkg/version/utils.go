@@ -16,18 +16,13 @@ func Cue(ss ...string) cue.Value {
 }
 
 func logCueErrors(err error) {
-	// fmt.Printf("%#v\n", cueErr.Position().String())
-	// for _, pos := range errors.Positions(cueErr) {
-	// 	fmt.Printf("%#v\n", pos.String())
-	// }
-	// format, args := cueErr.Msg()
-	// fmt.Printf(format+"\n", args...)
-	for _, e := range errors.Errors(err.(errors.Error)) {
-		// fmt.Printf("%#v\n", e.Position())
-		// fmt.Printf("%#v\n", e.InputPositions())
-		// format, args := e.Msg()
-		// fmt.Printf(format, args...)
-		logger.Error(e, e.Position().String())
+	switch v := err.(type) {
+	case errors.Error:
+		for _, e := range errors.Errors(v) {
+			logger.Error(e, e.Position().String())
+		}
+	default:
+		logger.Error(v, "")
 	}
 }
 

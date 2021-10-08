@@ -14,7 +14,7 @@ spec:
     listKind: MeshList
     plural: meshes
     singular: mesh
-  scope: Cluster
+  scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
@@ -39,7 +39,7 @@ spec:
             properties:
               mesh_port:
                 default: 10808
-                description: Defines port for edge and sidecar to sidecar communication
+                description: Defines the port for ingress traffic into the mesh.
                 format: int32
                 type: integer
               redis:
@@ -60,13 +60,36 @@ spec:
                 - "1.6"
                 - "1.7"
                 type: string
+              user_tokens:
+                description: Add user tokens to the JWT Security Service.
+                items:
+                  properties:
+                    label:
+                      type: string
+                    values:
+                      additionalProperties:
+                        items:
+                          type: string
+                        type: array
+                      type: object
+                  required:
+                  - label
+                  - values
+                  type: object
+                type: array
               watch_namespaces:
-                description: Namespaces the mesh data plane should include in its
-                  network (in addition to the namespace where the Mesh control plane
-                  is being installed)
+                description: Namespaces included in the mesh network.
                 items:
                   type: string
                 type: array
+              zone:
+                default: default-zone
+                description: Label this mesh as belonging to a particular zone.
+                type: string
+            required:
+            - mesh_port
+            - release_version
+            - zone
             type: object
           status:
             description: Describes the observed state of a Grey Matter mesh.
