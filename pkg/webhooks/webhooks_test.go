@@ -26,11 +26,11 @@ import (
 	"time"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/version"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
-	corev1 "k8s.io/api/core/v1"
 
 	//+kubebuilder:scaffold:imports
 	"k8s.io/apimachinery/pkg/runtime"
@@ -55,8 +55,9 @@ type mockInst struct{}
 
 func (inst mockInst) ApplyMesh(*v1alpha1.Mesh, bool) {}
 func (inst mockInst) RemoveMesh(string)              {}
-func (inst mockInst) InjectSidecar([]corev1.Container, string, string) []corev1.Container {
-	return []corev1.Container{}
+func (inst mockInst) IsMeshMember(string) bool       { return true }
+func (inst mockInst) Sidecar(string, string) (version.Sidecar, bool) {
+	return version.Sidecar{}, true
 }
 
 func TestAPIs(t *testing.T) {

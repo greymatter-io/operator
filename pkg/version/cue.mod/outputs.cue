@@ -182,6 +182,7 @@ manifests: [...#ManifestGroup] & [
 }
 
 sidecar: {
+  xdsCluster: string
   container: corev1.#Container & {
     name: "sidecar"
     image: proxy.image
@@ -202,6 +203,10 @@ sidecar: {
           name: k
           value: v
         }
+      }
+      {
+        name: "XDS_CLUSTER"
+        value: xdsCluster
       }
     ]
     resources: proxy.resources

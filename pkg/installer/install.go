@@ -31,10 +31,18 @@ func (i *Installer) ApplyMesh(mesh *v1alpha1.Mesh, init bool) {
 	// Apply options for mutating the version copy's internal Cue value.
 	opts := append(
 		mesh.InstallOptions(),
-		version.ImagePullSecretName(i.imagePullSecret.Name),
+		// Note: Each copied ImagePullSecret will always be named "gm-docker-secret"
+		// even if the original secret in the gm-operator namespace has a different name.
+		version.ImagePullSecretName("gm-docker-secret"),
 		version.JWTSecrets,
 	)
 	v.Apply(opts...)
+
+	// Mark namespaces as belonging to this Mesh
+	i.namespaces[mesh.Namespace] = mesh.Name
+	for _, namespace := range mesh.Spec.WatchNamespaces {
+		i.namespaces[namespace] = mesh.Name
+	}
 
 	// Generate manifests from install configs and send them to the apiserver.
 	manifests := v.Manifests()
@@ -44,11 +52,10 @@ func (i *Installer) ApplyMesh(mesh *v1alpha1.Mesh, init bool) {
 
 	// Create a Docker image pull secret and service account in this namespace if this Mesh is new.
 	if init {
-		if mesh.Namespace != "gm-operator" {
-			secret := i.imagePullSecret.DeepCopy()
-			secret.Namespace = mesh.Namespace
-			i.apply(secret, mesh, scheme)
-		}
+		secret := i.imagePullSecret.DeepCopy()
+		secret.Name = "gm-docker-secret"
+		secret.Namespace = mesh.Namespace
+		i.apply(secret, mesh, scheme)
 		// If this is the first mesh, setup RBAC for control plane service accounts to view pods.
 		if len(i.sidecars) == 0 {
 			i.applyClusterRBAC()
@@ -57,12 +64,14 @@ func (i *Installer) ApplyMesh(mesh *v1alpha1.Mesh, init bool) {
 	}
 
 	// Save this mesh's Proxy InstallConfig to use later for sidecar injection
-	// TODO: Inject sidecars into existing deployments and statefulsets!
 	i.sidecars[mesh.Name] = v.Sidecar()
 
+	// Inject the Docker image pull secret in all watch namespaces where sidecars will be injected.
+	// TODO: Remove the Docker image pull secret when a watch namespace is removed.
 	for _, namespace := range mesh.Spec.WatchNamespaces {
 		if namespace != mesh.Namespace {
 			secret := i.imagePullSecret.DeepCopy()
+			secret.Name = "gm-docker-secret"
 			secret.Namespace = namespace
 			i.apply(secret, mesh, scheme)
 		}
@@ -219,7 +228,21 @@ func (i *Installer) applyServiceAccount(mesh *v1alpha1.Mesh, scheme *runtime.Sch
 func (i *Installer) RemoveMesh(name string) {
 }
 
-// Given a slice of corev1.Containers, injects a sidecar to enable traffic for each mesh specified.
-func (i *Installer) InjectSidecar(containers []corev1.Container, xdsCluster, mesh string) []corev1.Container {
-	return containers
+func (i *Installer) IsMeshMember(namespace string) bool {
+	_, ok := i.namespaces[namespace]
+	return ok
+}
+
+func (i *Installer) Sidecar(namespace, xdsCluster string) (version.Sidecar, bool) {
+	meshName, ok := i.namespaces[namespace]
+	if !ok {
+		return version.Sidecar{}, false
+	}
+
+	sidecar, ok := i.sidecars[meshName]
+	if !ok {
+		return version.Sidecar{}, false
+	}
+
+	return sidecar(xdsCluster), true
 }
