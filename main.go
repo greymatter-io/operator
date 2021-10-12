@@ -30,6 +30,8 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	routev1 "github.com/openshift/api/route/v1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -47,7 +49,8 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
+	utilruntime.Must(routev1.AddToScheme(scheme))
+	utilruntime.Must(extv1beta1.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
@@ -58,6 +61,8 @@ func init() {
 //+kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services;configmaps;serviceaccounts;secrets;pods,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
 func main() {
 	var configFile string
@@ -132,8 +137,14 @@ func main() {
 		cfg.ImagePullSecretName = "gm-docker-secret"
 	}
 
+	// Set the default cluster type to openshift
+	// TODO: Make the operator automatically determine which clusterType it is running in
+	if cfg.ClusterType == "" {
+		cfg.ClusterType = "openshift"
+	}
+
 	// Initialize installer
-	inst, err := installer.New(c, cfg.ImagePullSecretName)
+	inst, err := installer.New(c, cfg.ImagePullSecretName, cfg.ClusterType)
 	if err != nil {
 		os.Exit(1)
 	}

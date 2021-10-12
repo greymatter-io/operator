@@ -7,6 +7,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/greymatter-io/operator/pkg/cueutils"
+
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -181,6 +182,32 @@ func TestVersions(t *testing.T) {
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
 						// check for expected secret and references to secret
+					},
+				},
+				{
+					name:    "Route Check IsOpenshift",
+					options: []InstallOption{InstallNamespace("mynamespace"), MeshPort(10999), ClusterType("openshift"), IngressSubDomain("myaddress.com")},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						edge := manifests[0]
+						if edge.Route == nil {
+							t.Fatal("Route was not created even though this is an openshift environment test")
+						}
+						if edge.Ingress != nil {
+							t.Fatal("Ingress was created even though this is an openshift environment test")
+						}
+					},
+				},
+				{
+					name:    "Ingress Check IsKubernetes",
+					options: []InstallOption{InstallNamespace("mynamespace"), MeshPort(10999), ClusterType("kubernetes"), IngressSubDomain("myaddress.com")},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						edge := manifests[0]
+						if edge.Route != nil {
+							t.Fatal("Route was created even though this is a kubernetes environment test")
+						}
+						if edge.Ingress == nil {
+							t.Fatal("Ingress was not created even though this is a kubernetes environment test")
+						}
 					},
 				},
 			} {

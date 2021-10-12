@@ -32,10 +32,12 @@ type Installer struct {
 	namespaces map[string]string
 	// A map of mesh -> function that returns a sidecar (given an xdsCluster name), used for sidecar injection
 	sidecars map[string]func(string) version.Sidecar
+	// Type of cluster (kubernetes or openshift)
+	clusterType string
 }
 
 // Returns *Installer for tracking which Grey Matter version is installed for each mesh
-func New(c client.Client, imagePullSecretName string) (*Installer, error) {
+func New(c client.Client, imagePullSecretName, clusterType string) (*Installer, error) {
 	versions, err := version.Load()
 	if err != nil {
 		logger.Error(err, "Failed to initialize installer")
@@ -49,6 +51,8 @@ func New(c client.Client, imagePullSecretName string) (*Installer, error) {
 		namespaces: make(map[string]string),
 		sidecars:   make(map[string]func(string) version.Sidecar),
 	}
+
+	i.clusterType = clusterType
 
 	// Copy the image pull secret from the apiserver (block until it's retrieved).
 	// This secret will be re-created in each install namespace where our core services are pulled.

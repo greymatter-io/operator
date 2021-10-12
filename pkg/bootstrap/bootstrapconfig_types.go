@@ -31,4 +31,6 @@ type BootstrapConfig struct {
 	// The name of the secret in the namespace where Grey Matter Operator is deployed.
 	// This secret is re-created in each namespace where Grey Matter Core is installed.
 	ImagePullSecretName string `json:"imagePullSecretName"`
+	// This is the type of cluster the operator is installed into (openshift or kubernetes)
+	ClusterType string `json:"clusterType"`
 }

@@ -16,6 +16,8 @@ func (m Mesh) InstallOptions() []version.InstallOption {
 		version.MeshName(m.Name),
 		version.MeshPort(m.Spec.MeshPort),
 		version.InstallNamespace(m.ObjectMeta.Namespace),
+		// TODO: figure out how to get domain from the clusterUrl without making this a mesh config
+		version.IngressSubDomain(m.Spec.ClusterUrl),
 		version.WatchNamespaces(append(m.Spec.WatchNamespaces, m.ObjectMeta.Namespace)...),
 	}
 

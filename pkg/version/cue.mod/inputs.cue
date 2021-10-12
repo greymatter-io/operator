@@ -7,6 +7,11 @@ InstallNamespace: string
 // The scope of the mesh network; includes InstallNamespace
 WatchNamespaces: string
 
+MeshName: string
+
+ClusterType: *"openshift" | string
+IngressSubDomain: *"localhost" | string
+
 Zone: *"default-zone" | string
 
 ImagePullSecretName: *"gm-docker-secret" | string
