@@ -5,13 +5,14 @@ import (
 	"net/http"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/installer"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 type meshDefaulter struct {
-	inst
+	*installer.Installer
 	*admission.Decoder
 }
 
@@ -35,20 +36,24 @@ func (md *meshDefaulter) Handle(ctx context.Context, req admission.Request) admi
 }
 
 type meshValidator struct {
-	inst
-	decoder *admission.Decoder
+	*installer.Installer
+	*admission.Decoder
 }
 
 // Implements admission.DecoderInjector.
 // A decoder will be automatically injected.
 func (mv *meshValidator) InjectDecoder(d *admission.Decoder) error {
-	mv.decoder = d
+	mv.Decoder = d
 	return nil
 }
 
 func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	if req.Operation == admissionv1.Delete {
-		go mv.RemoveMesh(req.Name)
+		prev := &v1alpha1.Mesh{}
+		if err := mv.DecodeRaw(req.OldObject, prev); err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		go mv.RemoveMesh(prev)
 		return admission.ValidationResponse(true, "allowed")
 	}
 
@@ -57,14 +62,18 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 	// TODO: Ensure Mesh watch namespaces are unique
 
 	mesh := &v1alpha1.Mesh{}
-	if err := mv.decoder.Decode(req, mesh); err != nil {
+	if err := mv.Decode(req, mesh); err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
 	if req.Operation == admissionv1.Create {
-		go mv.ApplyMesh(mesh, true)
+		go mv.ApplyMesh(nil, mesh)
 	} else {
-		go mv.ApplyMesh(mesh, false)
+		prev := &v1alpha1.Mesh{}
+		if err := mv.DecodeRaw(req.OldObject, prev); err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		go mv.ApplyMesh(prev, mesh)
 	}
 
 	return admission.ValidationResponse(true, "allowed")

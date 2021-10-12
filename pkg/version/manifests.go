@@ -36,7 +36,7 @@ type Sidecar struct {
 }
 
 // Returns a function that extracts sidecar manifests from a Version's cue.Value.
-func (v Version) Sidecar() func(string) Sidecar {
+func (v Version) SidecarTemplate() func(string) Sidecar {
 	return func(xdsCluster string) Sidecar {
 		//lint:ignore SA1019 will update to Context in next Cue version
 		codec := gocodec.New(&cue.Runtime{}, nil)

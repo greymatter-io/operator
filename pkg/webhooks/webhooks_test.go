@@ -26,13 +26,12 @@ import (
 	"time"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
-	"github.com/greymatter-io/operator/pkg/version"
-	"github.com/onsi/ginkgo"
-	"github.com/onsi/gomega"
-
-	admissionv1beta1 "k8s.io/api/admission/v1beta1"
+	"github.com/greymatter-io/operator/pkg/installer"
 
 	//+kubebuilder:scaffold:imports
+	"github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
+	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,15 +50,6 @@ var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
 
-type mockInst struct{}
-
-func (inst mockInst) ApplyMesh(*v1alpha1.Mesh, bool) {}
-func (inst mockInst) RemoveMesh(string)              {}
-func (inst mockInst) IsMeshMember(string) bool       { return true }
-func (inst mockInst) Sidecar(string, string) (version.Sidecar, bool) {
-	return version.Sidecar{}, true
-}
-
 func TestAPIs(t *testing.T) {
 	gomega.RegisterFailHandler(ginkgo.Fail)
 
@@ -76,7 +66,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	ginkgo.By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
-		ErrorIfCRDPathMissing: false,
+		ErrorIfCRDPathMissing: true,
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
 			Paths: []string{filepath.Join("..", "..", "config", "webhook")},
 		},
@@ -111,8 +101,9 @@ var _ = ginkgo.BeforeSuite(func() {
 	})
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Register mock installer
-	Register(mgr, mockInst{})
+	// Register installer
+	inst, _ := installer.New(k8sClient, "gm-docker-secret")
+	Register(mgr, inst)
 
 	//+kubebuilder:scaffold:webhook
 

@@ -30,7 +30,7 @@ case $1 in
     ./scripts/dev deploy
     ;;
   logs)
-    oc logs -n gm-operator -l control-plane=controller-manager -c manager -f
+    oc logs -n gm-operator $(oc get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs) -c manager -f
     ;;
   cleanup)
     operator-sdk cleanup -n gm-operator gm-operator

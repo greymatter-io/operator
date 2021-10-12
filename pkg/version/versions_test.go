@@ -34,7 +34,7 @@ func TestVersions(t *testing.T) {
 			})
 
 			t.Run("sidecar", func(t *testing.T) {
-				v.Sidecar()("mock")
+				v.SidecarTemplate()("mock")
 				// unimplemented
 				// all expected manifests exist
 			})
@@ -210,7 +210,7 @@ func TestVersions(t *testing.T) {
 					}
 					if tc.checkSidecar != nil {
 						t.Run("sidecar", func(t *testing.T) {
-							tc.checkSidecar(t, vc.Sidecar()("mock"))
+							tc.checkSidecar(t, vc.SidecarTemplate()("mock"))
 						})
 					}
 				})

@@ -4,6 +4,7 @@ package installer
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/greymatter-io/operator/pkg/version"
@@ -20,6 +21,8 @@ var (
 
 // Stores a map of version.Version and a distinct version.Sidecar for each mesh.
 type Installer struct {
+	*sync.RWMutex
+
 	client client.Client
 	// The Docker image pull secret to create in namespaces where core services are installed.
 	imagePullSecret *corev1.Secret
@@ -40,6 +43,7 @@ func New(c client.Client, imagePullSecretName string) (*Installer, error) {
 	}
 
 	i := &Installer{
+		RWMutex:    &sync.RWMutex{},
 		client:     c,
 		versions:   versions,
 		namespaces: make(map[string]string),

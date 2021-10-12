@@ -23,6 +23,12 @@ manifests: [...#ManifestGroup] & [
     metadata: {
       name: _c[0].name
       namespace: InstallNamespace
+      labels: {
+        "app.kubernetes.io/name": _c[0].name
+        "app.kubernetes.io/part-of": "greymatter"
+		    "app.kubernetes.io/managed-by": "gm-operator"
+		    "app.kubernetes.io/created-by": "gm-operator"
+      }
     }
     spec: {
       selector: matchLabels: {
