@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/greymatter-io/operator/pkg/installer"
+
 	admissionv1 "k8s.io/api/admission/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -12,7 +14,7 @@ import (
 )
 
 type workloadDefaulter struct {
-	inst
+	*installer.Installer
 	*admission.Decoder
 }
 
@@ -24,21 +26,24 @@ func (wd *workloadDefaulter) InjectDecoder(d *admission.Decoder) error {
 }
 
 func (wd *workloadDefaulter) Handle(ctx context.Context, req admission.Request) admission.Response {
-	if req.Kind.Kind == "Pod" && req.Operation != admissionv1.Delete {
+	if req.Kind.Kind == "Pod" {
 		return wd.handlePod(req)
-	} else if req.Kind.Kind != "Pod" {
-		return wd.handleWorkload(req)
 	}
-
-	return admission.ValidationResponse(true, "allowed")
+	return wd.handleWorkload(req)
 }
 
 func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Response {
+
+	// TEMP: Later, handle deletes by removing mesh configs
+	if req.Operation == admissionv1.Delete {
+		return admission.ValidationResponse(true, "allowed")
+	}
+
 	if !wd.IsMeshMember(req.Namespace) {
 		return admission.ValidationResponse(true, "allowed")
 	}
 
-	logger.Info("Mutating", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
+	logger.Info("add cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
 
 	var rawUpdate json.RawMessage
 	var err error
@@ -50,6 +55,9 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			wd.DecodeRaw(req.Object, deployment)
 			if deployment.Spec.Template.Labels == nil {
 				deployment.Spec.Template.Labels = make(map[string]string)
+			}
+			if _, ok := deployment.Spec.Template.Labels["greymatter.io/cluster"]; ok {
+				return admission.ValidationResponse(true, "allowed")
 			}
 			deployment.Spec.Template.Labels["greymatter.io/cluster"] = req.Name
 			// TODO: Add mesh configs
@@ -68,6 +76,9 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			if statefulset.Spec.Template.Labels == nil {
 				statefulset.Spec.Template.Labels = make(map[string]string)
 			}
+			if _, ok := statefulset.Spec.Template.Labels["greymatter.io/cluster"]; ok {
+				return admission.ValidationResponse(true, "allowed")
+			}
 			statefulset.Spec.Template.Labels["greymatter.io/cluster"] = req.Name
 			// TODO: Add mesh configs
 		} // else {}
@@ -83,6 +94,10 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 }
 
 func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response {
+	if req.Operation == admissionv1.Delete {
+		return admission.ValidationResponse(true, "allowed")
+	}
+
 	pod := &corev1.Pod{}
 	if err := wd.Decode(req, pod); err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
@@ -108,7 +123,7 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 		return admission.ValidationResponse(true, "allowed")
 	}
 
-	logger.Info("Mutating", "kind", "Pod", "Deployment/StatefulSet", xdsCluster, "namespace", req.Namespace)
+	logger.Info("inject sidecar", "kind", "Pod", "generateName", pod.GenerateName+"*", "namespace", req.Namespace)
 	pod.Spec.Containers = append(pod.Spec.Containers, sidecar.Container)
 	pod.Spec.Volumes = append(pod.Spec.Volumes, sidecar.Volumes...)
 
