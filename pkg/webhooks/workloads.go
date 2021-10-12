@@ -32,67 +32,6 @@ func (wd *workloadDefaulter) Handle(ctx context.Context, req admission.Request) 
 	return wd.handleWorkload(req)
 }
 
-func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Response {
-
-	// TEMP: Later, handle deletes by removing mesh configs
-	if req.Operation == admissionv1.Delete {
-		return admission.ValidationResponse(true, "allowed")
-	}
-
-	if !wd.IsMeshMember(req.Namespace) {
-		return admission.ValidationResponse(true, "allowed")
-	}
-
-	logger.Info("add cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-
-	var rawUpdate json.RawMessage
-	var err error
-
-	switch req.Kind.Kind {
-	case "Deployment":
-		deployment := &appsv1.Deployment{}
-		if req.Operation != admissionv1.Delete {
-			wd.DecodeRaw(req.Object, deployment)
-			if deployment.Spec.Template.Labels == nil {
-				deployment.Spec.Template.Labels = make(map[string]string)
-			}
-			if _, ok := deployment.Spec.Template.Labels["greymatter.io/cluster"]; ok {
-				return admission.ValidationResponse(true, "allowed")
-			}
-			deployment.Spec.Template.Labels["greymatter.io/cluster"] = req.Name
-			// TODO: Add mesh configs
-		} // else {}
-		// TODO: Handle deletes (remove mesh configs)
-		rawUpdate, err = json.Marshal(deployment)
-		if err != nil {
-			logger.Error(err, "Failed to decode appsv1.Deployment", "Name", req.Name, "Namespace", req.Namespace)
-			return admission.ValidationResponse(false, "failed to decode")
-		}
-
-	case "StatefulSet":
-		statefulset := &appsv1.StatefulSet{}
-		if req.Operation != admissionv1.Delete {
-			wd.DecodeRaw(req.Object, statefulset)
-			if statefulset.Spec.Template.Labels == nil {
-				statefulset.Spec.Template.Labels = make(map[string]string)
-			}
-			if _, ok := statefulset.Spec.Template.Labels["greymatter.io/cluster"]; ok {
-				return admission.ValidationResponse(true, "allowed")
-			}
-			statefulset.Spec.Template.Labels["greymatter.io/cluster"] = req.Name
-			// TODO: Add mesh configs
-		} // else {}
-		// TODO: Handle deletes (remove mesh configs)
-		rawUpdate, err = json.Marshal(statefulset)
-		if err != nil {
-			logger.Error(err, "Failed to decode appsv1.StatefulSet", "Name", req.Name, "Namespace", req.Namespace)
-			return admission.ValidationResponse(false, "failed to decode")
-		}
-	}
-
-	return admission.PatchResponseFromRaw(req.Object.Raw, rawUpdate)
-}
-
 func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response {
 	if req.Operation == admissionv1.Delete {
 		return admission.ValidationResponse(true, "allowed")
@@ -145,4 +84,71 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, rawUpdate)
+}
+
+func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Response {
+
+	// TEMP: Later, handle deletes by removing mesh configs
+	if req.Operation == admissionv1.Delete {
+		return admission.ValidationResponse(true, "allowed")
+	}
+
+	if !wd.IsMeshMember(req.Namespace) {
+		return admission.ValidationResponse(true, "allowed")
+	}
+
+	logger.Info("add cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
+
+	var rawUpdate json.RawMessage
+	var ok bool
+	var err error
+
+	switch req.Kind.Kind {
+	case "Deployment":
+		deployment := &appsv1.Deployment{}
+		if req.Operation != admissionv1.Delete {
+			wd.Decode(req, deployment)
+			deployment.Spec.Template, ok = addClusterLabel(deployment.Spec.Template, req.Name)
+			if !ok {
+				return admission.ValidationResponse(true, "allowed")
+			}
+			rawUpdate, err = json.Marshal(deployment)
+			if err != nil {
+				logger.Error(err, "Failed to add cluster label to Deployment", "Name", req.Name, "Namespace", req.Namespace)
+				return admission.ValidationResponse(false, "failed to add cluster label")
+			}
+			// TODO: Add mesh configs
+		} // else {}
+		// TODO: Handle deletes (remove mesh configs)
+
+	case "StatefulSet":
+		statefulset := &appsv1.StatefulSet{}
+		if req.Operation != admissionv1.Delete {
+			wd.Decode(req, statefulset)
+			statefulset.Spec.Template, ok = addClusterLabel(statefulset.Spec.Template, req.Name)
+			if !ok {
+				return admission.ValidationResponse(true, "allowed")
+			}
+			rawUpdate, err = json.Marshal(statefulset)
+			if err != nil {
+				logger.Error(err, "Failed to add cluster label to StatefulSet", "Name", req.Name, "Namespace", req.Namespace)
+				return admission.ValidationResponse(false, "failed to add cluster label")
+			}
+			// TODO: Add mesh configs
+		} // else {}
+		// TODO: Handle deletes (remove mesh configs)
+	}
+
+	return admission.PatchResponseFromRaw(req.Object.Raw, rawUpdate)
+}
+
+func addClusterLabel(tmpl corev1.PodTemplateSpec, name string) (corev1.PodTemplateSpec, bool) {
+	if tmpl.Labels == nil {
+		tmpl.Labels = make(map[string]string)
+	}
+	if _, ok := tmpl.Labels["greymatter.io/cluster"]; ok {
+		return tmpl, false
+	}
+	tmpl.Labels["greymatter.io/cluster"] = name
+	return tmpl, true
 }
