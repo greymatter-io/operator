@@ -152,11 +152,6 @@ func main() {
 	}
 	webhooks.Register(mgr, inst)
 
-	// if err = (&v1alpha1.Mesh{}).SetupWebhooks(mgr, inst.ApplyMesh, inst.RemoveMesh); err != nil {
-	// 	logger.Error(err, "unable to create webhook", "webhook", "Mesh")
-	// 	os.Exit(1)
-	// }
-
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

@@ -23,6 +23,13 @@ manifests: [...#ManifestGroup] & [
     metadata: {
       name: _c[0].name
       namespace: InstallNamespace
+      labels: {
+        "app.kubernetes.io/name": _c[0].name
+        "app.kubernetes.io/part-of": "greymatter"
+        // TODO: Tag with version prior to first release.
+        "app.kubernetes.io/created-by": "gm-operator"
+        "app.kubernetes.io/managed-by": "gm-operator"
+      }
     }
     spec: {
       selector: matchLabels: {
@@ -182,6 +189,7 @@ manifests: [...#ManifestGroup] & [
 }
 
 sidecar: {
+  xdsCluster: string
   container: corev1.#Container & {
     name: "sidecar"
     image: proxy.image
@@ -202,6 +210,10 @@ sidecar: {
           name: k
           value: v
         }
+      }
+      {
+        name: "XDS_CLUSTER"
+        value: xdsCluster
       }
     ]
     resources: proxy.resources

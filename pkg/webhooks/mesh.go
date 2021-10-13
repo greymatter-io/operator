@@ -12,8 +12,15 @@ import (
 )
 
 type meshDefaulter struct {
-	inst    *installer.Installer
-	decoder *admission.Decoder
+	*installer.Installer
+	*admission.Decoder
+}
+
+// Implements admission.DecoderInjector.
+// A decoder will be automatically injected.
+func (md *meshDefaulter) InjectDecoder(d *admission.Decoder) error {
+	md.Decoder = d
+	return nil
 }
 
 func (md *meshDefaulter) Handle(ctx context.Context, req admission.Request) admission.Response {
@@ -28,39 +35,46 @@ func (md *meshDefaulter) Handle(ctx context.Context, req admission.Request) admi
 	// return admission.PatchResponseFromRaw(req.Object.Raw, update)
 }
 
-// Implements admission.DecoderInjector.
-// A decoder will be automatically injected.
-func (md *meshDefaulter) InjectDecoder(d *admission.Decoder) error {
-	md.decoder = d
-	return nil
-}
-
 type meshValidator struct {
-	inst    *installer.Installer
-	decoder *admission.Decoder
-}
-
-func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
-	mesh := &v1alpha1.Mesh{}
-	if err := mv.decoder.Decode(req, mesh); err != nil {
-		return admission.Errored(http.StatusInternalServerError, err)
-	}
-
-	switch req.Operation {
-	case admissionv1.Create:
-		go mv.inst.ApplyMesh(mesh, true)
-	case admissionv1.Update:
-		go mv.inst.ApplyMesh(mesh, false)
-	case admissionv1.Delete:
-		go mv.inst.RemoveMesh(mesh.Name)
-	}
-
-	return admission.ValidationResponse(true, "allowed")
+	*installer.Installer
+	*admission.Decoder
 }
 
 // Implements admission.DecoderInjector.
 // A decoder will be automatically injected.
 func (mv *meshValidator) InjectDecoder(d *admission.Decoder) error {
-	mv.decoder = d
+	mv.Decoder = d
 	return nil
+}
+
+func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
+	if req.Operation == admissionv1.Delete {
+		prev := &v1alpha1.Mesh{}
+		if err := mv.DecodeRaw(req.OldObject, prev); err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		go mv.RemoveMesh(prev)
+		return admission.ValidationResponse(true, "allowed")
+	}
+
+	// TODO: Ensure only one mesh exists in a namespace
+	// TODO: Ensure namespace doesn't belong to another Mesh (as a WatchNamespace)
+	// TODO: Ensure Mesh watch namespaces are unique
+
+	mesh := &v1alpha1.Mesh{}
+	if err := mv.Decode(req, mesh); err != nil {
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+
+	if req.Operation == admissionv1.Create {
+		go mv.ApplyMesh(nil, mesh)
+	} else {
+		prev := &v1alpha1.Mesh{}
+		if err := mv.DecodeRaw(req.OldObject, prev); err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		go mv.ApplyMesh(prev, mesh)
+	}
+
+	return admission.ValidationResponse(true, "allowed")
 }

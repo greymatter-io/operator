@@ -4,6 +4,7 @@ package installer
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/greymatter-io/operator/pkg/version"
@@ -20,13 +21,17 @@ var (
 
 // Stores a map of version.Version and a distinct version.Sidecar for each mesh.
 type Installer struct {
+	*sync.RWMutex
+
 	client client.Client
 	// The Docker image pull secret to create in namespaces where core services are installed.
 	imagePullSecret *corev1.Secret
 	// A map of Grey Matter version (v*.*) -> Version read from the filesystem.
 	versions map[string]version.Version
-	// A map of meshes -> Sidecar, used for sidecar injection
-	sidecars map[string]version.Sidecar
+	// A map of namespaces -> mesh name.
+	namespaces map[string]string
+	// A map of mesh -> function that returns a sidecar (given an xdsCluster name), used for sidecar injection
+	sidecars map[string]func(string) version.Sidecar
 }
 
 // Returns *Installer for tracking which Grey Matter version is installed for each mesh
@@ -37,22 +42,24 @@ func New(c client.Client, imagePullSecretName string) (*Installer, error) {
 		return nil, err
 	}
 
-	installer := &Installer{
-		client:   c,
-		versions: versions,
-		sidecars: make(map[string]version.Sidecar),
+	i := &Installer{
+		RWMutex:    &sync.RWMutex{},
+		client:     c,
+		versions:   versions,
+		namespaces: make(map[string]string),
+		sidecars:   make(map[string]func(string) version.Sidecar),
 	}
 
 	// Copy the image pull secret from the apiserver (block until it's retrieved).
 	// This secret will be re-created in each install namespace where our core services are pulled.
-	installer.cacheImagePullSecret(c, imagePullSecretName)
+	i.imagePullSecret = getImagePullSecret(c, imagePullSecretName)
 
-	return installer, nil
+	return i, nil
 }
 
 // Retrieves the image pull secret in the gm-operator namespace (default name is gm-docker-secret).
 // This retries indefinitely at 30s intervals and will block by design.
-func (i *Installer) cacheImagePullSecret(c client.Client, imagePullSecretName string) {
+func getImagePullSecret(c client.Client, imagePullSecretName string) *corev1.Secret {
 	key := client.ObjectKey{Name: imagePullSecretName, Namespace: "gm-operator"}
 	operatorSecret := &corev1.Secret{}
 	for operatorSecret.CreationTimestamp.IsZero() {
@@ -62,8 +69,8 @@ func (i *Installer) cacheImagePullSecret(c client.Client, imagePullSecretName st
 		}
 	}
 
-	// Store a new secret with just the dockercfgjson (without additional metadata).
-	i.imagePullSecret = &corev1.Secret{
+	// Return new secret with just the dockercfgjson (without additional metadata).
+	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: imagePullSecretName},
 		Type:       operatorSecret.Type,
 		Data:       operatorSecret.Data,
