@@ -15,19 +15,26 @@ func TestEdge(t *testing.T) {
 	f := loadMock(t)
 	edge := f.Edge()
 
-	t.Run("Proxy", testObject(edge.Proxy,
+	t.Run("Proxy", testContains(edge.Proxy,
+		`"name":"edge"`,
 		`"proxy_key":"edge"`,
 		`"zone_key":"myzone"`,
+		`"domain_keys":["edge"]`,
+		`"listener_keys":["edge"]`,
 	))
-	t.Run("Domain", testObject(edge.Domain,
+	t.Run("Domain", testContains(edge.Domain,
 		`"domain_key":"edge"`,
 		`"zone_key":"myzone"`,
+		`"port":10909`,
 	))
-	t.Run("Listener", testObject(edge.Listener,
+	t.Run("Listener", testContains(edge.Listener,
 		`"listener_key":"edge"`,
 		`"zone_key":"myzone"`,
+		`"domain_keys":["edge"]`,
+		`"port":10909`,
 	))
-	t.Run("Cluster", testObject(edge.Cluster,
+	t.Run("Cluster", testContains(edge.Cluster,
+		`"name":"edge"`,
 		`"cluster_key":"edge"`,
 		`"zone_key":"myzone"`,
 	))
@@ -43,29 +50,40 @@ func TestService(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Run("Proxy", testObject(service.Proxy,
+	t.Run("Proxy", testContains(service.Proxy,
+		`"name":"example"`,
 		`"proxy_key":"example"`,
 		`"zone_key":"myzone"`,
+		`"domain_keys":["example"]`,
+		`"listener_keys":["example"]`,
 	))
-	t.Run("Domain", testObject(service.Domain,
+	t.Run("Domain", testContains(service.Domain,
 		`"domain_key":"example"`,
 		`"zone_key":"myzone"`,
+		`"port":10909`,
 	))
-	t.Run("Listener", testObject(service.Listener,
+	t.Run("Listener", testContains(service.Listener,
 		`"listener_key":"example"`,
 		`"zone_key":"myzone"`,
+		`"domain_keys":["example"]`,
+		`"port":10909`,
 	))
-	t.Run("Cluster", testObject(service.Cluster,
+	t.Run("Cluster", testContains(service.Cluster,
+		`"name":"example"`,
 		`"cluster_key":"example"`,
 		`"zone_key":"myzone"`,
 	))
-	t.Run("Route", testObject(service.Route,
+	t.Run("Route", testContains(service.Route,
 		`"route_key":"example"`,
+		`"domain_key":"edge"`,
 		`"zone_key":"myzone"`,
+		`"cluster_key":"example"`,
+		`"route_match":{"path":"/services/example/"`,
+		`"redirects":[{"from":"^/services/example$","to":"/services/example/"`,
 	))
 }
 
-func TestServiceOnePort(t *testing.T) {
+func TestServiceOneIngress(t *testing.T) {
 	f := loadMock(t)
 
 	service, err := f.Service("example", map[string]int32{
@@ -85,19 +103,23 @@ func TestServiceOnePort(t *testing.T) {
 	}
 
 	t.Run("example-5555", func(t *testing.T) {
-		t.Run("Cluster", testObject(ingress.Cluster,
+		t.Run("Cluster", testContains(ingress.Cluster,
 			`"cluster_key":"example-5555"`,
 			`"zone_key":"myzone"`,
+			`"instances":[{"host":"127.0.0.1","port":5555}]`,
 		))
-		t.Run("Route", testObject(ingress.Route,
+		t.Run("Route", testContains(ingress.Route,
 			`"route_key":"example-5555"`,
+			`"domain_key":"example"`,
 			`"zone_key":"myzone"`,
+			`"cluster_key":"example-5555"`,
 			`"route_match":{"path":"/"`,
+			`"redirects":[]`,
 		))
 	})
 }
 
-func TestServiceMultiplePorts(t *testing.T) {
+func TestServiceMultipleIngresses(t *testing.T) {
 	f := loadMock(t)
 
 	ports := map[string]int32{
@@ -123,14 +145,18 @@ func TestServiceMultiplePorts(t *testing.T) {
 				t.Fatalf("did not find %s in ingresses", key)
 			}
 
-			t.Run("Cluster", testObject(ingress.Cluster,
+			t.Run("Cluster", testContains(ingress.Cluster,
 				fmt.Sprintf(`"cluster_key":"%s"`, key),
 				`"zone_key":"myzone"`,
+				fmt.Sprintf(`"instances":[{"host":"127.0.0.1","port":%d}]`, port),
 			))
-			t.Run("Route", testObject(ingress.Route,
+			t.Run("Route", testContains(ingress.Route,
 				fmt.Sprintf(`"route_key":"%s"`, key),
+				`"domain_key":"example"`,
 				`"zone_key":"myzone"`,
+				fmt.Sprintf(`"cluster_key":"%s"`, key),
 				fmt.Sprintf(`"route_match":{"path":"/%s/"`, name),
+				fmt.Sprintf(`"redirects":[{"from":"^/%s$","to":"/%s/"`, name, name),
 			))
 		})
 	}
@@ -152,12 +178,15 @@ func loadMock(t *testing.T) *Fabric {
 	return f
 }
 
-func testObject(obj json.RawMessage, subs ...string) func(t *testing.T) {
+func testContains(obj json.RawMessage, subs ...string) func(t *testing.T) {
 	return func(t *testing.T) {
 		for _, sub := range subs {
 			if !bytes.Contains(obj, json.RawMessage(sub)) {
-				t.Fatalf("did not contain substring '%s'", sub)
+				t.Errorf("did not contain substring '%s'", sub)
 			}
+		}
+		if t.Failed() {
+			prettyPrint(obj)
 		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/encoding/gocode/gocodec"
+	"github.com/greymatter-io/operator/pkg/cueutils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -43,7 +44,7 @@ func (v Version) SidecarTemplate() func(string) Sidecar {
 		var s struct {
 			Sidecar `json:"sidecar"`
 		}
-		codec.Encode(v.cue.Unify(Cue(
+		codec.Encode(v.cue.Unify(cueutils.FromStrings(
 			fmt.Sprintf(`sidecar: xdsCluster: "%s"`, xdsCluster),
 		)), &s)
 		return s.Sidecar

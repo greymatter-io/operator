@@ -1,7 +1,6 @@
 package version
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -56,8 +55,6 @@ func TestVersions(t *testing.T) {
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
 						// each manifest references install namespace
-						y, _ := yaml.Marshal(sidecar)
-						fmt.Println(string(y))
 					},
 				},
 				{
