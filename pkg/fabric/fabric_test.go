@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cueutils"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -170,7 +171,12 @@ func loadMock(t *testing.T) *Fabric {
 		t.FailNow()
 	}
 
-	f, err := New("myzone", 10909)
+	f, err := New(&v1alpha1.Mesh{
+		Spec: v1alpha1.MeshSpec{
+			Zone:     "myzone",
+			MeshPort: 10909,
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

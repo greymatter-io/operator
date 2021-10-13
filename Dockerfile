@@ -20,7 +20,7 @@ RUN go mod vendor
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
 
 # Add CLI
-FROM docker.greymatter.io/release/greymatter:3.0.0 as cli
+FROM docker.greymatter.io/internal/cli:4.0.0-preview as cli
 
 # Use distroless as minimal base image to package the manager and greymatter CLI binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details

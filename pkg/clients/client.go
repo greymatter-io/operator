@@ -1,80 +1,78 @@
 package clients
 
 import (
-	"bytes"
+	"encoding/base64"
 	"fmt"
-	"os/exec"
-	"strings"
+	"time"
 
+	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
 )
 
 type client struct {
-	cmds chan meshCmd
-	f    *fabric.Fabric
+	mesh    string
+	conf    string
+	cmds    chan cmd
+	results chan result
+	f       *fabric.Fabric
 }
 
-func newClient(zone string, meshPort int32) (*client, error) {
-	f, err := fabric.New(zone, meshPort)
+func newClient(mesh *v1alpha1.Mesh, conf string) (*client, error) {
+	f, err := fabric.New(mesh)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &client{
-		cmds: make(chan meshCmd),
-		f:    f,
+	if conf == "" {
+		conf = fmt.Sprintf(`
+		[api]
+		host = "http://control-api.%s.svc:5555/v1.0"
+		[catalog]
+		host = "http://catalog.%s.svc:8080"
+		mesh = "%s"
+		`, mesh.Namespace, mesh.Namespace, mesh.Name)
+	}
+
+	conf = base64.StdEncoding.EncodeToString([]byte(conf))
+
+	cl := &client{
+		mesh:    mesh.Name,
+		conf:    conf,
+		cmds:    make(chan cmd),
+		results: make(chan result),
+		f:       f,
 	}
 
 	// Start consuming the client's cmds channel.
 	// The channel will close upon cleanup.
-	go func(cl *client) {
+	go func(c *client) {
 		for cmd := range c.cmds {
-			cmd.run()
+			out, err := cmd.run(c.conf)
+			if err != nil {
+				logger.Error(err, cmd.args, "Mesh", c.mesh)
+			}
+			c.results <- result{out: out, err: err}
 		}
-	}(c)
+	}(cl)
 
-	// Ping Control API and Catalog
-	c.cmds <- meshCmd{} // TODO: ping control api
-	c.cmds <- meshCmd{} // TODO: ping catalog api
+	// Ping Control and Catalog API
+	cl.retry(cmd{args: fmt.Sprintf("get zone %s", mesh.Spec.Zone)})
+	logger.Info("Connected to Control", "Mesh", cl.mesh)
+	cl.retry(cmd{args: fmt.Sprintf("get catalogmesh %s", mesh.Name)})
+	logger.Info("Connected to Catalog", "Mesh", cl.mesh)
 
-	return c, nil
+	return cl, nil
 }
 
-type meshCmd struct {
-	args string
-	read func(string) (string, error)
-}
-
-func (mc meshCmd) run() (string, error) {
-	cmd := exec.Command("greymatter", strings.Split(mc.args, " ")...)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
-		return "", err
+func (cl *client) retry(c cmd) {
+	cl.cmds <- c
+	for result := range cl.results {
+		if result.err != nil {
+			logger.Error(result.err, fmt.Sprintf("%s: retrying in 3s", c.args), "Mesh", cl.mesh)
+			time.Sleep(time.Second * 3)
+			cl.cmds <- c
+		} else {
+			break
+		}
 	}
-	if mc.read == nil {
-		return out.String(), nil
-	}
-	result, err := mc.read(out.String())
-	if err != nil {
-		return "", fmt.Errorf("failed to format: %w", err)
-	}
-	return result, nil
-}
-
-func cliVersion() (string, error) {
-	return meshCmd{
-		args: "version",
-		read: func(out string) (string, error) {
-			lines := strings.Split(out, "\n")
-			if len(lines) != 6 {
-				return "", fmt.Errorf("unexpected output: %s", out)
-			}
-			fields := strings.Fields(lines[1])
-			if len(fields) != 2 {
-				return "", fmt.Errorf("unexpected output: %s", out)
-			}
-			return fields[1], nil
-		},
-	}.run()
 }

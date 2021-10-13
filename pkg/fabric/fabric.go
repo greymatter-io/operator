@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cueutils"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -20,12 +21,12 @@ type Fabric struct {
 	cue cue.Value
 }
 
-func New(zone string, meshPort int32) (*Fabric, error) {
+func New(mesh *v1alpha1.Mesh) (*Fabric, error) {
 	return &Fabric{cue: value.Unify(
 		cueutils.FromStrings(fmt.Sprintf(`
 			Zone: "%s"
 			MeshPort: %d
-		`, zone, meshPort)),
+		`, mesh.Spec.Zone, mesh.Spec.MeshPort)),
 	)}, nil
 }
 

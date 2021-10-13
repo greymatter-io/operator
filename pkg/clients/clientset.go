@@ -5,6 +5,7 @@ package clients
 
 import (
 	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/fabric"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -27,15 +28,22 @@ func New() (*Clientset, error) {
 
 	logger.Info("Using greymatter CLI", "Version", v)
 
+	if err := fabric.Init(); err != nil {
+		logger.Error(err, "Failed to initialize Fabric templates")
+		return nil, err
+	}
+
 	return &Clientset{make(map[string]*client)}, nil
 }
 
-// Initializes or updates a client.
-func (cs *Clientset) ApplyMesh(mesh v1alpha1.Mesh) {
+// Initializes or updates a client. Should run in a goroutine.
+func (cs *Clientset) ApplyMesh(mesh *v1alpha1.Mesh) {
+	// Close an existing cmds channel if updating
 	if cl, ok := cs.meshes[mesh.Name]; ok {
 		close(cl.cmds)
 	}
-	cl, err := newClient(mesh.Spec.Zone, mesh.Spec.MeshPort)
+	// Create a new client (blocks to ping Control API and Catalog)
+	cl, err := newClient(mesh, "")
 	if err != nil {
 		logger.Error(err, "Failed to create/update client for mesh", "Mesh", mesh.Name)
 		return
