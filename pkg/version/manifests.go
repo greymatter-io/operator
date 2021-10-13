@@ -1,6 +1,8 @@
 package version
 
 import (
+	"fmt"
+
 	"cuelang.org/go/cue"
 	"cuelang.org/go/encoding/gocode/gocodec"
 	appsv1 "k8s.io/api/apps/v1"
@@ -29,19 +31,21 @@ func (v Version) Manifests() []ManifestGroup {
 
 // The manifests applied for Grey Matter sidecar injection.
 type Sidecar struct {
-	Container *corev1.Container `json:"container"`
-	Volumes   []corev1.Volume   `json:"volumes"`
-	// TODO: Add ref here to inject in Deployments and StatefulSets
-	ImagePullSecretRef corev1.LocalObjectReference `json:"imagePullSecretRef"`
+	Container corev1.Container `json:"container"`
+	Volumes   []corev1.Volume  `json:"volumes"`
 }
 
-// Extracts sidecar manifests from a Version's cue.Value.
-func (v Version) Sidecar() Sidecar {
-	//lint:ignore SA1019 will update to Context in next Cue version
-	codec := gocodec.New(&cue.Runtime{}, nil)
-	var s struct {
-		Sidecar `json:"sidecar"`
+// Returns a function that extracts sidecar manifests from a Version's cue.Value.
+func (v Version) SidecarTemplate() func(string) Sidecar {
+	return func(xdsCluster string) Sidecar {
+		//lint:ignore SA1019 will update to Context in next Cue version
+		codec := gocodec.New(&cue.Runtime{}, nil)
+		var s struct {
+			Sidecar `json:"sidecar"`
+		}
+		codec.Encode(v.cue.Unify(Cue(
+			fmt.Sprintf(`sidecar: xdsCluster: "%s"`, xdsCluster),
+		)), &s)
+		return s.Sidecar
 	}
-	codec.Encode(v.cue, &s)
-	return s.Sidecar
 }

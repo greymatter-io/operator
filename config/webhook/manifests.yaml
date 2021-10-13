@@ -15,7 +15,7 @@ webhooks:
       namespace: system
       path: /mutate-mesh
   failurePolicy: Fail
-  name: mutate-mesh-webhook.greymatter.io
+  name: mutate-mesh.greymatter.io
   rules:
   - apiGroups:
     - greymatter.io
@@ -26,6 +26,31 @@ webhooks:
     - UPDATE
     resources:
     - meshes
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-workload
+  failurePolicy: Fail
+  name: mutate-workload.greymatter.io
+  rules:
+  - apiGroups:
+    - ""
+    - apps
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - pods
+    - deployments
+    - statefulsets
   sideEffects: None
 
 ---
@@ -44,7 +69,7 @@ webhooks:
       namespace: system
       path: /validate-mesh
   failurePolicy: Fail
-  name: validate-mesh-webhook.greymatter.io
+  name: validate-mesh.greymatter.io
   rules:
   - apiGroups:
     - greymatter.io

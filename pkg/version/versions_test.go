@@ -1,10 +1,11 @@
 package version
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
-	// "github.com/ghodss/yaml"
+	"github.com/ghodss/yaml"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -33,7 +34,7 @@ func TestVersions(t *testing.T) {
 			})
 
 			t.Run("sidecar", func(t *testing.T) {
-				v.Sidecar()
+				v.SidecarTemplate()("mock")
 				// unimplemented
 				// all expected manifests exist
 			})
@@ -54,6 +55,8 @@ func TestVersions(t *testing.T) {
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
 						// each manifest references install namespace
+						y, _ := yaml.Marshal(sidecar)
+						fmt.Println(string(y))
 					},
 				},
 				{
@@ -207,7 +210,7 @@ func TestVersions(t *testing.T) {
 					}
 					if tc.checkSidecar != nil {
 						t.Run("sidecar", func(t *testing.T) {
-							tc.checkSidecar(t, vc.Sidecar())
+							tc.checkSidecar(t, vc.SidecarTemplate()("mock"))
 						})
 					}
 				})
