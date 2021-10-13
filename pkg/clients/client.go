@@ -11,11 +11,20 @@ import (
 
 type client struct {
 	cmds chan meshCmd
-	tmpl fabric.ServiceTemplates
+	f    *fabric.Fabric
 }
 
-func newClient() *client {
-	c := &client{cmds: make(chan meshCmd)}
+func newClient(zone string, meshPort int32) (*client, error) {
+	f, err := fabric.New(zone, meshPort)
+	if err != nil {
+		return nil, err
+	}
+
+	c := &client{
+		cmds: make(chan meshCmd),
+		f:    f,
+	}
+
 	// Start consuming the client's cmds channel.
 	// The channel will close upon cleanup.
 	go func(cl *client) {
@@ -23,9 +32,12 @@ func newClient() *client {
 			cmd.run()
 		}
 	}(c)
+
+	// Ping Control API and Catalog
 	c.cmds <- meshCmd{} // TODO: ping control api
 	c.cmds <- meshCmd{} // TODO: ping catalog api
-	return c
+
+	return c, nil
 }
 
 type meshCmd struct {
@@ -50,7 +62,7 @@ func (mc meshCmd) run() (string, error) {
 	return result, nil
 }
 
-func version() (string, error) {
+func cliVersion() (string, error) {
 	return meshCmd{
 		args: "version",
 		read: func(out string) (string, error) {
@@ -65,9 +77,4 @@ func version() (string, error) {
 			return fields[1], nil
 		},
 	}.run()
-}
-
-func help() string {
-	result, _ := meshCmd{args: "help"}.run()
-	return result
 }

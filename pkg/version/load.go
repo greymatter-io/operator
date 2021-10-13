@@ -46,7 +46,7 @@ func loadBase() (cue.Value, error) {
 	if err != nil {
 		return cue.Value{}, fmt.Errorf("failed to determine working directory")
 	}
-	instances := load.Instances([]string{"greymatter.io/operator/cue.mod:base"}, &load.Config{
+	instances := load.Instances([]string{"greymatter.io/operator/version/cue.mod:base"}, &load.Config{
 		Package:    "base",
 		ModuleRoot: wd,
 		Dir:        fmt.Sprintf("%s/cue.mod", wd),

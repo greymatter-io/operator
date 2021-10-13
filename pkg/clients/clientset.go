@@ -19,7 +19,7 @@ type Clientset struct {
 
 // Returns *Clientset for storing clients to configure Control and Catalog APIs in the system namespace of each mesh.
 func New() (*Clientset, error) {
-	v, err := version()
+	v, err := cliVersion()
 	if err != nil {
 		logger.Error(err, "Failed to initialize greymatter CLI")
 		return nil, err
@@ -30,14 +30,16 @@ func New() (*Clientset, error) {
 	return &Clientset{make(map[string]*client)}, nil
 }
 
-// If the given Mesh is new, initializes a client.
-// Generates fabric.ServiceTemplates from the given Mesh, storing them to be used when configuring services.
+// Initializes or updates a client.
 func (cs *Clientset) ApplyMesh(mesh v1alpha1.Mesh) {
-	cl, ok := cs.meshes[mesh.Name]
-	if !ok {
-		cl = newClient()
+	if cl, ok := cs.meshes[mesh.Name]; ok {
+		close(cl.cmds)
 	}
-	cl.tmpl = mesh.GenerateServiceTemplates()
+	cl, err := newClient(mesh.Spec.Zone, mesh.Spec.MeshPort)
+	if err != nil {
+		logger.Error(err, "Failed to create/update client for mesh", "Mesh", mesh.Name)
+		return
+	}
 	cs.meshes[mesh.Name] = cl
 }
 
