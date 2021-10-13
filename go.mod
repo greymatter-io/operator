@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	cuelang.org/go v0.4.0
+	github.com/go-logr/logr v0.4.0
 	github.com/go-redis/redis/v8 v8.11.3
 	github.com/kylelemons/godebug v1.1.0
 	github.com/onsi/ginkgo v1.16.4
@@ -31,7 +32,6 @@ require (
 	github.com/evanphx/json-patch v4.11.0+incompatible // indirect
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
-	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/go-logr/zapr v0.4.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect

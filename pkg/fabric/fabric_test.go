@@ -5,39 +5,166 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+
+	"github.com/greymatter-io/operator/pkg/cueutils"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func TestFabric(t *testing.T) {
-	f, err := New("default-zone", 10808)
+func TestEdge(t *testing.T) {
+	f := loadMock(t)
+	edge := f.Edge()
+
+	t.Run("Proxy", testObject(edge.Proxy,
+		`"proxy_key":"edge"`,
+		`"zone_key":"myzone"`,
+	))
+	t.Run("Domain", testObject(edge.Domain,
+		`"domain_key":"edge"`,
+		`"zone_key":"myzone"`,
+	))
+	t.Run("Listener", testObject(edge.Listener,
+		`"listener_key":"edge"`,
+		`"zone_key":"myzone"`,
+	))
+	t.Run("Cluster", testObject(edge.Cluster,
+		`"cluster_key":"edge"`,
+		`"zone_key":"myzone"`,
+	))
+}
+
+func TestService(t *testing.T) {
+	f := loadMock(t)
+
+	service, err := f.Service("example", map[string]int32{
+		"api": 5555,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Run("f.Edge returns edge objects", func(t *testing.T) {
-		edge := f.Edge()
-		fmt.Println(indent(edge.Proxy))
-		fmt.Println(indent(edge.Domain))
-		fmt.Println(indent(edge.Listener))
-		fmt.Println(indent(edge.Cluster))
+	t.Run("Proxy", testObject(service.Proxy,
+		`"proxy_key":"example"`,
+		`"zone_key":"myzone"`,
+	))
+	t.Run("Domain", testObject(service.Domain,
+		`"domain_key":"example"`,
+		`"zone_key":"myzone"`,
+	))
+	t.Run("Listener", testObject(service.Listener,
+		`"listener_key":"example"`,
+		`"zone_key":"myzone"`,
+	))
+	t.Run("Cluster", testObject(service.Cluster,
+		`"cluster_key":"example"`,
+		`"zone_key":"myzone"`,
+	))
+	t.Run("Route", testObject(service.Route,
+		`"route_key":"example"`,
+		`"zone_key":"myzone"`,
+	))
+}
+
+func TestServiceOnePort(t *testing.T) {
+	f := loadMock(t)
+
+	service, err := f.Service("example", map[string]int32{
+		"api": 5555,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	t.Run("f.Service returns service objects", func(t *testing.T) {
-		service := f.Service("blah", []int32{5555, 8080})
+	if count := len(service.Ingresses); count != 1 {
+		t.Fatalf("expected 1 ingress, got %d", count)
+	}
 
-		fmt.Println(indent(service.Proxy))
-		fmt.Println(indent(service.Domain))
-		fmt.Println(indent(service.Listener))
-		fmt.Println(indent(service.Cluster))
-		fmt.Println(indent(service.Route))
-		for _, local := range service.Locals {
-			fmt.Println(indent(local.Cluster))
-			fmt.Println(indent(local.Route))
-		}
+	ingress, ok := service.Ingresses["example-5555"]
+	if !ok {
+		t.Fatal("did not find example-5555 in ingresses")
+	}
+
+	t.Run("example-5555", func(t *testing.T) {
+		t.Run("Cluster", testObject(ingress.Cluster,
+			`"cluster_key":"example-5555"`,
+			`"zone_key":"myzone"`,
+		))
+		t.Run("Route", testObject(ingress.Route,
+			`"route_key":"example-5555"`,
+			`"zone_key":"myzone"`,
+			`"route_match":{"path":"/"`,
+		))
 	})
 }
 
-func indent(raw json.RawMessage) string {
+func TestServiceMultiplePorts(t *testing.T) {
+	f := loadMock(t)
+
+	ports := map[string]int32{
+		"api":  5555,
+		"api2": 8080,
+	}
+
+	service, err := f.Service("example", ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if count := len(service.Ingresses); count != 2 {
+		t.Fatalf("expected 2 ingresses, got %d", count)
+	}
+
+	for name, port := range ports {
+		key := fmt.Sprintf("example-%d", port)
+
+		t.Run(key, func(t *testing.T) {
+			ingress, ok := service.Ingresses[key]
+			if !ok {
+				t.Fatalf("did not find %s in ingresses", key)
+			}
+
+			t.Run("Cluster", testObject(ingress.Cluster,
+				fmt.Sprintf(`"cluster_key":"%s"`, key),
+				`"zone_key":"myzone"`,
+			))
+			t.Run("Route", testObject(ingress.Route,
+				fmt.Sprintf(`"route_key":"%s"`, key),
+				`"zone_key":"myzone"`,
+				fmt.Sprintf(`"route_match":{"path":"/%s/"`, name),
+			))
+		})
+	}
+}
+
+func loadMock(t *testing.T) *Fabric {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	if err := Init(); err != nil {
+		cueutils.LogError(logger, err)
+		t.FailNow()
+	}
+
+	f, err := New("myzone", 10909)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return f
+}
+
+func testObject(obj json.RawMessage, subs ...string) func(t *testing.T) {
+	return func(t *testing.T) {
+		for _, sub := range subs {
+			if !bytes.Contains(obj, json.RawMessage(sub)) {
+				t.Fatalf("did not contain substring '%s'", sub)
+			}
+		}
+	}
+}
+
+//lint:ignore U1000 print util
+func prettyPrint(raw json.RawMessage) {
 	b := new(bytes.Buffer)
 	json.Indent(b, raw, "", "\t")
-	return b.String()
+	fmt.Println(b.String())
 }

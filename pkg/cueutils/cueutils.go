@@ -1,4 +1,4 @@
-package version
+package cueutils
 
 import (
 	"bytes"
@@ -8,14 +8,15 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
+	"github.com/go-logr/logr"
 	"github.com/kylelemons/godebug/diff"
 )
 
-func Cue(ss ...string) cue.Value {
+func FromStrings(ss ...string) cue.Value {
 	return cuecontext.New().CompileString(strings.Join(ss, "\n"))
 }
 
-func logCueErrors(err error) {
+func LogError(logger logr.Logger, err error) {
 	switch v := err.(type) {
 	case errors.Error:
 		for _, e := range errors.Errors(v) {
@@ -26,7 +27,7 @@ func logCueErrors(err error) {
 	}
 }
 
-func CueDiff(a, b cue.Value) {
+func Diff(a, b cue.Value) {
 	aStr := fmt.Sprintf("%v", a)
 	bStr := fmt.Sprintf("%v", b)
 	aLines := strings.Split(aStr, "\n")

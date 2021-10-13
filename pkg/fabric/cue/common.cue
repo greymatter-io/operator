@@ -1,5 +1,3 @@
-package api
-
 #Metadata: {
 	metadata?: [...#Metadatum]
 }
