@@ -64,7 +64,7 @@ func (f *Fabric) Service(name string, ingresses map[string]int32) (Objects, erro
 	value := f.cue.Unify(
 		cueutils.FromStrings(fmt.Sprintf(`
 			ServiceName: "%s",
-			ServicePorts: %s
+			ServiceIngresses: %s
 		`, name, string(j))),
 	)
 	if err := value.Err(); err != nil {

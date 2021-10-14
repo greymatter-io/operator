@@ -125,14 +125,14 @@ MANIFEST_LOOP:
 		for _, secret := range group.Secrets {
 			i.apply(secret, mesh, scheme)
 		}
-		for _, service := range group.Services {
-			i.apply(service, mesh, scheme)
-		}
 		if group.Deployment != nil {
 			i.apply(group.Deployment, mesh, scheme)
 		}
 		if group.StatefulSet != nil {
 			i.apply(group.StatefulSet, mesh, scheme)
+		}
+		if group.Service != nil {
+			i.apply(group.Service, mesh, scheme)
 		}
 	}
 }

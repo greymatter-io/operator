@@ -5,7 +5,7 @@ Zone: *"default-zone" | string
 MeshPort: *10808 | int32
 
 ServiceName: string
-ServicePorts: [string]: int32
+ServiceIngresses: [string]: int32
 
 // Outputs
 
@@ -13,7 +13,7 @@ edge: #Tmpl & { _name: "edge" }
 
 service: #Tmpl & {
   _name: ServiceName
-  _ports: ServicePorts
+  _ports: ServiceIngresses
 }
 
 #Tmpl: {

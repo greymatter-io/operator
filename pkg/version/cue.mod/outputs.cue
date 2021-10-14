@@ -131,31 +131,29 @@ manifests: [...#ManifestGroup] & [
       }
     }
   }
-  services: [...corev1.#Service] & [
-    for _, c in _c {
-      {
-        apiVersion: "v1"
-        kind: "Service"
-        metadata: {
-          name: c.name
-          namespace: InstallNamespace
-        }
-        spec: {
-          selector: "greymatter.io/cluster": c.name
-          ports: [
-            for k, v in c.ports {
-              {
-                name: k
-                protocol: "TCP"
-                port: v
-                targetPort: v
-              }
-            }
-          ]
-        }
-      }
+  service: corev1.#Service & {
+    apiVersion: "v1"
+    kind: "Service"
+    metadata: {
+      name: _c[0].name
+      namespace: InstallNamespace
     }
-  ]
+    spec: {
+      selector: "greymatter.io/cluster": _c[0].name
+      ports: [
+        for _, c in _c {
+          for k, v in c.ports {
+            {
+              name: k
+              protocol: "TCP"
+              port: v
+              targetPort: v
+            }
+          }
+        }
+      ]
+    }
+  }
   configMaps: [...corev1.#ConfigMap] & [
     for _, c in _c if len(c.configMaps) > 0 {
       for k, v in c.configMaps {

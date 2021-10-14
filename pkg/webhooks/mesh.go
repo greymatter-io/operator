@@ -83,7 +83,7 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 		go mv.ApplyMesh(prev, mesh)
 	}
 
-	go mv.ApplyMeshClient(mesh)
+	go mv.ConfigureMeshClient(mesh)
 
 	return admission.ValidationResponse(true, "allowed")
 }

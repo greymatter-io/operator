@@ -14,7 +14,7 @@ import (
 type ManifestGroup struct {
 	Deployment  *appsv1.Deployment  `json:"deployment"`
 	StatefulSet *appsv1.StatefulSet `json:"statefulset"`
-	Services    []*corev1.Service   `json:"services"`
+	Service     *corev1.Service     `json:"service"`
 	ConfigMaps  []*corev1.ConfigMap `json:"configMaps"`
 	Secrets     []*corev1.Secret    `json:"secrets"`
 }

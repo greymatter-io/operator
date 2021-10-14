@@ -17,32 +17,32 @@ var (
 )
 
 type Clientset struct {
-	meshes map[string]*client
+	meshClients map[string]*meshClient
 }
 
 // Returns *Clientset for storing clients to configure Control and Catalog APIs in the system namespace of each mesh.
 func New() (*Clientset, error) {
-	v, err := cliVersion()
-	if err != nil {
-		logger.Error(err, "Failed to initialize greymatter CLI")
-		return nil, err
-	}
+	// v, err := cliVersion()
+	// if err != nil {
+	// 	logger.Error(err, "Failed to initialize greymatter CLI")
+	// 	return nil, err
+	// }
 
-	logger.Info("Using greymatter CLI", "Version", v)
+	// logger.Info("Using greymatter CLI", "Version", v)
 
 	if err := fabric.Init(); err != nil {
 		logger.Error(err, "Failed to initialize Fabric templates")
 		return nil, err
 	}
 
-	return &Clientset{make(map[string]*client)}, nil
+	return &Clientset{make(map[string]*meshClient)}, nil
 }
 
-// Initializes or updates a client. Should run in a goroutine.
-func (cs *Clientset) ApplyMeshClient(mesh *v1alpha1.Mesh) {
+// Initializes or updates a meshClient. Should run in a goroutine.
+func (cs *Clientset) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
 	// Close an existing cmds channel if updating
-	if cl, ok := cs.meshes[mesh.Name]; ok {
-		close(cl.cmds)
+	if mc, ok := cs.meshClients[mesh.Name]; ok {
+		close(mc.cmds)
 	}
 
 	// for CLI 4
@@ -56,27 +56,27 @@ func (cs *Clientset) ApplyMeshClient(mesh *v1alpha1.Mesh) {
 	// conf = base64.StdEncoding.EncodeToString([]byte(conf))
 
 	// Create a new client (blocks to ping Control API and Catalog)
-	cl, err := newClient(mesh, // todo: add --base64-config flag
-		"--config", "/tmp",
-		"--api.url", fmt.Sprintf("http://control.%s.svc:5555/v1.0", mesh.Namespace),
-		"--catalog.url", fmt.Sprintf("http://catalog.%s.svc:8080", mesh.Namespace),
+	mc, err := newMeshClient(mesh, // todo: add --base64-config flag
+		fmt.Sprintf("--api.host control.%s.svc:5555", mesh.Namespace),
+		fmt.Sprintf("--catalog.host catalog.%s.svc:8080", mesh.Namespace),
+		fmt.Sprintf("--catalog.mesh %s", mesh.Name),
 	)
 	if err != nil {
-		logger.Error(err, "Failed to create/update client for mesh", "Mesh", mesh.Name)
+		logger.Error(err, "Failed to configure client for mesh", "Mesh", mesh.Name)
 		return
 	}
 
-	cs.meshes[mesh.Name] = cl
+	cs.meshClients[mesh.Name] = mc
 }
 
 // Closes a client's cmds channel before deleting the client.
 func (cs *Clientset) RemoveMeshClient(name string) {
-	cl, ok := cs.meshes[name]
+	mc, ok := cs.meshClients[name]
 	if !ok {
 		return
 	}
-	close(cl.cmds)
-	delete(cs.meshes, name)
+	close(mc.cmds)
+	delete(cs.meshClients, name)
 }
 
 // Given the name of an appsv1.Deployment/StatefulSet, a list of its meshes from its `greymatter.io/mesh` label, and

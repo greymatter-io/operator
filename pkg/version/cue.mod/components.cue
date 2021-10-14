@@ -51,7 +51,7 @@ control: #Component & {
   name: "control"
   isStatefulset: false
   image: =~"^docker.greymatter.io/(release|development)/gm-control:" & !~"latest$"
-  ports: grpc: 50000
+  ports: xds: 50000
   env: {
     GM_CONTROL_CMD: "kubernetes"
     GM_CONTROL_KUBERNETES_NAMESPACES: WatchNamespaces
@@ -101,7 +101,7 @@ catalog: #Component & {
   ports: api: 8080
   env: {
     SEED_FILE_PATH: "/app/seed/seed.yaml"
-    SEED_FILE_FORAMT: "yaml"
+    SEED_FILE_FORMAT: "yaml"
     CONFIG_SOURCE: "redis"
     REDIS_MAX_RETRIES: "50"
     REDIS_RETRY_DELAY: "5s"
@@ -125,13 +125,13 @@ catalog: #Component & {
     }
   }
   configMaps: "catalog-seed": "seed.yaml": """
-  \(MeshName):
-    mesh_type: greymatter
-    sessions:
-      default:
-        url: control.\(InstallNamespace).svc:50000
-        zone: \(Zone)
-  """
+    \(MeshName):
+      mesh_type: greymatter
+      sessions:
+        default:
+          url: control.\(InstallNamespace).svc:50000
+          zone: \(Zone)
+    """
 }
 
 dashboard: #Component & {
