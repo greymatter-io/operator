@@ -16,13 +16,6 @@ func TestEdge(t *testing.T) {
 	f := loadMock(t)
 	edge := f.Edge()
 
-	t.Run("Proxy", testContains(edge.Proxy,
-		`"name":"edge"`,
-		`"proxy_key":"edge"`,
-		`"zone_key":"myzone"`,
-		`"domain_keys":["edge"]`,
-		`"listener_keys":["edge"]`,
-	))
 	t.Run("Domain", testContains(edge.Domain,
 		`"domain_key":"edge"`,
 		`"zone_key":"myzone"`,
@@ -33,6 +26,13 @@ func TestEdge(t *testing.T) {
 		`"zone_key":"myzone"`,
 		`"domain_keys":["edge"]`,
 		`"port":10909`,
+	))
+	t.Run("Proxy", testContains(edge.Proxy,
+		`"name":"edge"`,
+		`"proxy_key":"edge"`,
+		`"zone_key":"myzone"`,
+		`"domain_keys":["edge"]`,
+		`"listener_keys":["edge"]`,
 	))
 	t.Run("Cluster", testContains(edge.Cluster,
 		`"name":"edge"`,

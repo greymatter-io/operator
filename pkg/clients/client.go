@@ -1,6 +1,8 @@
 package clients
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -19,8 +21,9 @@ type meshClient struct {
 }
 
 type cmd struct {
-	args string
-	read func(string) (string, string, error)
+	args  string
+	stdin json.RawMessage
+	read  func(string) (string, string, error)
 }
 
 func newMeshClient(mesh *v1alpha1.Mesh, flags ...string) (*meshClient, error) {
@@ -44,10 +47,20 @@ func newMeshClient(mesh *v1alpha1.Mesh, flags ...string) (*meshClient, error) {
 	go func(cmds chan cmd, p chan struct{}) {
 		<-p
 		<-p
+		logger.Info("Connected to Control and Catalog", "Mesh", mesh.Name)
+
+		// Configure edge objects
+		edge := mc.f.Edge()
+		mc.apply("domain", edge.Domain)
+		mc.apply("listener", edge.Listener)
+		mc.apply("proxy", edge.Proxy)
+		mc.apply("cluster", edge.Cluster)
+
+		// Then wait for service object commands
 		for c := range cmds {
 			desc, out, err := mc.run(c)
 			if err != nil {
-				logger.Error(fmt.Errorf("%s", out), c.args)
+				logger.Error(fmt.Errorf(out), c.args)
 			} else {
 				logger.Info(c.args, desc, out)
 			}
@@ -78,7 +91,11 @@ func (mc *meshClient) run(c cmd) (string, string, error) {
 			args = append(strings.Split(flag, " "), args...)
 		}
 	}
-	out, err := exec.Command("greymatter", args...).CombinedOutput()
+	command := exec.Command("greymatter", args...)
+	if len(c.stdin) > 0 {
+		command.Stdin = bytes.NewReader(c.stdin)
+	}
+	out, err := command.CombinedOutput()
 	if err != nil {
 		return "output", string(out), err
 	}
@@ -100,6 +117,28 @@ func (mc *meshClient) persist(seconds int, done chan struct{}, c cmd) {
 	}
 }
 
+// temp while CLI 4 is being worked on
+func (mc *meshClient) apply(kind string, data json.RawMessage) {
+	c := cmd{
+		args:  fmt.Sprintf("create %s", kind),
+		stdin: data,
+		read:  pluck("checksum"),
+	}
+	desc, out, err := mc.run(c)
+	if err != nil {
+		if strings.Contains(out, "duplicate") || strings.Contains(out, "exists") {
+			_, objKey, _ := pluck(fmt.Sprintf("%s_key", kind))(string(data))
+			c.args = fmt.Sprintf("edit %s %s", kind, objKey)
+			desc, out, _ := mc.run(c)
+			logger.Info(c.args, desc, out)
+			return
+		}
+		logger.Error(fmt.Errorf(out), c.args)
+		return
+	}
+	logger.Info(c.args, desc, out)
+}
+
 func pluck(key string) func(string) (string, string, error) {
 	return func(out string) (string, string, error) {
 		value := gjson.Get(out, key)
@@ -112,13 +151,23 @@ func pluck(key string) func(string) (string, string, error) {
 
 func cliVersion() (string, error) {
 	_, version, err := (&meshClient{}).run(cmd{
-		args: "--version",
+		args: "version",
+		// args: "--version",
 		read: func(out string) (string, string, error) {
-			split := strings.Split(out, " ")
-			if len(split) < 3 {
-				return "", out, fmt.Errorf("failed to get version")
+			// split := strings.Split(out, " ")
+			// if len(split) < 3 {
+			// 	return "", out, fmt.Errorf("failed to get version")
+			// }
+			// return "version", split[2], nil
+			lines := strings.Split(out, "\n")
+			if len(lines) != 6 {
+				return "", out, fmt.Errorf("unexpected output")
 			}
-			return "version", split[2], nil
+			fields := strings.Fields(lines[1])
+			if len(fields) != 2 {
+				return "", out, fmt.Errorf("unexpected output")
+			}
+			return "", fields[1], nil
 		},
 	})
 	return version, err

@@ -27,14 +27,17 @@ func TestNewClient(t *testing.T) {
 
 	// conf = base64.StdEncoding.EncodeToString([]byte(conf))
 
-	// cl, err := newMeshClient(&v1alpha1.Mesh{
+	// mc, err := newMeshClient(&v1alpha1.Mesh{
 	// 	ObjectMeta: metav1.ObjectMeta{Name: "mesh"},
 	// 	Spec:       v1alpha1.MeshSpec{Zone: "zone"},
 	// }, "--base64-config", conf)
 
-	cl, err := newMeshClient(&v1alpha1.Mesh{
+	mc, err := newMeshClient(&v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mesh"},
-		Spec:       v1alpha1.MeshSpec{Zone: "zone"},
+		Spec: v1alpha1.MeshSpec{
+			Zone:     "zone",
+			MeshPort: 10808,
+		},
 	},
 		"--api.host localhost:5555",
 		"--catalog.host localhost:8181",
@@ -44,15 +47,12 @@ func TestNewClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cl.cmds <- cmd{args: "version"}
-	time.Sleep(time.Second * 1)
+	time.Sleep(time.Second * 5)
 
-	close(cl.cmds)
+	close(mc.cmds)
 }
 
 func TestCLIVersion(t *testing.T) {
-	t.Skip() // temp while version in flux
-
 	v, err := cliVersion()
 	if err != nil {
 		t.Fatal(err)

@@ -22,13 +22,13 @@ type Clientset struct {
 
 // Returns *Clientset for storing clients to configure Control and Catalog APIs in the system namespace of each mesh.
 func New() (*Clientset, error) {
-	// v, err := cliVersion()
-	// if err != nil {
-	// 	logger.Error(err, "Failed to initialize greymatter CLI")
-	// 	return nil, err
-	// }
+	v, err := cliVersion()
+	if err != nil {
+		logger.Error(err, "Failed to initialize greymatter CLI")
+		return nil, err
+	}
 
-	// logger.Info("Using greymatter CLI", "Version", v)
+	logger.Info("Using greymatter CLI", "Version", v)
 
 	if err := fabric.Init(); err != nil {
 		logger.Error(err, "Failed to initialize Fabric templates")
