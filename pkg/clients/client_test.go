@@ -12,7 +12,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	// t.Skip() // only works locally in integrated env
+	t.Skip() // only works locally in integrated env
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	fabric.Init()
