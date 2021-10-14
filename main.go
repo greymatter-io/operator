@@ -139,7 +139,7 @@ func main() {
 	}
 
 	// Initialize interface with greymatter CLI
-	_, err = clients.New()
+	cs, err := clients.New()
 	if err != nil {
 		os.Exit(1)
 	}
@@ -150,7 +150,8 @@ func main() {
 		logger.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-	webhooks.Register(mgr, inst)
+
+	webhooks.Register(mgr, inst, cs)
 
 	//+kubebuilder:scaffold:builder
 

@@ -4,6 +4,8 @@
 package clients
 
 import (
+	"fmt"
+
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
 	corev1 "k8s.io/api/core/v1"
@@ -37,22 +39,38 @@ func New() (*Clientset, error) {
 }
 
 // Initializes or updates a client. Should run in a goroutine.
-func (cs *Clientset) ApplyMesh(mesh *v1alpha1.Mesh) {
+func (cs *Clientset) ApplyMeshClient(mesh *v1alpha1.Mesh) {
 	// Close an existing cmds channel if updating
 	if cl, ok := cs.meshes[mesh.Name]; ok {
 		close(cl.cmds)
 	}
+
+	// for CLI 4
+	// conf := fmt.Sprintf(`
+	// [api]
+	// host = "http://control-api.%s.svc:5555/v1.0"
+	// [catalog]
+	// host = "http://catalog.%s.svc:8080"
+	// mesh = "%s"
+	// `, mesh.Namespace, mesh.Namespace, mesh.Name)
+	// conf = base64.StdEncoding.EncodeToString([]byte(conf))
+
 	// Create a new client (blocks to ping Control API and Catalog)
-	cl, err := newClient(mesh, "")
+	cl, err := newClient(mesh, // todo: add --base64-config flag
+		"--config", "/tmp",
+		"--api.url", fmt.Sprintf("http://control.%s.svc:5555/v1.0", mesh.Namespace),
+		"--catalog.url", fmt.Sprintf("http://catalog.%s.svc:8080", mesh.Namespace),
+	)
 	if err != nil {
 		logger.Error(err, "Failed to create/update client for mesh", "Mesh", mesh.Name)
 		return
 	}
+
 	cs.meshes[mesh.Name] = cl
 }
 
 // Closes a client's cmds channel before deleting the client.
-func (cs *Clientset) RemoveMesh(name string) {
+func (cs *Clientset) RemoveMeshClient(name string) {
 	cl, ok := cs.meshes[name]
 	if !ok {
 		return

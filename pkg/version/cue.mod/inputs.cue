@@ -1,5 +1,7 @@
 package base
 
+MeshName: string
+
 // Where to install components
 InstallNamespace: string
 // The scope of the mesh network; includes InstallNamespace

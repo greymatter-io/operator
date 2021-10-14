@@ -13,6 +13,7 @@ var (
 
 func (m Mesh) InstallOptions() []version.InstallOption {
 	opts := []version.InstallOption{
+		version.MeshName(m.Name),
 		version.MeshPort(m.Spec.MeshPort),
 		version.InstallNamespace(m.ObjectMeta.Namespace),
 		version.WatchNamespaces(append(m.Spec.WatchNamespaces, m.ObjectMeta.Namespace)...),

@@ -100,6 +100,8 @@ catalog: #Component & {
   image: =~"^docker.greymatter.io/(release|development)/gm-catalog:" & !~"latest$"
   ports: api: 8080
   env: {
+    SEED_FILE_PATH: "/app/seed/seed.yaml"
+    SEED_FILE_FORAMT: "yaml"
     CONFIG_SOURCE: "redis"
     REDIS_MAX_RETRIES: "50"
     REDIS_RETRY_DELAY: "5s"
@@ -113,6 +115,23 @@ catalog: #Component & {
       key: "password"
     }
   }
+  volumeMounts: "catalog-seed": {
+    mountPath: "/app/seed"
+  }
+  volumes: "catalog-seed": {
+    configMap: {
+      name: "catalog-seed"
+      defaultMode: 420
+    }
+  }
+  configMaps: "catalog-seed": "seed.yaml": """
+  \(MeshName):
+    mesh_type: greymatter
+    sessions:
+      default:
+        url: control.\(InstallNamespace).svc:50000
+        zone: \(Zone)
+  """
 }
 
 dashboard: #Component & {

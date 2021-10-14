@@ -17,10 +17,10 @@ type result struct {
 	err error
 }
 
-func (c cmd) run(conf string) (string, error) {
+func (c cmd) run(flags []string) (string, error) {
 	args := strings.Split(c.args, " ")
-	if conf != "" {
-		args = append([]string{"--base64-config", conf}, args...)
+	if len(flags) > 0 {
+		args = append(flags, args...)
 	}
 	command := exec.Command("greymatter", args...)
 	var out bytes.Buffer
@@ -44,13 +44,5 @@ func cliVersion() (string, error) {
 			}
 			return split[2], nil
 		},
-	}.run("")
+	}.run(nil)
 }
-
-/*
-	"--config", "/tmp",
-	// TODO: Implement secure connections.
-	fmt.Sprintf("--api.url=%s", api),
-	fmt.Sprintf("--catalog.url=%s", catalog),
-	fmt.Sprintf("--catalog.mesh=%s", mesh.Name),
-*/

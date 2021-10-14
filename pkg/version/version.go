@@ -39,6 +39,12 @@ func (v *Version) Apply(opts ...InstallOption) {
 // An option for mutating the Version's cue.Value.
 type InstallOption func(*Version)
 
+func MeshName(name string) InstallOption {
+	return func(v *Version) {
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`MeshName: "%s"`, name)))
+	}
+}
+
 // An InstallOption for injecting an InstallNamespace value.
 func InstallNamespace(namespace string) InstallOption {
 	return func(v *Version) {

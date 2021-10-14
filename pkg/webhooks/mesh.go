@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/clients"
 	"github.com/greymatter-io/operator/pkg/installer"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -37,6 +38,7 @@ func (md *meshDefaulter) Handle(ctx context.Context, req admission.Request) admi
 
 type meshValidator struct {
 	*installer.Installer
+	*clients.Clientset
 	*admission.Decoder
 }
 
@@ -54,7 +56,12 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 		go mv.RemoveMesh(prev)
+		go mv.RemoveMeshClient(req.Name)
 		return admission.ValidationResponse(true, "allowed")
+	}
+
+	if req.Namespace == "gm-operator" {
+		return admission.ValidationResponse(false, "attempted to create Mesh in 'gm-operator' namespace")
 	}
 
 	// TODO: Ensure only one mesh exists in a namespace
@@ -75,6 +82,8 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 		}
 		go mv.ApplyMesh(prev, mesh)
 	}
+
+	go mv.ApplyMeshClient(mesh)
 
 	return admission.ValidationResponse(true, "allowed")
 }
