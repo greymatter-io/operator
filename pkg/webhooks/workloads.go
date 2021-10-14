@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/greymatter-io/operator/pkg/clients"
 	"github.com/greymatter-io/operator/pkg/installer"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -15,6 +16,7 @@ import (
 
 type workloadDefaulter struct {
 	*installer.Installer
+	*clients.Clientset
 	*admission.Decoder
 }
 
@@ -62,9 +64,9 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 		return admission.ValidationResponse(true, "allowed")
 	}
 
-	logger.Info("inject sidecar", "kind", "Pod", "generateName", pod.GenerateName+"*", "namespace", req.Namespace)
 	pod.Spec.Containers = append(pod.Spec.Containers, sidecar.Container)
 	pod.Spec.Volumes = append(pod.Spec.Volumes, sidecar.Volumes...)
+	logger.Info("injected sidecar", "kind", "Pod", "generateName", pod.GenerateName+"*", "namespace", req.Namespace)
 
 	// Inject a reference to the image pull secret
 	var hasImagePullSecret bool
@@ -88,16 +90,10 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 
 func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Response {
 
-	// TEMP: Later, handle deletes by removing mesh configs
-	if req.Operation == admissionv1.Delete {
+	mesh := wd.WatchedBy(req.Namespace)
+	if mesh == "" {
 		return admission.ValidationResponse(true, "allowed")
 	}
-
-	if !wd.IsMeshMember(req.Namespace) {
-		return admission.ValidationResponse(true, "allowed")
-	}
-
-	logger.Info("add cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
 
 	var rawUpdate json.RawMessage
 	var ok bool
@@ -117,9 +113,13 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				logger.Error(err, "Failed to add cluster label to Deployment", "Name", req.Name, "Namespace", req.Namespace)
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
-			// TODO: Add mesh configs
-		} // else {}
-		// TODO: Handle deletes (remove mesh configs)
+			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
+			go wd.ConfigureService(mesh, req.Name, deployment.Spec.Template.Spec.Containers)
+		} else {
+			wd.DecodeRaw(req.OldObject, deployment)
+			go wd.RemoveService(mesh, req.Name, deployment.Spec.Template.Spec.Containers)
+			return admission.ValidationResponse(true, "allowed")
+		}
 
 	case "StatefulSet":
 		statefulset := &appsv1.StatefulSet{}
@@ -134,9 +134,13 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				logger.Error(err, "Failed to add cluster label to StatefulSet", "Name", req.Name, "Namespace", req.Namespace)
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
-			// TODO: Add mesh configs
-		} // else {}
-		// TODO: Handle deletes (remove mesh configs)
+			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
+			go wd.ConfigureService(mesh, req.Name, statefulset.Spec.Template.Spec.Containers)
+		} else {
+			wd.DecodeRaw(req.OldObject, statefulset)
+			go wd.RemoveService(mesh, req.Name, statefulset.Spec.Template.Spec.Containers)
+			return admission.ValidationResponse(true, "allowed")
+		}
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, rawUpdate)

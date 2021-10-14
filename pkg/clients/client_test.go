@@ -44,7 +44,18 @@ func TestNewClient(t *testing.T) {
 		"--catalog.mesh mesh",
 	)
 
-	time.Sleep(time.Second * 5)
+	objects, _ := mc.f.Service("mock", map[string]int32{"api": 5555})
+	mc.controlCmds <- mkApply("domain", objects.Domain)
+	mc.controlCmds <- mkApply("listener", objects.Listener)
+	mc.controlCmds <- mkApply("proxy", objects.Proxy)
+	mc.controlCmds <- mkApply("cluster", objects.Cluster)
+	mc.controlCmds <- mkApply("route", objects.Route)
+	for _, ingress := range objects.Ingresses {
+		mc.controlCmds <- mkApply("cluster", ingress.Cluster)
+		mc.controlCmds <- mkApply("route", ingress.Route)
+	}
+
+	time.Sleep(time.Second * 8)
 
 	close(mc.controlCmds)
 	close(mc.catalogCmds)

@@ -24,8 +24,18 @@ type meshClient struct {
 type cmd struct {
 	args  string
 	stdin json.RawMessage
-	read  func(string) (string, string, error)
+	// Attempt to parse stdout into readable key-value pairs, or error
+	reader
+	// If the cmd (or read) fails, run this cmd
+	backup *cmd
 }
+
+type result struct {
+	kvs []interface{}
+	err error
+}
+
+type reader func(string) result
 
 func newMeshClient(mesh *v1alpha1.Mesh, flags ...string) *meshClient {
 	mc := &meshClient{
@@ -41,25 +51,35 @@ func newMeshClient(mesh *v1alpha1.Mesh, flags ...string) *meshClient {
 		// Ping Control every 5s until responsive (getting the Mesh's zone's checksum)
 		mc.persist(5, cmd{
 			// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
-			args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
-			read: pluck("checksum"),
+			args:   fmt.Sprintf("get zone %s", mesh.Spec.Zone),
+			reader: pluck("zone_key", "checksum"),
 		})
 		logger.Info("Connected to Control", "Mesh", mesh.Name)
 
 		// Configure edge objects
-		edge := mc.f.Edge()
-		mc.apply("domain", edge.Domain)
-		mc.apply("listener", edge.Listener)
-		mc.apply("proxy", edge.Proxy)
-		mc.apply("cluster", edge.Cluster)
+		objects := mc.f.Edge()
+
+		for _, c := range []cmd{
+			mkApply("domain", objects.Domain),
+			mkApply("listener", objects.Listener),
+			mkApply("proxy", objects.Proxy),
+			mkApply("cluster", objects.Cluster),
+		} {
+			r := mc.run(c)
+			if r.err != nil {
+				logger.Error(r.err, c.args, r.kvs...)
+			} else {
+				logger.Info(c.args, r.kvs...)
+			}
+		}
 
 		// Then consume additional commands for control objects
 		for c := range controlCmds {
-			desc, out, err := mc.run(c)
-			if err != nil {
-				logger.Error(fmt.Errorf(out), c.args)
+			r := mc.run(c)
+			if r.err != nil {
+				logger.Error(r.err, c.args, r.kvs...)
 			} else {
-				logger.Info(c.args, desc, out)
+				logger.Info(c.args, r.kvs...)
 			}
 		}
 	}(mc.controlCmds)
@@ -69,18 +89,18 @@ func newMeshClient(mesh *v1alpha1.Mesh, flags ...string) *meshClient {
 		// Ping Catalog every 5s until responsive (getting the Mesh's session status with Control).
 		mc.persist(5, cmd{
 			// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
-			args: fmt.Sprintf("get catalog-mesh %s", mesh.Name),
-			read: pluck("session_statuses.default"),
+			args:   fmt.Sprintf("get catalog-mesh %s", mesh.Name),
+			reader: pluck("mesh_id", "session_statuses.default"),
 		})
 		logger.Info("Connected to Catalog", "Mesh", mesh.Name)
 
 		// Then consume additional commands for catalog objects
 		for c := range catalogCmds {
-			desc, out, err := mc.run(c)
-			if err != nil {
-				logger.Error(fmt.Errorf(out), c.args)
+			r := mc.run(c)
+			if r.err != nil {
+				logger.Error(r.err, c.args, r.kvs...)
 			} else {
-				logger.Info(c.args, desc, out)
+				logger.Info(c.args, r.kvs...)
 			}
 		}
 	}(mc.catalogCmds)
@@ -88,7 +108,7 @@ func newMeshClient(mesh *v1alpha1.Mesh, flags ...string) *meshClient {
 	return mc
 }
 
-func (mc *meshClient) run(c cmd) (string, string, error) {
+func (mc *meshClient) run(c cmd) result {
 	args := strings.Split(c.args, " ")
 	if len(mc.flags) > 0 {
 		for _, flag := range mc.flags {
@@ -99,64 +119,74 @@ func (mc *meshClient) run(c cmd) (string, string, error) {
 	if len(c.stdin) > 0 {
 		command.Stdin = bytes.NewReader(c.stdin)
 	}
+
 	out, err := command.CombinedOutput()
-	if err != nil {
-		return "output", string(out), err
+	parsed := string(out)
+	r := result{
+		kvs: []interface{}{"output", parsed},
+		err: err,
 	}
-	if c.read == nil {
-		return "output", string(out), nil
+	// If there was no error, and a reader is defined, attempt to read
+	if err == nil && c.reader != nil {
+		r = c.reader(parsed)
 	}
-	return c.read(string(out))
+	// If there is an error (either from command or c.reader), and a backup is set, run it
+	if err != nil && c.backup != nil {
+		return mc.run(*c.backup)
+	}
+	return r
 }
 
 func (mc *meshClient) persist(seconds int, c cmd) bool {
-	desc, out, err := mc.run(c)
-	if err != nil {
-		logger.Error(fmt.Errorf("%s", out), c.args)
+	r := mc.run(c)
+	if r.err != nil {
+		logger.Error(r.err, c.args, r.kvs...)
 		time.Sleep(time.Second * time.Duration(seconds))
 		return mc.persist(seconds, c)
 	}
-	logger.Info(c.args, desc, out)
+	logger.Info(c.args, r.kvs...)
+
 	return true
 }
 
 // temp while CLI 4 is being worked on
-func (mc *meshClient) apply(kind string, data json.RawMessage) {
-	c := cmd{
-		args:  fmt.Sprintf("create %s", kind),
-		stdin: data,
-		read:  pluck("checksum"),
+func mkApply(kind string, data json.RawMessage) cmd {
+	kindKey := fmt.Sprintf("%s_key", kind)
+	key := pluck(kindKey)(string(data)).kvs[1]
+	return cmd{
+		args:   fmt.Sprintf("create %s", kind),
+		stdin:  data,
+		reader: pluck(kindKey, "checksum"),
+		backup: &cmd{
+			args:   fmt.Sprintf("edit %s %s", kind, key),
+			stdin:  data,
+			reader: pluck(kindKey, "checksum"),
+		},
 	}
-	desc, out, err := mc.run(c)
-	if err != nil {
-		if strings.Contains(out, "duplicate") || strings.Contains(out, "exists") {
-			_, objKey, _ := pluck(fmt.Sprintf("%s_key", kind))(string(data))
-			c.args = fmt.Sprintf("edit %s %s", kind, objKey)
-			desc, out, _ := mc.run(c)
-			logger.Info(c.args, desc, out)
-			return
-		}
-		logger.Error(fmt.Errorf(out), c.args)
-		return
-	}
-	logger.Info(c.args, desc, out)
 }
 
-func pluck(key string) func(string) (string, string, error) {
-	return func(out string) (string, string, error) {
-		value := gjson.Get(out, key)
-		if value.Exists() {
-			return key, value.String(), nil
+func pluck(keys ...string) reader {
+	return func(out string) result {
+		var kvs []interface{}
+		for _, key := range keys {
+			value := gjson.Get(out, key)
+			if value.Exists() {
+				kvs = append(kvs, key, value)
+			}
 		}
-		return "", out, fmt.Errorf("failed to get %s", key)
+		r := result{kvs, nil}
+		if len(kvs) == 0 {
+			r.err = fmt.Errorf("failed to get %v", keys)
+		}
+		return r
 	}
 }
 
 func cliVersion() (string, error) {
-	_, version, err := (&meshClient{}).run(cmd{
+	r := (&meshClient{}).run(cmd{
 		args: "version",
 		// args: "--version",
-		read: func(out string) (string, string, error) {
+		reader: func(out string) result {
 			// split := strings.Split(out, " ")
 			// if len(split) < 3 {
 			// 	return "", out, fmt.Errorf("failed to get version")
@@ -164,14 +194,17 @@ func cliVersion() (string, error) {
 			// return "version", split[2], nil
 			lines := strings.Split(out, "\n")
 			if len(lines) != 6 {
-				return "", out, fmt.Errorf("unexpected output")
+				return result{nil, fmt.Errorf("unexpected output")}
 			}
 			fields := strings.Fields(lines[1])
 			if len(fields) != 2 {
-				return "", out, fmt.Errorf("unexpected output")
+				return result{nil, fmt.Errorf("unexpected output")}
 			}
-			return "", fields[1], nil
+			return result{[]interface{}{fields[1]}, nil}
 		},
 	})
-	return version, err
+	if len(r.kvs) != 1 {
+		return "", r.err
+	}
+	return r.kvs[0].(string), nil
 }

@@ -51,13 +51,6 @@ func TestService(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Run("Proxy", testContains(service.Proxy,
-		`"name":"example"`,
-		`"proxy_key":"example"`,
-		`"zone_key":"myzone"`,
-		`"domain_keys":["example"]`,
-		`"listener_keys":["example"]`,
-	))
 	t.Run("Domain", testContains(service.Domain,
 		`"domain_key":"example"`,
 		`"zone_key":"myzone"`,
@@ -68,6 +61,13 @@ func TestService(t *testing.T) {
 		`"zone_key":"myzone"`,
 		`"domain_keys":["example"]`,
 		`"port":10909`,
+	))
+	t.Run("Proxy", testContains(service.Proxy,
+		`"name":"example"`,
+		`"proxy_key":"example"`,
+		`"zone_key":"myzone"`,
+		`"domain_keys":["example"]`,
+		`"listener_keys":["example"]`,
 	))
 	t.Run("Cluster", testContains(service.Cluster,
 		`"name":"example"`,

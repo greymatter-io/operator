@@ -88,13 +88,49 @@ func (cs *Clientset) RemoveMeshClient(name string) {
 // Given the name of an appsv1.Deployment/StatefulSet, a list of its meshes from its `greymatter.io/mesh` label, and
 // a list of corev1.Containers, generates fabric from the stored fabric.ServiceTemplate for each mesh and
 // persists each meshobject to the Redis database assigned to each mesh.
-func (cs *Clientset) ApplyService(name string, meshes []string, containers []corev1.Container) {
-	// TODO: Do not configure local objects for containerPorts with name "proxy"
+func (cs *Clientset) ConfigureService(mesh, workload string, containers []corev1.Container) {
+	cs.RLock()
+	defer cs.RUnlock()
+
+	mc, ok := cs.meshClients[mesh]
+	if !ok {
+		logger.Error(fmt.Errorf("unknown mesh"), "failed to configure mesh objects", "Mesh", mesh, "Workload", workload)
+	}
+
+	ingresses := make(map[string]int32)
+	for _, container := range containers {
+		for _, port := range container.Ports {
+			if port.Name != "" {
+				ingresses[port.Name] = port.ContainerPort
+			}
+		}
+	}
+
+	if len(ingresses) == 0 {
+		logger.Error(fmt.Errorf("no named container ports"), "failed to configure mesh objects", "Mesh", mesh, "Workload", workload)
+	}
+
+	objects, err := mc.f.Service(workload, ingresses)
+	if err != nil {
+		logger.Error(err, "failed to generate mesh objects", "Mesh", mesh, "Workload", workload)
+	}
+
+	mc.controlCmds <- mkApply("domain", objects.Domain)
+	mc.controlCmds <- mkApply("listener", objects.Listener)
+	mc.controlCmds <- mkApply("proxy", objects.Proxy)
+	mc.controlCmds <- mkApply("cluster", objects.Cluster)
+	mc.controlCmds <- mkApply("route", objects.Route)
+	for _, ingress := range objects.Ingresses {
+		mc.controlCmds <- mkApply("cluster", ingress.Cluster)
+		mc.controlCmds <- mkApply("route", ingress.Route)
+	}
+
+	logger.Info("configured mesh objects", "Mesh", mesh, "Workload", workload)
 }
 
 // Given the name of an appsv1.Deployment/StatefulSet, a list of its meshes from its `greymatter.io/mesh` label, and
 // a list of corev1.Containers, deletes fabric generated for the service from each mesh and
 // persists the deletion changes to the Redis database assigned to each mesh.
-func (cs *Clientset) RemoveService(name string, meshes []string, containers []corev1.Container) {
-	// TODO: Do not attempt to unconfigure local objects for containerPorts with name "proxy"
+func (cs *Clientset) RemoveService(mesh, service string, containers []corev1.Container) {
+
 }

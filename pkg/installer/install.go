@@ -303,12 +303,11 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 	}
 }
 
-func (i *Installer) IsMeshMember(namespace string) bool {
+func (i *Installer) WatchedBy(namespace string) string {
 	i.RLock()
 	defer i.RUnlock()
 
-	_, ok := i.namespaces[namespace]
-	return ok
+	return i.namespaces[namespace]
 }
 
 func (i *Installer) Sidecar(namespace, xdsCluster string) (version.Sidecar, bool) {
