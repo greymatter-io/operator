@@ -21,13 +21,13 @@ type Fabric struct {
 	cue cue.Value
 }
 
-func New(mesh *v1alpha1.Mesh) (*Fabric, error) {
+func New(mesh *v1alpha1.Mesh) *Fabric {
 	return &Fabric{cue: value.Unify(
 		cueutils.FromStrings(fmt.Sprintf(`
 			Zone: "%s"
 			MeshPort: %d
 		`, mesh.Spec.Zone, mesh.Spec.MeshPort)),
-	)}, nil
+	)}
 }
 
 type Objects struct {

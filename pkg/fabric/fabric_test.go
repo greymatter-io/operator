@@ -171,17 +171,12 @@ func loadMock(t *testing.T) *Fabric {
 		t.FailNow()
 	}
 
-	f, err := New(&v1alpha1.Mesh{
+	return New(&v1alpha1.Mesh{
 		Spec: v1alpha1.MeshSpec{
 			Zone:     "myzone",
 			MeshPort: 10909,
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return f
 }
 
 func testContains(obj json.RawMessage, subs ...string) func(t *testing.T) {

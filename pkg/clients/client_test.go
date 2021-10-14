@@ -12,7 +12,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	t.Skip() // only works locally in integrated env
+	// t.Skip() // only works locally in integrated env
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	fabric.Init()
@@ -32,7 +32,7 @@ func TestNewClient(t *testing.T) {
 	// 	Spec:       v1alpha1.MeshSpec{Zone: "zone"},
 	// }, "--base64-config", conf)
 
-	mc, err := newMeshClient(&v1alpha1.Mesh{
+	mc := newMeshClient(&v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mesh"},
 		Spec: v1alpha1.MeshSpec{
 			Zone:     "zone",
@@ -43,13 +43,11 @@ func TestNewClient(t *testing.T) {
 		"--catalog.host localhost:8181",
 		"--catalog.mesh mesh",
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	time.Sleep(time.Second * 5)
 
-	close(mc.cmds)
+	close(mc.controlCmds)
+	close(mc.catalogCmds)
 }
 
 func TestCLIVersion(t *testing.T) {

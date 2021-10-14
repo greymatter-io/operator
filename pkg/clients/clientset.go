@@ -5,6 +5,7 @@ package clients
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
@@ -17,6 +18,7 @@ var (
 )
 
 type Clientset struct {
+	*sync.RWMutex
 	meshClients map[string]*meshClient
 }
 
@@ -35,14 +37,21 @@ func New() (*Clientset, error) {
 		return nil, err
 	}
 
-	return &Clientset{make(map[string]*meshClient)}, nil
+	return &Clientset{
+		RWMutex:     &sync.RWMutex{},
+		meshClients: make(map[string]*meshClient),
+	}, nil
 }
 
-// Initializes or updates a meshClient. Should run in a goroutine.
+// Initializes or updates a meshClient.
 func (cs *Clientset) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
+	cs.Lock()
+	defer cs.Unlock()
+
 	// Close an existing cmds channel if updating
 	if mc, ok := cs.meshClients[mesh.Name]; ok {
-		close(mc.cmds)
+		close(mc.controlCmds)
+		close(mc.catalogCmds)
 	}
 
 	// for CLI 4
@@ -55,27 +64,24 @@ func (cs *Clientset) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
 	// `, mesh.Namespace, mesh.Namespace, mesh.Name)
 	// conf = base64.StdEncoding.EncodeToString([]byte(conf))
 
-	// Create a new client (blocks to ping Control API and Catalog)
-	mc, err := newMeshClient(mesh, // todo: add --base64-config flag
+	cs.meshClients[mesh.Name] = newMeshClient(mesh, // todo: add --base64-config flag
 		fmt.Sprintf("--api.host control.%s.svc:5555", mesh.Namespace),
 		fmt.Sprintf("--catalog.host catalog.%s.svc:8080", mesh.Namespace),
 		fmt.Sprintf("--catalog.mesh %s", mesh.Name),
 	)
-	if err != nil {
-		logger.Error(err, "Failed to configure client for mesh", "Mesh", mesh.Name)
-		return
-	}
-
-	cs.meshClients[mesh.Name] = mc
 }
 
-// Closes a client's cmds channel before deleting the client.
+// Closes a client's cmds channels before deleting the client.
 func (cs *Clientset) RemoveMeshClient(name string) {
+	cs.Lock()
+	defer cs.Unlock()
+
 	mc, ok := cs.meshClients[name]
 	if !ok {
 		return
 	}
-	close(mc.cmds)
+	close(mc.controlCmds)
+	close(mc.catalogCmds)
 	delete(cs.meshClients, name)
 }
 

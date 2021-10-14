@@ -14,10 +14,11 @@ import (
 )
 
 type meshClient struct {
-	mesh  string
-	flags []string
-	cmds  chan cmd
-	f     *fabric.Fabric
+	mesh        string
+	flags       []string
+	controlCmds chan cmd
+	catalogCmds chan cmd
+	f           *fabric.Fabric
 }
 
 type cmd struct {
@@ -26,28 +27,24 @@ type cmd struct {
 	read  func(string) (string, string, error)
 }
 
-func newMeshClient(mesh *v1alpha1.Mesh, flags ...string) (*meshClient, error) {
-	f, err := fabric.New(mesh)
-	if err != nil {
-		return nil, err
-	}
-
+func newMeshClient(mesh *v1alpha1.Mesh, flags ...string) *meshClient {
 	mc := &meshClient{
-		mesh:  mesh.Name,
-		flags: flags,
-		cmds:  make(chan cmd),
-		f:     f,
+		mesh:        mesh.Name,
+		flags:       flags,
+		controlCmds: make(chan cmd),
+		catalogCmds: make(chan cmd),
+		f:           fabric.New(mesh),
 	}
 
-	// Make a channel to notify when we've successfully pinged Control and Catalog.
-	pinged := make(chan struct{})
-
-	// Range over pinged until it's closed, and then start listening for additional commands.
-	// This goroutine can only be stopped by closing mc.cmds.
-	go func(cmds chan cmd, p chan struct{}) {
-		<-p
-		<-p
-		logger.Info("Connected to Control and Catalog", "Mesh", mesh.Name)
+	// Consume commands to send to Control
+	go func(controlCmds chan cmd) {
+		// Ping Control every 5s until responsive (getting the Mesh's zone's checksum)
+		mc.persist(5, cmd{
+			// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
+			args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
+			read: pluck("checksum"),
+		})
+		logger.Info("Connected to Control", "Mesh", mesh.Name)
 
 		// Configure edge objects
 		edge := mc.f.Edge()
@@ -56,8 +53,8 @@ func newMeshClient(mesh *v1alpha1.Mesh, flags ...string) (*meshClient, error) {
 		mc.apply("proxy", edge.Proxy)
 		mc.apply("cluster", edge.Cluster)
 
-		// Then wait for service object commands
-		for c := range cmds {
+		// Then consume additional commands for control objects
+		for c := range controlCmds {
 			desc, out, err := mc.run(c)
 			if err != nil {
 				logger.Error(fmt.Errorf(out), c.args)
@@ -65,23 +62,30 @@ func newMeshClient(mesh *v1alpha1.Mesh, flags ...string) (*meshClient, error) {
 				logger.Info(c.args, desc, out)
 			}
 		}
-	}(mc.cmds, pinged)
+	}(mc.controlCmds)
 
-	// Ping Control every 10s until responsive (getting the Mesh's zone's checksum)
-	go mc.persist(10, pinged, cmd{
-		args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
-		// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
-		read: pluck("checksum"),
-	})
+	// Consume commands to send to Catalog
+	go func(catalogCmds chan cmd) {
+		// Ping Catalog every 5s until responsive (getting the Mesh's session status with Control).
+		mc.persist(5, cmd{
+			// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
+			args: fmt.Sprintf("get catalog-mesh %s", mesh.Name),
+			read: pluck("session_statuses.default"),
+		})
+		logger.Info("Connected to Catalog", "Mesh", mesh.Name)
 
-	// Ping Catalog every 10s until responsive (getting the Mesh's session status with Control).
-	go mc.persist(10, pinged, cmd{
-		args: fmt.Sprintf("get catalog-mesh %s", mesh.Name),
-		// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
-		read: pluck("session_statuses.default"),
-	})
+		// Then consume additional commands for catalog objects
+		for c := range catalogCmds {
+			desc, out, err := mc.run(c)
+			if err != nil {
+				logger.Error(fmt.Errorf(out), c.args)
+			} else {
+				logger.Info(c.args, desc, out)
+			}
+		}
+	}(mc.catalogCmds)
 
-	return mc, nil
+	return mc
 }
 
 func (mc *meshClient) run(c cmd) (string, string, error) {
@@ -105,16 +109,15 @@ func (mc *meshClient) run(c cmd) (string, string, error) {
 	return c.read(string(out))
 }
 
-func (mc *meshClient) persist(seconds int, done chan struct{}, c cmd) {
+func (mc *meshClient) persist(seconds int, c cmd) bool {
 	desc, out, err := mc.run(c)
 	if err != nil {
 		logger.Error(fmt.Errorf("%s", out), c.args)
 		time.Sleep(time.Second * time.Duration(seconds))
-		go mc.persist(seconds, done, c)
-	} else {
-		logger.Info(c.args, desc, out)
-		done <- struct{}{}
+		return mc.persist(seconds, c)
 	}
+	logger.Info(c.args, desc, out)
+	return true
 }
 
 // temp while CLI 4 is being worked on
