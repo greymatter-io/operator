@@ -22,7 +22,7 @@ import (
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/bootstrap"
-	"github.com/greymatter-io/operator/pkg/clients"
+	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"
 	"github.com/greymatter-io/operator/pkg/webhooks"
 
@@ -139,7 +139,7 @@ func main() {
 	}
 
 	// Initialize interface with greymatter CLI
-	cs, err := clients.New()
+	cs, err := cli.New()
 	if err != nil {
 		os.Exit(1)
 	}

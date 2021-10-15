@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/greymatter-io/operator/pkg/clients"
+	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -16,7 +16,7 @@ import (
 
 type workloadDefaulter struct {
 	*installer.Installer
-	*clients.Clientset
+	*cli.CLI
 	*admission.Decoder
 }
 

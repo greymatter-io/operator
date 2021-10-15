@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	logger = ctrl.Log.WithName("pkg.v1alpha1")
+	logger = ctrl.Log.WithName("v1alpha1")
 )
 
 func (m Mesh) InstallOptions() []version.InstallOption {

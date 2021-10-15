@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
-	"github.com/greymatter-io/operator/pkg/clients"
+	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -38,7 +38,7 @@ func (md *meshDefaulter) Handle(ctx context.Context, req admission.Request) admi
 
 type meshValidator struct {
 	*installer.Installer
-	*clients.Clientset
+	*cli.CLI
 	*admission.Decoder
 }
 

@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	logger = ctrl.Log.WithName("pkg.fabric")
+	logger = ctrl.Log.WithName("fabric")
 )
 
 type Fabric struct {

@@ -1,4 +1,4 @@
-package clients
+package cli
 
 import (
 	"testing"
@@ -27,12 +27,12 @@ func TestNewClient(t *testing.T) {
 
 	// conf = base64.StdEncoding.EncodeToString([]byte(conf))
 
-	// mc, err := newMeshClient(&v1alpha1.Mesh{
+	// cl, err := newClient(&v1alpha1.Mesh{
 	// 	ObjectMeta: metav1.ObjectMeta{Name: "mesh"},
 	// 	Spec:       v1alpha1.MeshSpec{Zone: "zone"},
 	// }, "--base64-config", conf)
 
-	mc := newMeshClient(&v1alpha1.Mesh{
+	cl := newClient(&v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mesh"},
 		Spec: v1alpha1.MeshSpec{
 			Zone:     "zone",
@@ -44,25 +44,25 @@ func TestNewClient(t *testing.T) {
 		"--catalog.mesh mesh",
 	)
 
-	objects, _ := mc.f.Service("mock", map[string]int32{"api": 5555})
-	mc.controlCmds <- mkApply("domain", objects.Domain)
-	mc.controlCmds <- mkApply("listener", objects.Listener)
-	mc.controlCmds <- mkApply("proxy", objects.Proxy)
-	mc.controlCmds <- mkApply("cluster", objects.Cluster)
-	mc.controlCmds <- mkApply("route", objects.Route)
+	objects, _ := cl.f.Service("mock", map[string]int32{"api": 5555})
+	cl.controlCmds <- mkApply("domain", objects.Domain)
+	cl.controlCmds <- mkApply("listener", objects.Listener)
+	cl.controlCmds <- mkApply("proxy", objects.Proxy)
+	cl.controlCmds <- mkApply("cluster", objects.Cluster)
+	cl.controlCmds <- mkApply("route", objects.Route)
 	for _, ingress := range objects.Ingresses {
-		mc.controlCmds <- mkApply("cluster", ingress.Cluster)
-		mc.controlCmds <- mkApply("route", ingress.Route)
+		cl.controlCmds <- mkApply("cluster", ingress.Cluster)
+		cl.controlCmds <- mkApply("route", ingress.Route)
 	}
 
-	time.Sleep(time.Second * 8)
+	time.Sleep(time.Second * 5)
 
-	close(mc.controlCmds)
-	close(mc.catalogCmds)
+	close(cl.controlCmds)
+	close(cl.catalogCmds)
 }
 
 func TestCLIVersion(t *testing.T) {
-	v, err := cliVersion()
+	v, err := cliversion()
 	if err != nil {
 		t.Fatal(err)
 	}

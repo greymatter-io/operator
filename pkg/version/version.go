@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	logger = ctrl.Log.WithName("pkg.version")
+	logger = ctrl.Log.WithName("version")
 )
 
 // A container for a cue.Value that holds all installation configs

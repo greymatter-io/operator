@@ -1,7 +1,7 @@
-// Package clients executes greymatter CLI commands to configure mesh capabilities
-// in Control and Catalog APIs in each 'system' namespace for each mesh.
+// Package cli executes greymatter CLI commands to configure mesh behavior
+// in Control and Catalog APIs in each install namespace for each mesh.
 // It enables Mesh CR specifications to define how a mesh should be configured.
-package clients
+package cli
 
 import (
 	"fmt"
@@ -14,17 +14,17 @@ import (
 )
 
 var (
-	logger = ctrl.Log.WithName("pkg.clients")
+	logger = ctrl.Log.WithName("cli")
 )
 
-type Clientset struct {
+type CLI struct {
 	*sync.RWMutex
-	meshClients map[string]*meshClient
+	clients map[string]*client
 }
 
-// Returns *Clientset for storing clients to configure Control and Catalog APIs in the system namespace of each mesh.
-func New() (*Clientset, error) {
-	v, err := cliVersion()
+// Returns *CLI for storing clients used to execute greymatter CLI commands.
+func New() (*CLI, error) {
+	v, err := cliversion()
 	if err != nil {
 		logger.Error(err, "Failed to initialize greymatter CLI")
 		return nil, err
@@ -37,21 +37,21 @@ func New() (*Clientset, error) {
 		return nil, err
 	}
 
-	return &Clientset{
-		RWMutex:     &sync.RWMutex{},
-		meshClients: make(map[string]*meshClient),
+	return &CLI{
+		RWMutex: &sync.RWMutex{},
+		clients: make(map[string]*client),
 	}, nil
 }
 
-// Initializes or updates a meshClient.
-func (cs *Clientset) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
+// Initializes or updates a client.
+func (cs *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
 	cs.Lock()
 	defer cs.Unlock()
 
 	// Close an existing cmds channel if updating
-	if mc, ok := cs.meshClients[mesh.Name]; ok {
-		close(mc.controlCmds)
-		close(mc.catalogCmds)
+	if cl, ok := cs.clients[mesh.Name]; ok {
+		close(cl.controlCmds)
+		close(cl.catalogCmds)
 	}
 
 	// for CLI 4
@@ -64,7 +64,8 @@ func (cs *Clientset) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
 	// `, mesh.Namespace, mesh.Namespace, mesh.Name)
 	// conf = base64.StdEncoding.EncodeToString([]byte(conf))
 
-	cs.meshClients[mesh.Name] = newMeshClient(mesh, // todo: add --base64-config flag
+	cs.clients[mesh.Name] = newClient(mesh,
+		// todo: add --base64-config flag
 		fmt.Sprintf("--api.host control.%s.svc:5555", mesh.Namespace),
 		fmt.Sprintf("--catalog.host catalog.%s.svc:8080", mesh.Namespace),
 		fmt.Sprintf("--catalog.mesh %s", mesh.Name),
@@ -72,27 +73,27 @@ func (cs *Clientset) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
 }
 
 // Closes a client's cmds channels before deleting the client.
-func (cs *Clientset) RemoveMeshClient(name string) {
+func (cs *CLI) RemoveMeshClient(name string) {
 	cs.Lock()
 	defer cs.Unlock()
 
-	mc, ok := cs.meshClients[name]
+	cl, ok := cs.clients[name]
 	if !ok {
 		return
 	}
-	close(mc.controlCmds)
-	close(mc.catalogCmds)
-	delete(cs.meshClients, name)
+	close(cl.controlCmds)
+	close(cl.catalogCmds)
+	delete(cs.clients, name)
 }
 
 // Given the name of an appsv1.Deployment/StatefulSet, a list of its meshes from its `greymatter.io/mesh` label, and
 // a list of corev1.Containers, generates fabric from the stored fabric.ServiceTemplate for each mesh and
 // persists each meshobject to the Redis database assigned to each mesh.
-func (cs *Clientset) ConfigureService(mesh, workload string, containers []corev1.Container) {
+func (cs *CLI) ConfigureService(mesh, workload string, containers []corev1.Container) {
 	cs.RLock()
 	defer cs.RUnlock()
 
-	mc, ok := cs.meshClients[mesh]
+	cl, ok := cs.clients[mesh]
 	if !ok {
 		logger.Error(fmt.Errorf("unknown mesh"), "failed to configure mesh objects", "Mesh", mesh, "Workload", workload)
 	}
@@ -110,19 +111,19 @@ func (cs *Clientset) ConfigureService(mesh, workload string, containers []corev1
 		logger.Error(fmt.Errorf("no named container ports"), "failed to configure mesh objects", "Mesh", mesh, "Workload", workload)
 	}
 
-	objects, err := mc.f.Service(workload, ingresses)
+	objects, err := cl.f.Service(workload, ingresses)
 	if err != nil {
 		logger.Error(err, "failed to generate mesh objects", "Mesh", mesh, "Workload", workload)
 	}
 
-	mc.controlCmds <- mkApply("domain", objects.Domain)
-	mc.controlCmds <- mkApply("listener", objects.Listener)
-	mc.controlCmds <- mkApply("proxy", objects.Proxy)
-	mc.controlCmds <- mkApply("cluster", objects.Cluster)
-	mc.controlCmds <- mkApply("route", objects.Route)
+	cl.controlCmds <- mkApply("domain", objects.Domain)
+	cl.controlCmds <- mkApply("listener", objects.Listener)
+	cl.controlCmds <- mkApply("proxy", objects.Proxy)
+	cl.controlCmds <- mkApply("cluster", objects.Cluster)
+	cl.controlCmds <- mkApply("route", objects.Route)
 	for _, ingress := range objects.Ingresses {
-		mc.controlCmds <- mkApply("cluster", ingress.Cluster)
-		mc.controlCmds <- mkApply("route", ingress.Route)
+		cl.controlCmds <- mkApply("cluster", ingress.Cluster)
+		cl.controlCmds <- mkApply("route", ingress.Route)
 	}
 
 	logger.Info("configured mesh objects", "Mesh", mesh, "Workload", workload)
@@ -131,6 +132,6 @@ func (cs *Clientset) ConfigureService(mesh, workload string, containers []corev1
 // Given the name of an appsv1.Deployment/StatefulSet, a list of its meshes from its `greymatter.io/mesh` label, and
 // a list of corev1.Containers, deletes fabric generated for the service from each mesh and
 // persists the deletion changes to the Redis database assigned to each mesh.
-func (cs *Clientset) RemoveService(mesh, service string, containers []corev1.Container) {
+func (cs *CLI) RemoveService(mesh, service string, containers []corev1.Container) {
 
 }
