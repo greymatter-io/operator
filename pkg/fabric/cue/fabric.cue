@@ -1,5 +1,7 @@
 // Inputs
 
+MeshName: string
+
 Zone: *"default-zone" | string
 
 MeshPort: *10808 | int32
@@ -9,7 +11,12 @@ ServiceIngresses: [string]: int32
 
 // Outputs
 
-edge: #Tmpl & { _name: "edge" }
+edgeDomain: #Domain & {
+  domain_key: "edge"
+  zone_key: Zone
+  name: "*"
+  port: MeshPort
+}
 
 service: #Tmpl & {
   _name: ServiceName
@@ -19,6 +26,10 @@ service: #Tmpl & {
 #Tmpl: {
   _name: string
   _ports: [string]: int32
+  catalogservice: #CatalogService & {
+    mesh_id: MeshName
+    service_id: _name
+  }
   proxy: #Proxy & {
     name: _name
     zone_key: Zone
@@ -41,7 +52,7 @@ service: #Tmpl & {
     name: _name
     zone_key: Zone
   }
-  if _name != "edge" && _name != "dashboard" {
+  if _name != "dashboard" {
     route: #Route & {
       route_key: _name
       domain_key: "edge"

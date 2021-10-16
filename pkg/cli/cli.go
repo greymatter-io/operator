@@ -132,6 +132,8 @@ func (c *CLI) ConfigureService(mesh, workload string, containers []corev1.Contai
 		cl.controlCmds <- mkApply("cluster", ingress.Cluster)
 		cl.controlCmds <- mkApply("route", ingress.Route)
 	}
+	cl.catalogCmds <- mkApply("catalog-service", objects.CatalogService)
+	// cl.catalogCmds <- mkApply("catalogservice", objects.CatalogService)
 }
 
 // Removes mesh objects given a mesh name, an appsv1.Deployment/StatefulSet name, and a list of corev1.Containers.
@@ -163,4 +165,6 @@ func (c *CLI) RemoveService(mesh, workload string, containers []corev1.Container
 		cl.controlCmds <- mkDelete("cluster", key)
 		cl.controlCmds <- mkDelete("route", key)
 	}
+	cl.catalogCmds <- mkDelete("catalog-service", workload)
+	// cl.catalogCmds <- mkDelete("catalogservice", workload)
 }

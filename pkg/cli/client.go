@@ -46,17 +46,8 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 
 		logger.Info("Connected to Control", "Mesh", mesh.Name)
 
-		// Configure edge objects
-		objects := cl.f.Edge()
-
-		for _, c := range []cmd{
-			mkApply("domain", objects.Domain),
-			mkApply("listener", objects.Listener),
-			mkApply("proxy", objects.Proxy),
-			mkApply("cluster", objects.Cluster),
-		} {
-			c.run(cl.flags)
-		}
+		// Configure edge domain, since it is a dependency for all sidecar routes.
+		mkApply("domain", cl.f.EdgeDomain()).run(cl.flags)
 
 		// Then consume additional commands for control objects
 		for c := range controlCmds {
@@ -88,7 +79,13 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 
 // temp while CLI 4 is being worked on
 func mkApply(kind string, data json.RawMessage) cmd {
-	kindKey := fmt.Sprintf("%s_key", kind)
+	var kindKey string
+	if kind == "catalog-service" {
+		// if kind == "catalogservice" {
+		kindKey = "service_id"
+	} else {
+		kindKey = fmt.Sprintf("%s_key", kind)
+	}
 	key := values(kindKey)(string(data)).kvs[1]
 	return cmd{
 		args:   fmt.Sprintf("create %s", kind),

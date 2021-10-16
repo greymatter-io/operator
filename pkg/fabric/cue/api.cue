@@ -1,3 +1,11 @@
+// catalogservice
+
+#CatalogService: {
+  mesh_id: string
+  service_id: string
+	// TODO
+}
+
 // Cluster
 
 #Cluster: {

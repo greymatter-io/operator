@@ -8,37 +8,19 @@ import (
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cueutils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func TestEdge(t *testing.T) {
+func TestEdgeDomain(t *testing.T) {
 	f := loadMock(t)
-	edge := f.Edge()
 
-	t.Run("Domain", testContains(edge.Domain,
+	testContains(f.EdgeDomain(),
 		`"domain_key":"edge"`,
 		`"zone_key":"myzone"`,
 		`"port":10909`,
-	))
-	t.Run("Listener", testContains(edge.Listener,
-		`"listener_key":"edge"`,
-		`"zone_key":"myzone"`,
-		`"domain_keys":["edge"]`,
-		`"port":10909`,
-	))
-	t.Run("Proxy", testContains(edge.Proxy,
-		`"name":"edge"`,
-		`"proxy_key":"edge"`,
-		`"zone_key":"myzone"`,
-		`"domain_keys":["edge"]`,
-		`"listener_keys":["edge"]`,
-	))
-	t.Run("Cluster", testContains(edge.Cluster,
-		`"name":"edge"`,
-		`"cluster_key":"edge"`,
-		`"zone_key":"myzone"`,
-	))
+	)(t)
 }
 
 func TestService(t *testing.T) {
@@ -82,6 +64,23 @@ func TestService(t *testing.T) {
 		`"route_match":{"path":"/services/example/"`,
 		`"redirects":[{"from":"^/services/example$","to":"/services/example/"`,
 	))
+	t.Run("CatalogService", testContains(service.CatalogService,
+		`"mesh_id":"mymesh"`,
+		`"service_id":"example"`,
+	))
+}
+
+func TestServiceNoIngress(t *testing.T) {
+	f := loadMock(t)
+
+	service, err := f.Service("example", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if count := len(service.Ingresses); count != 0 {
+		t.Fatalf("expected 0 ingress, got %d", count)
+	}
 }
 
 func TestServiceOneIngress(t *testing.T) {
@@ -172,6 +171,7 @@ func loadMock(t *testing.T) *Fabric {
 	}
 
 	return New(&v1alpha1.Mesh{
+		ObjectMeta: metav1.ObjectMeta{Name: "mymesh"},
 		Spec: v1alpha1.MeshSpec{
 			Zone:     "myzone",
 			MeshPort: 10909,
