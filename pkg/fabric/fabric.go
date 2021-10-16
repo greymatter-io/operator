@@ -52,10 +52,6 @@ func (f *Fabric) Edge() Objects {
 
 // Extracts service configs from a Fabric's cue.Value.
 func (f *Fabric) Service(name string, ingresses map[string]int32) (Objects, error) {
-	if len(ingresses) == 0 {
-		return Objects{}, fmt.Errorf("no ingresses specified")
-	}
-
 	j, err := json.Marshal(ingresses)
 	if err != nil {
 		return Objects{}, fmt.Errorf("failed to marshal ingresses")

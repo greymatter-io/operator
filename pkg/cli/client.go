@@ -3,6 +3,8 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
@@ -28,12 +30,20 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 
 	// Consume commands to send to Control
 	go func(controlCmds chan cmd) {
-		// Ping Control every 5s until responsive (getting the Mesh's zone's checksum)
+
+		// Ping Control every 5s until responsive b getting and editing the Mesh's zone.
+		// This ensures we can read and write from Control without any errors.
 		(cmd{
 			// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
-			args:   fmt.Sprintf("get zone %s", mesh.Spec.Zone),
-			reader: values("zone_key", "checksum"),
-		}).persist(5, cl.flags)
+			args:    fmt.Sprintf("get zone %s", mesh.Spec.Zone),
+			persist: time.Second * 5,
+			then: cmdOpt{cmd: &cmd{
+				args:    fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
+				reader:  values("zone_key", "checksum"),
+				persist: time.Second * 5,
+			}},
+		}).run(cl.flags)
+
 		logger.Info("Connected to Control", "Mesh", mesh.Name)
 
 		// Configure edge objects
@@ -56,12 +66,15 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 
 	// Consume commands to send to Catalog
 	go func(catalogCmds chan cmd) {
+
 		// Ping Catalog every 5s until responsive (getting the Mesh's session status with Control).
 		(cmd{
 			// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
-			args:   fmt.Sprintf("get catalog-mesh %s", mesh.Name),
-			reader: values("mesh_id", "session_statuses.default"),
-		}).persist(5, cl.flags)
+			args:    fmt.Sprintf("get catalog-mesh %s", mesh.Name),
+			reader:  values("mesh_id", "session_statuses.default"),
+			persist: time.Second * 5,
+		}).run(cl.flags)
+
 		logger.Info("Connected to Catalog", "Mesh", mesh.Name)
 
 		// Then consume additional commands for catalog objects
@@ -81,11 +94,24 @@ func mkApply(kind string, data json.RawMessage) cmd {
 		args:   fmt.Sprintf("create %s", kind),
 		stdin:  data,
 		reader: values(kindKey, "checksum"),
-		backup: &cmd{
-			args:   fmt.Sprintf("edit %s %s", kind, key),
-			stdin:  data,
-			reader: values(kindKey, "checksum"),
+		backup: cmdOpt{
+			cmd: &cmd{
+				args:   fmt.Sprintf("edit %s %s", kind, key),
+				stdin:  data,
+				reader: values(kindKey, "checksum"),
+			},
+			runIf: func(out string) bool {
+				return strings.Contains(out, "duplicate") || strings.Contains(out, "exists")
+			},
 		},
+	}
+}
+
+func mkDelete(kind, key string) cmd {
+	kindKey := fmt.Sprintf("%s_key", kind)
+	return cmd{
+		args:   fmt.Sprintf("delete %s %s", kind, key),
+		reader: values(kindKey, "checksum"),
 	}
 }
 

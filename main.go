@@ -139,7 +139,7 @@ func main() {
 	}
 
 	// Initialize interface with greymatter CLI
-	cs, err := cli.New()
+	gmcli, err := cli.New()
 	if err != nil {
 		os.Exit(1)
 	}
@@ -151,7 +151,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	webhooks.Register(mgr, inst, cs)
+	webhooks.Register(mgr, inst, gmcli)
 
 	//+kubebuilder:scaffold:builder
 

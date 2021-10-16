@@ -13,16 +13,26 @@ type cmd struct {
 	args  string
 	stdin json.RawMessage
 	// Attempts to parse cmdout into loggable key-value pairs with maybe an error.
-	// If not specified, running cmd.run returns result.kvs with ["output", cmdout].
+	// If not specified, running cmd.run returns a result with kvs == ["output", cmdout].
 	// If the result has an error (from cmd or reader), result.kvs will always be nil.
 	reader func(string) result
-	// If the cmd (or read) fails, run this cmd as a backup. This makes cmd chainable.
-	backup *cmd
+	// If > 0, runs cmd on interval until it succeeds
+	persist time.Duration
+	// If the cmd succeeds, run this cmd with the previous cmdout piped into stdin.
+	// If specified, this skips the original cmd's reader.
+	then cmdOpt
+	// If the cmd (or read) fails, run this cmd as a backup.
+	backup cmdOpt
 }
 
 type result struct {
 	kvs []interface{}
 	err error
+}
+
+type cmdOpt struct {
+	*cmd
+	runIf func(string) bool
 }
 
 func (c cmd) run(flags []string) result {
@@ -32,6 +42,7 @@ func (c cmd) run(flags []string) result {
 			args = append(strings.Split(flag, " "), args...)
 		}
 	}
+
 	command := exec.Command("greymatter", args...)
 	if len(c.stdin) > 0 {
 		command.Stdin = bytes.NewReader(c.stdin)
@@ -40,37 +51,47 @@ func (c cmd) run(flags []string) result {
 	out, err := command.CombinedOutput()
 	cmdout := string(out)
 	var r result
-	// If err is a bad exit code, out will be from stderr, which should be logged.
+
+	// If err is a bad exit code, capture stderr as the error.
 	if err != nil {
 		r.err = fmt.Errorf(cmdout)
 	} else {
-		// If there was no error, and a reader is specified, attempt to read cmdout.
-		if c.reader != nil {
+		// If there was no error
+		if c.then.cmd != nil {
+			// If c.then is specified, pipe cmdout into it and run it next.
+			c.then.stdin = out
+			logger.Info("chain", "cmd", c.args, "pipe", c.then.args)
+			return c.then.run(flags)
+		} else if c.reader != nil {
+			// Otherwise, if reader is specified, attempt to read cmdout.
 			r = c.reader(cmdout)
 		} else {
 			r.kvs = []interface{}{"output", cmdout}
 		}
 	}
-	// If there is an error (either from command or c.reader), and a backup is set, run it.
-	if r.err != nil && c.backup != nil {
-		return c.backup.run(flags)
+
+	if r.err != nil {
+		// Run c.backup if specified and if it passes backupIf (if specified).
+		if c.backup.cmd != nil && (c.backup.runIf == nil || c.backup.runIf(cmdout)) {
+			logger.Info("chain", "cmd", c.args, "backup", c.backup.args)
+			return c.backup.run(flags)
+		}
+		// Otherwise, if c.persist > 0, run again after waiting.
+		if c.persist > 0 {
+			logger.Info("chain", "cmd", c.args, "retry-after", c.persist.String())
+			time.Sleep(c.persist)
+			return c.run(flags)
+		}
 	}
-	// Log the final result (the original cmd or the last cmd in a cmd.backup chain).
+
+	// Log the final result.
 	if r.err != nil {
 		logger.Error(r.err, c.args)
 	} else {
 		logger.Info(c.args, r.kvs...)
 	}
-	return r
-}
 
-// maybe temp while CLI is being worked on
-func (c cmd) persist(seconds int, flags []string) {
-	r := c.run(flags)
-	if r.err != nil {
-		time.Sleep(time.Second * time.Duration(seconds))
-		c.persist(seconds, flags)
-	}
+	return r
 }
 
 func cliversion() (string, error) {
@@ -93,11 +114,11 @@ func cliversion() (string, error) {
 			if len(fields) != 2 {
 				return result{err: fmt.Errorf("unexpected output")}
 			}
-			return result{kvs: []interface{}{fields[1]}}
+			return result{kvs: []interface{}{"output", fields[1]}}
 		},
 	}).run(nil)
-	if len(r.kvs) != 1 {
+	if len(r.kvs) != 2 {
 		return "", r.err
 	}
-	return r.kvs[0].(string), nil
+	return r.kvs[1].(string), nil
 }

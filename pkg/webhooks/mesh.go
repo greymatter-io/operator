@@ -25,6 +25,7 @@ func (md *meshDefaulter) InjectDecoder(d *admission.Decoder) error {
 }
 
 func (md *meshDefaulter) Handle(ctx context.Context, req admission.Request) admission.Response {
+
 	return admission.ValidationResponse(true, "allowed")
 	// mesh := &v1alpha1.Mesh{}
 	// md.decoder.Decode(req, mesh)
@@ -73,6 +74,8 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
+	go mv.ConfigureMeshClient(mesh)
+
 	if req.Operation == admissionv1.Create {
 		go mv.ApplyMesh(nil, mesh)
 	} else {
@@ -82,8 +85,6 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 		}
 		go mv.ApplyMesh(prev, mesh)
 	}
-
-	go mv.ConfigureMeshClient(mesh)
 
 	return admission.ValidationResponse(true, "allowed")
 }
