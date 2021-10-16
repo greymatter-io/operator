@@ -29,6 +29,10 @@ service: #Tmpl & {
   catalogservice: #CatalogService & {
     mesh_id: MeshName
     service_id: _name
+    name: _name
+    // TODO: Inject version from container image, default to latest?
+    // (and also inject into route?)
+    api_endpoint: "/services/\(_name)/"
   }
   proxy: #Proxy & {
     name: _name

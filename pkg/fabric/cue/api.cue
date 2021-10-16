@@ -3,6 +3,8 @@
 #CatalogService: {
   mesh_id: string
   service_id: string
+	name: string
+	api_endpoint: string
 	// TODO
 }
 
