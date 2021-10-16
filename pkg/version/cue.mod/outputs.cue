@@ -33,13 +33,13 @@ manifests: [...#ManifestGroup] & [
     }
     spec: {
       selector: matchLabels: {
-        "greymatter.io/cluster": _c[0].name
+        "greymatter.io/workload": _c[0].name
       }
       template: {
         metadata: {
           namespace: InstallNamespace
           labels: {
-            "greymatter.io/cluster": _c[0].name
+            "greymatter.io/workload": _c[0].name
           }
         }
         spec: {
@@ -139,7 +139,7 @@ manifests: [...#ManifestGroup] & [
       namespace: InstallNamespace
     }
     spec: {
-      selector: "greymatter.io/cluster": _c[0].name
+      selector: "greymatter.io/workload": _c[0].name
       ports: [
         for _, c in _c {
           for k, v in c.ports {
