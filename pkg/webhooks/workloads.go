@@ -89,14 +89,12 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 }
 
 func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Response {
-
 	mesh := wd.WatchedBy(req.Namespace)
 	if mesh == "" {
 		return admission.ValidationResponse(true, "allowed")
 	}
 
 	var rawUpdate json.RawMessage
-	var ok bool
 	var err error
 
 	switch req.Kind.Kind {
@@ -104,10 +102,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 		deployment := &appsv1.Deployment{}
 		if req.Operation != admissionv1.Delete {
 			wd.Decode(req, deployment)
-			deployment.Spec.Template, ok = addClusterLabel(deployment.Spec.Template, req.Name)
-			if !ok {
-				return admission.ValidationResponse(true, "allowed")
-			}
+			deployment.Spec.Template = addClusterLabel(deployment.Spec.Template, req.Name)
 			rawUpdate, err = json.Marshal(deployment)
 			if err != nil {
 				logger.Error(err, "Failed to add cluster label to Deployment", "Name", req.Name, "Namespace", req.Namespace)
@@ -125,10 +120,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 		statefulset := &appsv1.StatefulSet{}
 		if req.Operation != admissionv1.Delete {
 			wd.Decode(req, statefulset)
-			statefulset.Spec.Template, ok = addClusterLabel(statefulset.Spec.Template, req.Name)
-			if !ok {
-				return admission.ValidationResponse(true, "allowed")
-			}
+			statefulset.Spec.Template = addClusterLabel(statefulset.Spec.Template, req.Name)
 			rawUpdate, err = json.Marshal(statefulset)
 			if err != nil {
 				logger.Error(err, "Failed to add cluster label to StatefulSet", "Name", req.Name, "Namespace", req.Namespace)
@@ -146,13 +138,10 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 	return admission.PatchResponseFromRaw(req.Object.Raw, rawUpdate)
 }
 
-func addClusterLabel(tmpl corev1.PodTemplateSpec, name string) (corev1.PodTemplateSpec, bool) {
+func addClusterLabel(tmpl corev1.PodTemplateSpec, name string) corev1.PodTemplateSpec {
 	if tmpl.Labels == nil {
 		tmpl.Labels = make(map[string]string)
 	}
-	if _, ok := tmpl.Labels["greymatter.io/cluster"]; ok {
-		return tmpl, false
-	}
 	tmpl.Labels["greymatter.io/cluster"] = name
-	return tmpl, true
+	return tmpl
 }
