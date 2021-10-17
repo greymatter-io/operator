@@ -51,13 +51,13 @@ func TestVersions(t *testing.T) {
 					options: []InstallOption{MeshName("mymesh"), InstallNamespace("ns"), Zone("myzone")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-						// each manifest references install namespace
-						y, _ := yaml.Marshal(manifests[4])
+						// each manifest references meshname, installnamespace, zone
+						y, _ := yaml.Marshal(manifests[3])
 						fmt.Println(string(y))
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
-						// each manifest references install namespace
+						// each manifest references meshname, installnamespace, zone
 					},
 				},
 				{

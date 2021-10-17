@@ -67,6 +67,7 @@ func TestService(t *testing.T) {
 	t.Run("CatalogService", testContains(service.CatalogService,
 		`"mesh_id":"mymesh"`,
 		`"service_id":"example"`,
+		`"name":"example"`,
 	))
 }
 

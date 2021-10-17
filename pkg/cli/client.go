@@ -36,11 +36,11 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 		(cmd{
 			// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
 			args:    fmt.Sprintf("get zone %s", mesh.Spec.Zone),
-			persist: time.Second * 5,
-			then: cmdOpt{cmd: &cmd{
+			retries: time.Second * 5,
+			and: cmdOpt{cmd: &cmd{
 				args:    fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
 				reader:  values("zone_key", "checksum"),
-				persist: time.Second * 5,
+				retries: time.Second * 5,
 			}},
 		}).run(cl.flags)
 
@@ -63,7 +63,7 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 			// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
 			args:    fmt.Sprintf("get catalog-mesh %s", mesh.Name),
 			reader:  values("mesh_id", "session_statuses.default"),
-			persist: time.Second * 5,
+			retries: time.Second * 5,
 		}).run(cl.flags)
 
 		logger.Info("Connected to Catalog", "Mesh", mesh.Name)
@@ -91,13 +91,13 @@ func mkApply(kind string, data json.RawMessage) cmd {
 		args:   fmt.Sprintf("create %s", kind),
 		stdin:  data,
 		reader: values(kindKey, "checksum"),
-		backup: cmdOpt{
+		or: cmdOpt{
 			cmd: &cmd{
 				args:   fmt.Sprintf("edit %s %s", kind, key),
 				stdin:  data,
 				reader: values(kindKey, "checksum"),
 			},
-			runIf: func(out string) bool {
+			when: func(out string) bool {
 				return strings.Contains(out, "duplicate") || strings.Contains(out, "exists")
 			},
 		},

@@ -29,10 +29,35 @@ service: #Tmpl & {
   catalogservice: #CatalogService & {
     mesh_id: MeshName
     service_id: _name
-    name: _name
-    // TODO: Inject version from container image, default to latest?
-    // (and also inject into route?)
-    api_endpoint: "/services/\(_name)/"
+
+    if _name == "edge" {
+      name: "Grey Matter Edge"
+      description: "Handles north/south traffic flowing through the mesh."
+      api_endpoint: "/"
+    }
+    if _name == "jwt-security" {
+      name: "Grey Matter JWT Security"
+      description: "A JWT token generation and retrieval service."
+      api_endpoint: "/services/jwt-security/"
+    }
+    if _name == "control" {
+      name: "Grey Matter Control"
+      description: "Manages the configuration of the Grey Matter data plane."
+      api_endpoint: "/services/control/api/"
+    }
+    if _name == "catalog" {
+      name: "Grey Matter Catalog"
+      description: "Interfaces with the control plane to expose the current state of the mesh."
+      api_endpoint: "/services/catalog/"
+    }
+    if _name == "dashboard" {
+      name: "Grey Matter Dashboard"
+      description: "A user dashboard that paints a high-level picture of the mesh."
+    }
+    if _name == "gm-redis" {
+      name: "Redis"
+      description: "A data store for caching Grey Matter core service configurations."
+    }
   }
   proxy: #Proxy & {
     name: _name

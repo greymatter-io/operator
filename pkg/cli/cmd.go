@@ -12,17 +12,19 @@ import (
 type cmd struct {
 	args  string
 	stdin json.RawMessage
+
 	// Attempts to parse cmdout into loggable key-value pairs with maybe an error.
-	// If not specified, running cmd.run returns a result with kvs == ["output", cmdout].
-	// If the result has an error (from cmd or reader), result.kvs will always be nil.
+	// If not specified, cmd.run returns a result with kvs == ["output", cmdout].
+	// If the result has an error (from cmd or reader), kvs will always be nil.
 	reader func(string) result
-	// If > 0, runs cmd on interval until it succeeds
-	persist time.Duration
+
+	// If > 0, runs cmd on interval until it succeeds.
+	retries time.Duration
 	// If the cmd succeeds, run this cmd with the previous cmdout piped into stdin.
 	// If specified, this skips the original cmd's reader.
-	then cmdOpt
-	// If the cmd (or read) fails, run this cmd as a backup.
-	backup cmdOpt
+	and cmdOpt
+	// If the cmd (or read) fails, run this cmd instead.
+	or cmdOpt
 }
 
 type result struct {
@@ -32,7 +34,7 @@ type result struct {
 
 type cmdOpt struct {
 	*cmd
-	runIf func(string) bool
+	when func(string) bool
 }
 
 func (c cmd) run(flags []string) result {
@@ -57,11 +59,11 @@ func (c cmd) run(flags []string) result {
 		r.err = fmt.Errorf(cmdout)
 	} else {
 		// If there was no error
-		if c.then.cmd != nil {
-			// If c.then is specified, pipe cmdout into it and run it next.
-			c.then.stdin = out
-			logger.Info("chain", "cmd", c.args, "pipe", c.then.args)
-			return c.then.run(flags)
+		if c.and.cmd != nil {
+			// If c.and is specified, pipe cmdout into it and run it next.
+			c.and.stdin = out
+			logger.Info(c.args, "&&", c.and.args)
+			return c.and.run(flags)
 		} else if c.reader != nil {
 			// Otherwise, if reader is specified, attempt to read cmdout.
 			r = c.reader(cmdout)
@@ -71,15 +73,15 @@ func (c cmd) run(flags []string) result {
 	}
 
 	if r.err != nil {
-		// Run c.backup if specified and if it passes backupIf (if specified).
-		if c.backup.cmd != nil && (c.backup.runIf == nil || c.backup.runIf(cmdout)) {
-			logger.Info("chain", "cmd", c.args, "backup", c.backup.args)
-			return c.backup.run(flags)
+		// Run c.or if specified and if it passes or.when (if specified).
+		if c.or.cmd != nil && (c.or.when == nil || c.or.when(cmdout)) {
+			logger.Info(c.args, "||", c.or.args)
+			return c.or.run(flags)
 		}
-		// Otherwise, if c.persist > 0, run again after waiting.
-		if c.persist > 0 {
-			logger.Info("chain", "cmd", c.args, "retry-after", c.persist.String())
-			time.Sleep(c.persist)
+		// Otherwise, if c.retries > 0, run again after waiting.
+		if c.retries > 0 {
+			logger.Info(c.args, "retries", c.retries.String())
+			time.Sleep(c.retries)
 			return c.run(flags)
 		}
 	}
