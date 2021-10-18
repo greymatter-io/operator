@@ -3,8 +3,7 @@ package base
 import (
 	appsv1     "k8s.io/api/apps/v1"
 	corev1     "k8s.io/api/core/v1"
-  routev1    "github.com/openshift/api/route/v1"
-  extv1beta1 "k8s.io/api/extensions/v1beta1"
+  netv1b1      "k8s.io/api/networking/v1beta1"
 )
 
 manifests: [...#ManifestGroup] & [
@@ -187,40 +186,13 @@ manifests: [...#ManifestGroup] & [
     }
   ]
   if _c[0].name == "edge" {
-    if ClusterType == "openshift" {
-      route: routev1.#Route & {  
+      ingress: netv1b1.#Ingress & {
         {
-          apiVersion: "route.openshift.io/v1"
-          kind: "Route"
-          metadata: {
-            name: MeshName
-            namespace: InstallNamespace
-          }
-          spec: {
-            port: targetPort: "proxy"
-            to: {
-              kind: "Service"
-              name: "edge"
-              weight: 100
-            }
-            wildcardPolicy: "None"
-          }
-        }
-      }
-    }
-    if ClusterType == "kubernetes" {
-      ingress: extv1beta1.#Ingress & {
-        {
-          apiVersion: "extensions/v1beta1"
+          apiVersion: "networking.k8s.io/v1beta1"
           kind: "Ingress"
           metadata: {
             name: "greymatter-ingress"
             namespace: InstallNamespace
-            annotations: {
-              "nginx.ingress.kubernetes.io/ssl-passthrough": "true"
-              "nginx.ingress.kubernetes.io/force-ssl-redirect": "true"
-              "nginx.ingress.kubernetes.io/backend-protocol": "https"
-            }
           }
           spec: {
             rules: [
@@ -241,7 +213,6 @@ manifests: [...#ManifestGroup] & [
           }
         }
       }
-    }
   }
 }
 

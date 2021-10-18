@@ -9,7 +9,6 @@ WatchNamespaces: string
 
 MeshName: string
 
-ClusterType: *"openshift" | string
 IngressSubDomain: *"localhost" | string
 
 Zone: *"default-zone" | string

@@ -164,26 +164,11 @@ func JWTSecrets(v *Version) {
 	))
 }
 
-// An InstallOption for injecting the type of cluster the operator is running in.
-// Use switch statment because there may be other configurations that are dependent on the type of cluster the operator is deployed into
-func ClusterType(clusterType string) InstallOption {
-	return func(v *Version) {
-		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`ClusterType: "%s"`, strings.ToLower(clusterType))))
-	}
-}
-
 func IngressSubDomain(addr string) InstallOption {
 	return func(v *Version) {
-		var ingressSubDomain string
-		clusterType := fmt.Sprintf("%s", v.cue.LookupPath(cue.ParsePath("ClusterType")))
-		switch clusterType {
-		case "openshift":
-			// TODO: figure out how to assigne specific subdomain for route.  Will then need to check if that sub domain is avalible.
-			// openshift will assign a host internally
-			// ingressSubDomain = fmt.Sprintf("%s.%s.%s", "edge", installNamespace, addr)
-		case "kubernetes":
-			ingressSubDomain = addr
-		}
-		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`IngressSubDomain: "%s"`, strings.TrimSpace(ingressSubDomain))))
+		installNamespace := fmt.Sprintf("%s", v.cue.LookupPath(cue.ParsePath("InstallNamespace")))
+		meshName := fmt.Sprintf("%s", v.cue.LookupPath(cue.ParsePath("MeshName")))
+		// TODO: validate mesh name is unique.  once this is done we can strip the namespace from the subdomain spec
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`IngressSubDomain: "%s.%s.%s"`, strings.TrimSpace(meshName), strings.TrimSpace(installNamespace), strings.TrimSpace(addr))))
 	}
 }

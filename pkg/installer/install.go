@@ -32,7 +32,6 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	// Apply options for mutating the version copy's internal Cue value.
 	opts := append(
 		mesh.InstallOptions(),
-		version.ClusterType(i.clusterType),
 		// Note: Each copied ImagePullSecret will always be named "gm-docker-secret"
 		// even if the original secret in the gm-operator namespace has a different name.
 		version.ImagePullSecretName("gm-docker-secret"),
@@ -138,9 +137,6 @@ MANIFEST_LOOP:
 		}
 		if group.Service != nil {
 			apply(i.client, group.Service, mesh, scheme)
-		}
-		if group.Route != nil {
-			apply(i.client, group.Route, mesh, scheme)
 		}
 		if group.Ingress != nil {
 			apply(i.client, group.Ingress, mesh, scheme)

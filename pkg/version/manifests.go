@@ -6,10 +6,9 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/encoding/gocode/gocodec"
 	"github.com/greymatter-io/operator/pkg/cueutils"
-	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	netv1b1 "k8s.io/api/networking/v1beta1"
 )
 
 // The manifests applied for a Grey Matter component or dependency.
@@ -19,8 +18,7 @@ type ManifestGroup struct {
 	Service     *corev1.Service     `json:"service"`
 	ConfigMaps  []*corev1.ConfigMap `json:"configMaps"`
 	Secrets     []*corev1.Secret    `json:"secrets"`
-	Route       *routev1.Route      `json:"route"`
-	Ingress     *extv1beta1.Ingress `json:"ingress"`
+	Ingress     *netv1b1.Ingress    `json:"ingress"`
 }
 
 // Extracts manifests from a Version's cue.Value.
