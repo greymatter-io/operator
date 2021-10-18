@@ -172,3 +172,9 @@ func IngressSubDomain(addr string) InstallOption {
 		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`IngressSubDomain: "%s.%s.%s"`, strings.TrimSpace(meshName), strings.TrimSpace(installNamespace), strings.TrimSpace(addr))))
 	}
 }
+
+func EdgeTls(tlsIngress bool) InstallOption {
+	return func(v *Version) {
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`EdgeTlsIngress: %t`, tlsIngress)))
+	}
+}

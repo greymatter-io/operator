@@ -16,6 +16,7 @@ Zone: *"default-zone" | string
 ImagePullSecretName: *"gm-docker-secret" | string
 
 MeshPort: *10808 | int32
+EdgeTlsIngress: *true | bool
 
 Spire: *false | bool
 

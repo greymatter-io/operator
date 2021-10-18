@@ -27,6 +27,9 @@ type MeshSpec struct {
 	// The base url of the openshift cluster
 	// (ex: console-openshift-console.apps.coffee.greymatter.services would be apps.coffee.greymatter.services)
 	ClusterUrl string `json:"cluster_url"`
+	// Specify to use tls for edge ingress or not
+	// +kubebuilder:default=true
+	EdgeTlsIngress bool `json:"edge_tls_ingress"`
 	// The version of Grey Matter to install for this mesh.
 	// +kubebuilder:validation:Enum="1.6";"1.7"
 	// +kubebuilder:default="1.6"
