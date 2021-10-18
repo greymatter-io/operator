@@ -25,7 +25,9 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 
 	// Get a copy of the version specified in the Mesh CR.
 	// Assume the value is valid since the CRD enumerates acceptable values for the apiserver.
+	i.RLock()
 	v := i.versions[mesh.Spec.ReleaseVersion].Copy()
+	i.RUnlock()
 
 	// Apply options for mutating the version copy's internal Cue value.
 	opts := append(
@@ -42,16 +44,18 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		secret := i.imagePullSecret.DeepCopy()
 		secret.Name = "gm-docker-secret"
 		secret.Namespace = mesh.Namespace
-		i.apply(secret, mesh, scheme)
+		apply(i.client, secret, mesh, scheme)
 		// If this is the first mesh, setup RBAC for control plane service accounts to view pods.
 		if len(i.sidecars) == 0 {
-			i.applyClusterRBAC()
+			applyClusterRBAC(i.client, scheme)
 		}
-		i.applyServiceAccount(mesh, scheme)
+		applyServiceAccount(i.client, mesh, scheme)
 	}
 
 	// Save this mesh's sidecar template to use later for sidecar injection
+	i.Lock()
 	i.sidecars[mesh.Name] = v.SidecarTemplate()
+	i.Unlock()
 
 	// Mark namespaces as belonging to this Mesh (and namespaces that are removed).
 	watch := make(map[string]struct{})
@@ -66,7 +70,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 				secret := i.imagePullSecret.DeepCopy()
 				secret.Name = "gm-docker-secret"
 				secret.Namespace = namespace
-				i.apply(secret, mesh, scheme)
+				apply(i.client, secret, mesh, scheme)
 			}
 		}
 		// If the Mesh is being updated, note any removed watch namespaces.
@@ -91,7 +95,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 					deployment.Spec.Template.Labels = make(map[string]string)
 				}
 				deployment.Spec.Template.Labels["greymatter.io/cluster"] = deployment.Name
-				i.apply(&deployment, nil, scheme)
+				apply(i.client, &deployment, nil, scheme)
 			}
 		}
 	}
@@ -104,7 +108,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 					statefulset.Spec.Template.Labels = make(map[string]string)
 				}
 				statefulset.Spec.Template.Labels["greymatter.io/cluster"] = statefulset.Name
-				i.apply(&statefulset, nil, scheme)
+				apply(i.client, &statefulset, nil, scheme)
 			}
 		}
 	}
@@ -120,24 +124,24 @@ MANIFEST_LOOP:
 		}
 
 		for _, configMap := range group.ConfigMaps {
-			i.apply(configMap, mesh, scheme)
+			apply(i.client, configMap, mesh, scheme)
 		}
 		for _, secret := range group.Secrets {
-			i.apply(secret, mesh, scheme)
-		}
-		for _, service := range group.Services {
-			i.apply(service, mesh, scheme)
+			apply(i.client, secret, mesh, scheme)
 		}
 		if group.Deployment != nil {
-			i.apply(group.Deployment, mesh, scheme)
+			apply(i.client, group.Deployment, mesh, scheme)
 		}
 		if group.StatefulSet != nil {
-			i.apply(group.StatefulSet, mesh, scheme)
+			apply(i.client, group.StatefulSet, mesh, scheme)
+		}
+		if group.Service != nil {
+			apply(i.client, group.Service, mesh, scheme)
 		}
 	}
 }
 
-func (i *Installer) apply(obj, owner client.Object, scheme *runtime.Scheme) {
+func apply(c client.Client, obj, owner client.Object, scheme *runtime.Scheme) {
 	var kind string
 	if gvk, err := apiutil.GVKForObject(obj.(runtime.Object), scheme); err != nil {
 		kind = "Object"
@@ -153,7 +157,7 @@ func (i *Installer) apply(obj, owner client.Object, scheme *runtime.Scheme) {
 		}
 	}
 
-	action, result, err := createOrUpdate(context.TODO(), i.client, obj)
+	action, result, err := createOrUpdate(context.TODO(), c, obj)
 	if err != nil {
 		if owner != nil {
 			logger.Error(err, action, "result", "failed", "Owner", owner.GetName(), "Namespace", obj.GetNamespace(), kind, obj.GetName())
@@ -193,7 +197,7 @@ func createOrUpdate(ctx context.Context, c client.Client, obj client.Object) (st
 	return "update", "success", nil
 }
 
-func (i *Installer) applyClusterRBAC() {
+func applyClusterRBAC(c client.Client, scheme *runtime.Scheme) {
 	cr := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{Name: "gm-control"},
 		Rules: []rbacv1.PolicyRule{
@@ -204,7 +208,7 @@ func (i *Installer) applyClusterRBAC() {
 			},
 		},
 	}
-	i.apply(cr, nil, i.client.Scheme())
+	apply(c, cr, nil, scheme)
 
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{Name: "gm-control"},
@@ -215,10 +219,10 @@ func (i *Installer) applyClusterRBAC() {
 		},
 		Subjects: []rbacv1.Subject{},
 	}
-	i.apply(crb, cr, i.client.Scheme())
+	apply(c, crb, cr, scheme)
 }
 
-func (i *Installer) applyServiceAccount(mesh *v1alpha1.Mesh, scheme *runtime.Scheme) {
+func applyServiceAccount(c client.Client, mesh *v1alpha1.Mesh, scheme *runtime.Scheme) {
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "gm-control",
@@ -229,10 +233,10 @@ func (i *Installer) applyServiceAccount(mesh *v1alpha1.Mesh, scheme *runtime.Sch
 			return &b
 		}(),
 	}
-	i.apply(sa, mesh, scheme)
+	apply(c, sa, mesh, scheme)
 
 	crb := &rbacv1.ClusterRoleBinding{}
-	if err := i.client.Get(context.TODO(), client.ObjectKey{Name: "gm-control"}, crb); err != nil {
+	if err := c.Get(context.TODO(), client.ObjectKey{Name: "gm-control"}, crb); err != nil {
 		logger.Error(err, "Failed Get", "ClusterRoleBinding", "gm-control")
 		return
 	}
@@ -251,7 +255,7 @@ func (i *Installer) applyServiceAccount(mesh *v1alpha1.Mesh, scheme *runtime.Sch
 		Namespace: sa.Namespace,
 	})
 
-	i.apply(crb, nil, scheme)
+	apply(c, crb, nil, scheme)
 }
 
 // Cleanup if a Mesh CR is deleted.
@@ -280,7 +284,7 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 				}
 				if _, ok := deployment.Spec.Template.Labels["greymatter.io/cluster"]; ok {
 					delete(deployment.Spec.Template.Labels, "greymatter.io/cluster")
-					i.apply(&deployment, nil, scheme)
+					apply(i.client, &deployment, nil, scheme)
 				}
 			}
 		}
@@ -296,19 +300,18 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 				}
 				if _, ok := statefulset.Spec.Template.Labels["greymatter.io/cluster"]; ok {
 					delete(statefulset.Spec.Template.Labels, "greymatter.io/cluster")
-					i.apply(&statefulset, nil, scheme)
+					apply(i.client, &statefulset, nil, scheme)
 				}
 			}
 		}
 	}
 }
 
-func (i *Installer) IsMeshMember(namespace string) bool {
+func (i *Installer) WatchedBy(namespace string) string {
 	i.RLock()
 	defer i.RUnlock()
 
-	_, ok := i.namespaces[namespace]
-	return ok
+	return i.namespaces[namespace]
 }
 
 func (i *Installer) Sidecar(namespace, xdsCluster string) (version.Sidecar, bool) {

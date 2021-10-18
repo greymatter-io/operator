@@ -5,6 +5,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/encoding/gocode/gocodec"
+	"github.com/greymatter-io/operator/pkg/cueutils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -13,7 +14,7 @@ import (
 type ManifestGroup struct {
 	Deployment  *appsv1.Deployment  `json:"deployment"`
 	StatefulSet *appsv1.StatefulSet `json:"statefulset"`
-	Services    []*corev1.Service   `json:"services"`
+	Service     *corev1.Service     `json:"service"`
 	ConfigMaps  []*corev1.ConfigMap `json:"configMaps"`
 	Secrets     []*corev1.Secret    `json:"secrets"`
 }
@@ -43,7 +44,7 @@ func (v Version) SidecarTemplate() func(string) Sidecar {
 		var s struct {
 			Sidecar `json:"sidecar"`
 		}
-		codec.Encode(v.cue.Unify(Cue(
+		codec.Encode(v.cue.Unify(cueutils.FromStrings(
 			fmt.Sprintf(`sidecar: xdsCluster: "%s"`, xdsCluster),
 		)), &s)
 		return s.Sidecar

@@ -1,12 +1,17 @@
-package version
+package cueutils
 
 import (
 	"fmt"
 	"strings"
 	"testing"
+
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func TestCue(t *testing.T) {
+func TestFromStrings(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+
 	for _, tc := range []struct {
 		name string
 		in   []string
@@ -21,10 +26,10 @@ func TestCue(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			value := Cue(tc.in...)
+			value := FromStrings(tc.in...)
 			if err := value.Err(); err != nil {
-				logCueErrors(err)
-				t.Fatal()
+				LogError(ctrl.Log, err)
+				t.FailNow()
 			}
 			out := fmt.Sprintf("%v", value)
 			for _, expr := range tc.in {

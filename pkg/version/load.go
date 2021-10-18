@@ -10,11 +10,10 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/greymatter-io/operator/pkg/cueutils"
 )
 
 var (
-	logger = ctrl.Log.WithName("pkg.version")
 	//go:embed versions/*.cue
 	filesystem embed.FS
 )
@@ -46,7 +45,7 @@ func loadBase() (cue.Value, error) {
 	if err != nil {
 		return cue.Value{}, fmt.Errorf("failed to determine working directory")
 	}
-	instances := load.Instances([]string{"greymatter.io/operator/cue.mod:base"}, &load.Config{
+	instances := load.Instances([]string{"greymatter.io/operator/version/cue.mod:base"}, &load.Config{
 		Package:    "base",
 		ModuleRoot: wd,
 		Dir:        fmt.Sprintf("%s/cue.mod", wd),
@@ -74,16 +73,16 @@ func loadVersions(base cue.Value) (map[string]Version, error) {
 		}
 
 		// Build Cue value from version file
-		version := Cue(string(data))
+		version := cueutils.FromStrings(string(data))
 		if err := version.Err(); err != nil {
-			logCueErrors(err)
+			cueutils.LogError(logger, err)
 			return nil, errors.Wrap(err.(errors.Error), fmt.Errorf("found invalid install configuration defined in %s", file.Name()))
 		}
 
 		// Unify version Cue value with base Cue value
 		value := base.Unify(version)
 		if err := value.Err(); err != nil {
-			logCueErrors(err)
+			cueutils.LogError(logger, err)
 			return nil, errors.Wrap(err.(errors.Error), fmt.Errorf("found incompatible install configuration defined in %s", file.Name()))
 		}
 

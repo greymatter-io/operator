@@ -22,7 +22,7 @@ import (
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/bootstrap"
-	"github.com/greymatter-io/operator/pkg/clients"
+	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"
 	"github.com/greymatter-io/operator/pkg/webhooks"
 
@@ -138,8 +138,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Create context for goroutine cleanup
+	ctx := ctrl.SetupSignalHandler()
+
 	// Initialize interface with greymatter CLI
-	_, err = clients.New()
+	gmcli, err := cli.New(ctx)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -150,7 +153,8 @@ func main() {
 		logger.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-	webhooks.Register(mgr, inst)
+
+	webhooks.Register(mgr, inst, gmcli)
 
 	//+kubebuilder:scaffold:builder
 
@@ -163,8 +167,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		logger.Error(err, "problem running manager")
 		os.Exit(1)
 	}

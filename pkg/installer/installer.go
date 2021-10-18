@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	logger = ctrl.Log.WithName("pkg.installer")
+	logger = ctrl.Log.WithName("installer")
 )
 
 // Stores a map of version.Version and a distinct version.Sidecar for each mesh.

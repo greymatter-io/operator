@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ghodss/yaml"
+	"github.com/greymatter-io/operator/pkg/cueutils"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -16,14 +17,14 @@ func TestVersions(t *testing.T) {
 
 	versions, err := loadBaseWithVersions()
 	if err != nil {
-		logCueErrors(err)
-		t.Fatal()
+		cueutils.LogError(logger, err)
+		t.FailNow()
 	}
 
 	for name, v := range versions {
 		if v.cue.Err(); err != nil {
-			logCueErrors(err)
-			t.Fatal()
+			cueutils.LogError(logger, err)
+			t.FailNow()
 		}
 
 		t.Run(name, func(t *testing.T) {
@@ -46,17 +47,17 @@ func TestVersions(t *testing.T) {
 				checkSidecar   func(*testing.T, Sidecar)
 			}{
 				{
-					name:    "InstallNamespace",
-					options: []InstallOption{InstallNamespace("ns")},
+					name:    "MeshName, InstallNamespace, Zone",
+					options: []InstallOption{MeshName("mymesh"), InstallNamespace("ns"), Zone("myzone")},
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
-						// each manifest references install namespace
+						// each manifest references meshname, installnamespace, zone
+						y, _ := yaml.Marshal(manifests[3])
+						fmt.Println(string(y))
 					},
 					checkSidecar: func(t *testing.T, sidecar Sidecar) {
 						// unimplemented
-						// each manifest references install namespace
-						y, _ := yaml.Marshal(sidecar)
-						fmt.Println(string(y))
+						// each manifest references meshname, installnamespace, zone
 					},
 				},
 				{
@@ -82,19 +83,6 @@ func TestVersions(t *testing.T) {
 								t.Errorf("Expected namespaces to contain %s: got %v", namespace, namespaces)
 							}
 						}
-					},
-				},
-				{
-					name:    "Zone",
-					options: []InstallOption{Zone("myzone")},
-					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-						// unimplemented
-						// edge XDS_ZONE env var references zone
-						// control and control api env vars reference zone (key and name)
-					},
-					checkSidecar: func(t *testing.T, sidecar Sidecar) {
-						// unimplemented
-						// sidecar XDS_ZONE env var references zone
 					},
 				},
 				{
@@ -200,8 +188,8 @@ func TestVersions(t *testing.T) {
 					vc := v.Copy()
 					vc.Apply(tc.options...)
 					if err := vc.cue.Err(); err != nil {
-						logCueErrors(err)
-						t.Fatal()
+						cueutils.LogError(logger, err)
+						t.FailNow()
 					}
 					if tc.checkManifests != nil {
 						t.Run("manifests", func(t *testing.T) {

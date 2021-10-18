@@ -10,6 +10,12 @@ import (
 
 	"cuelang.org/go/cue"
 	"github.com/go-redis/redis/v8"
+	"github.com/greymatter-io/operator/pkg/cueutils"
+	ctrl "sigs.k8s.io/controller-runtime"
+)
+
+var (
+	logger = ctrl.Log.WithName("version")
 )
 
 // A container for a cue.Value that holds all installation configs
@@ -33,10 +39,16 @@ func (v *Version) Apply(opts ...InstallOption) {
 // An option for mutating the Version's cue.Value.
 type InstallOption func(*Version)
 
+func MeshName(name string) InstallOption {
+	return func(v *Version) {
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`MeshName: "%s"`, name)))
+	}
+}
+
 // An InstallOption for injecting an InstallNamespace value.
 func InstallNamespace(namespace string) InstallOption {
 	return func(v *Version) {
-		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`InstallNamespace: "%s"`, namespace)))
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`InstallNamespace: "%s"`, namespace)))
 	}
 }
 
@@ -45,7 +57,7 @@ func WatchNamespaces(watchNamespaces ...string) InstallOption {
 	return func(v *Version) {
 		watchNamespaces = unique(watchNamespaces)
 		wns := strings.Join(watchNamespaces, ",")
-		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`WatchNamespaces: "%s"`, wns)))
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`WatchNamespaces: "%s"`, wns)))
 	}
 }
 
@@ -64,14 +76,14 @@ func unique(slice []string) []string {
 // An InstallOption for injecting a Zone value.
 func Zone(zone string) InstallOption {
 	return func(v *Version) {
-		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`Zone: "%s"`, zone)))
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`Zone: "%s"`, zone)))
 	}
 }
 
 // An InstallOption for injecting an ImagePullSecretName value.
 func ImagePullSecretName(imagePullSecretName string) InstallOption {
 	return func(v *Version) {
-		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`ImagePullSecretName: "%s"`, imagePullSecretName)))
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`ImagePullSecretName: "%s"`, imagePullSecretName)))
 	}
 }
 
@@ -80,13 +92,13 @@ func ImagePullSecretName(imagePullSecretName string) InstallOption {
 // A separate egress port will be set internally for egress traffic from localhosts to sidecars.
 func MeshPort(port int32) InstallOption {
 	return func(v *Version) {
-		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`MeshPort: %d`, port)))
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`MeshPort: %d`, port)))
 	}
 }
 
 // An InstallOption for injecting SPIRE configuration.
 func SPIRE(v *Version) {
-	v.cue = v.cue.Unify(Cue(`Spire: true`))
+	v.cue = v.cue.Unify(cueutils.FromStrings(`Spire: true`))
 }
 
 // An InstallOption for injecting Redis configuration for either an external
@@ -98,7 +110,7 @@ func Redis(externalURL string) InstallOption {
 			b := make([]byte, 10)
 			rand.Read(b)
 			password := base64.URLEncoding.EncodeToString(b)
-			v.cue = v.cue.Unify(Cue(fmt.Sprintf(`Redis: password: "%s"`, password)))
+			v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`Redis: password: "%s"`, password)))
 			return
 		}
 
@@ -111,7 +123,7 @@ func Redis(externalURL string) InstallOption {
 		host, port := split[0], split[1]
 		password := redisOptions.Password
 		db := fmt.Sprintf("%d", redisOptions.DB)
-		v.cue = v.cue.Unify(Cue(fmt.Sprintf(
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(
 			`Redis: {
 				host: "%s"
 				port: "%s"
@@ -131,7 +143,7 @@ func UserTokens(users string) InstallOption {
 	json.Compact(&buf, []byte(users))
 
 	return func(v *Version) {
-		v.cue = v.cue.Unify(Cue(fmt.Sprintf(`
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`
 			JWT: userTokens: """
 				%s
 			"""`, buf.String())),
@@ -140,11 +152,11 @@ func UserTokens(users string) InstallOption {
 }
 
 // An InstallOption for injecting generated secret values to be used by JWT Security.
-// This may not be needed later on if we can use custom template functions in Cue (i.e. from Sprig).
+// This may not be needed later on if we can use custom template functions in cueutils.FromStrings (i.e. from Sprig).
 // NOTE: Generation happens each time as this option is applied, which will cause a service restart to update envs.
 func JWTSecrets(v *Version) {
 	// TODO: Generate keys.
-	v.cue = v.cue.Unify(Cue(
+	v.cue = v.cue.Unify(cueutils.FromStrings(
 		`JWT: {
 			apiKey: "MTIzCg=="
 			privateKey: "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1JSGNBZ0VCQkVJQkhRY01yVUh5ZEFFelNnOU1vQWxneFF1a3lqQTROL2laa21ETVIvdFRkVmg3U3hNYk8xVE4KeXdzRkJDdTYvZEZXTE5rUDJGd1FFQmtqREpRZU9mc3hKZWlnQndZRks0RUVBQ09oZ1lrRGdZWUFCQUJEWklJeAp6a082cWpkWmF6ZG1xWFg1dnRFcWtodzlkcVREeTN6d0JkcXBRUmljWDRlS2lZUUQyTTJkVFJtWk0yZE9FRHh1Clhja0hzcVMxZDNtWHBpcDh2UUZHTWJCM1hRVm9DZWN0SUlLMkczRUlwWmhGZFNGdG1sa2t5U1N4angzcS9UcloKaVlRTjhJakpPbUNueUdXZ1VWUkdERURiNWlZdkZXc3dpSkljSWYyOGVRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
