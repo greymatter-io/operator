@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -16,33 +17,47 @@ type client struct {
 	flags       []string
 	controlCmds chan cmd
 	catalogCmds chan cmd
+	ctx         context.Context
+	cancel      context.CancelFunc
 	f           *fabric.Fabric
 }
 
 func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
+	ctxt, cancel := context.WithCancel(context.Background())
+
 	cl := &client{
 		mesh:        mesh.Name,
 		flags:       flags,
 		controlCmds: make(chan cmd),
 		catalogCmds: make(chan cmd),
+		ctx:         ctxt,
+		cancel:      cancel,
 		f:           fabric.New(mesh),
 	}
 
 	// Consume commands to send to Control
-	go func(controlCmds chan cmd) {
+	go func(ctx context.Context, controlCmds chan cmd) {
 
-		// Ping Control every 5s until responsive b getting and editing the Mesh's zone.
+		// Ping Control every 5s until responsive by getting and editing the Mesh's zone.
 		// This ensures we can read and write from Control without any errors.
-		(cmd{
+		if (cmd{
 			// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
-			args:    fmt.Sprintf("get zone %s", mesh.Spec.Zone),
-			retries: time.Second * 5,
+			args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
+			retry: retry{
+				dur:  time.Second * 5,
+				done: ctx.Done,
+			},
 			and: cmdOpt{cmd: &cmd{
-				args:    fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
-				reader:  values("zone_key", "checksum"),
-				retries: time.Second * 5,
+				args:   fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
+				reader: values("zone_key", "checksum"),
+				retry: retry{
+					dur:  time.Second * 5,
+					done: ctx.Done,
+				},
 			}},
-		}).run(cl.flags)
+		}).run(cl.flags).err != nil {
+			return
+		}
 
 		logger.Info("Connected to Control", "Mesh", mesh.Name)
 
@@ -50,29 +65,44 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 		mkApply("domain", cl.f.EdgeDomain()).run(cl.flags)
 
 		// Then consume additional commands for control objects
-		for c := range controlCmds {
-			c.run(cl.flags)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case c := <-controlCmds:
+				c.run(cl.flags)
+			}
 		}
-	}(cl.controlCmds)
+	}(cl.ctx, cl.controlCmds)
 
 	// Consume commands to send to Catalog
-	go func(catalogCmds chan cmd) {
+	go func(ctx context.Context, catalogCmds chan cmd) {
 
 		// Ping Catalog every 5s until responsive (getting the Mesh's session status with Control).
-		(cmd{
+		if (cmd{
 			// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
-			args:    fmt.Sprintf("get catalog-mesh %s", mesh.Name),
-			reader:  values("mesh_id", "session_statuses.default"),
-			retries: time.Second * 5,
-		}).run(cl.flags)
+			args:   fmt.Sprintf("get catalog-mesh %s", mesh.Name),
+			reader: values("mesh_id", "session_statuses.default"),
+			retry: retry{
+				dur:  time.Second * 5,
+				done: ctx.Done,
+			},
+		}).run(cl.flags).err != nil {
+			return
+		}
 
 		logger.Info("Connected to Catalog", "Mesh", mesh.Name)
 
 		// Then consume additional commands for catalog objects
-		for c := range catalogCmds {
-			c.run(cl.flags)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case c := <-catalogCmds:
+				c.run(cl.flags)
+			}
 		}
-	}(cl.catalogCmds)
+	}(cl.ctx, cl.catalogCmds)
 
 	return cl
 }

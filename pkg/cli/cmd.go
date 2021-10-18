@@ -18,13 +18,13 @@ type cmd struct {
 	// If the result has an error (from cmd or reader), kvs will always be nil.
 	reader func(string) result
 
-	// If > 0, runs cmd on interval until it succeeds.
-	retries time.Duration
 	// If the cmd succeeds, run this cmd with the previous cmdout piped into stdin.
 	// If specified, this skips the original cmd's reader.
 	and cmdOpt
 	// If the cmd (or read) fails, run this cmd instead.
 	or cmdOpt
+	// If specified, keep retrying for the given dur until the channel is signaled.
+	retry
 }
 
 type result struct {
@@ -37,7 +37,17 @@ type cmdOpt struct {
 	when func(string) bool
 }
 
-func (c cmd) run(flags []string) result {
+type retry struct {
+	dur  time.Duration
+	done func() <-chan struct{}
+}
+
+// describes the previous cmd in a cmd chain
+type src struct {
+	args, action string
+}
+
+func (c cmd) run(flags []string, from ...src) result {
 	args := strings.Split(c.args, " ")
 	if len(flags) > 0 {
 		for _, flag := range flags {
@@ -62,8 +72,8 @@ func (c cmd) run(flags []string) result {
 		if c.and.cmd != nil {
 			// If c.and is specified, pipe cmdout into it and run it next.
 			c.and.stdin = out
-			logger.Info(c.args, "&&", c.and.args)
-			return c.and.run(flags)
+			from = append(from, src{c.args, "|"})
+			return c.and.run(flags, from...)
 		} else if c.reader != nil {
 			// Otherwise, if reader is specified, attempt to read cmdout.
 			r = c.reader(cmdout)
@@ -75,20 +85,34 @@ func (c cmd) run(flags []string) result {
 	if r.err != nil {
 		// Run c.or if specified and if it passes or.when (if specified).
 		if c.or.cmd != nil && (c.or.when == nil || c.or.when(cmdout)) {
-			logger.Info(c.args, "||", c.or.args)
-			return c.or.run(flags)
+			from = append(from, src{c.args, "||"})
+			return c.or.run(flags, from...)
 		}
-		// Otherwise, if c.retries > 0, run again after waiting.
-		if c.retries > 0 {
-			logger.Info(c.args, "retries", c.retries.String())
-			time.Sleep(c.retries)
-			return c.run(flags)
+		// Otherwise, if c.retry.dur > 0, run again after waiting.
+		if c.retry.dur > 0 {
+			select {
+			case <-c.retry.done():
+			default:
+				time.Sleep(c.retry.dur)
+				from = append(from, src{c.args, "retry"})
+				return c.run(flags, from...)
+			}
+		}
+	}
+
+	if len(from) > 0 {
+		if from[0].action == "retry" {
+			r.kvs = append([]interface{}{"retries", len(from)}, r.kvs...)
+		} else {
+			for i := len(from) - 1; i >= 0; i-- {
+				c.args = fmt.Sprintf("%s %s %s", from[i].args, from[i].action, c.args)
+			}
 		}
 	}
 
 	// Log the final result.
 	if r.err != nil {
-		logger.Error(r.err, c.args)
+		logger.Error(r.err, c.args, r.kvs...)
 	} else {
 		logger.Info(c.args, r.kvs...)
 	}

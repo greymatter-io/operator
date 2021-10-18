@@ -138,8 +138,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Create context for goroutine cleanup
+	ctx := ctrl.SetupSignalHandler()
+
 	// Initialize interface with greymatter CLI
-	gmcli, err := cli.New()
+	gmcli, err := cli.New(ctx)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -164,8 +167,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		logger.Error(err, "problem running manager")
 		os.Exit(1)
 	}

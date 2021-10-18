@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -20,10 +21,11 @@ var (
 type CLI struct {
 	*sync.RWMutex
 	clients map[string]*client
+	ctx     context.Context
 }
 
 // Returns *CLI for storing clients used to execute greymatter CLI commands.
-func New() (*CLI, error) {
+func New(ctx context.Context) (*CLI, error) {
 	v, err := cliversion()
 	if err != nil {
 		logger.Error(err, "Failed to initialize greymatter CLI")
@@ -37,10 +39,23 @@ func New() (*CLI, error) {
 		return nil, err
 	}
 
-	return &CLI{
+	gmcli := &CLI{
 		RWMutex: &sync.RWMutex{},
 		clients: make(map[string]*client),
-	}, nil
+		ctx:     ctx,
+	}
+
+	// Cancel all client goroutines if package context is done.
+	go func(c *CLI) {
+		<-ctx.Done()
+		c.RLock()
+		defer c.RUnlock()
+		for _, cl := range c.clients {
+			cl.cancel()
+		}
+	}(gmcli)
+
+	return gmcli, nil
 }
 
 // Initializes or updates a client with flags pointing to Control and Catalog for the given mesh.
@@ -73,8 +88,7 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) {
 
 	// Close an existing cmds channel if updating
 	if cl, ok := c.clients[mesh.Name]; ok {
-		close(cl.controlCmds)
-		close(cl.catalogCmds)
+		cl.cancel()
 	}
 
 	c.clients[mesh.Name] = newClient(mesh, flags...)
@@ -90,8 +104,7 @@ func (c *CLI) RemoveMeshClient(name string) {
 		return
 	}
 
-	close(cl.controlCmds)
-	close(cl.catalogCmds)
+	cl.cancel()
 	delete(c.clients, name)
 }
 

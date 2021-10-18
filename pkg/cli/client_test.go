@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -14,9 +15,11 @@ import (
 func TestNewClient(t *testing.T) {
 	t.Skip() // only works locally in integrated env
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	ctrl.SetLogger(zap.New(zap.UseDevMode(false)))
 
-	c, err := New()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	c, err := New(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,6 +49,7 @@ func TestNewClient(t *testing.T) {
 	c.RemoveMeshClient("mesh")
 
 	time.Sleep(time.Second * 5)
+	cancel()
 }
 
 func TestCLIVersion(t *testing.T) {

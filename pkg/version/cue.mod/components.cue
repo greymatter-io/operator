@@ -142,8 +142,8 @@ dashboard: #Component & {
   env: {
     BASE_URL: =~"^/services/dashboard/" & =~"/$"
     FABRIC_SERVER: =~"/services/catalog/" & =~"/$"
-    CONFIG_SERVER: =~"/services/control-api/" & =~"/v1.0$"
-    PROMETHEUS_SERVER: "/services/prometheus/latest/api/v1/"
+    CONFIG_SERVER: =~"/services/control/api/" & =~"/v1.0$"
+    PROMETHEUS_SERVER: "/services/prometheus/api/v1/"
     REQUEST_TIMEOUT: "15000"
     USE_PROMETHEUS: "true"
     DISABLE_PROMETHEUS_ROUTES_UI: "false"

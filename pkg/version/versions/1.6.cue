@@ -19,8 +19,8 @@ dashboard: {
   env: {
     BASE_URL: "/services/dashboard/"
     FABRIC_SERVER: "/services/catalog/"
-    CONFIG_SERVER: "/services/control-api/v1.0"
-    PROMETHEUS_SERVER: "/services/prometheus/latest/api/v1/"
+    CONFIG_SERVER: "/services/control/api/v1.0"
+    PROMETHEUS_SERVER: "/services/prometheus/api/v1/"
   }
 }
 
