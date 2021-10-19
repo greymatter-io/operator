@@ -3,7 +3,7 @@ package base
 import (
 	appsv1     "k8s.io/api/apps/v1"
 	corev1     "k8s.io/api/core/v1"
-  netv1b1      "k8s.io/api/networking/v1beta1"
+  netv1      "k8s.io/api/networking/v1"
 )
 
 manifests: [...#ManifestGroup] & [
@@ -186,7 +186,7 @@ manifests: [...#ManifestGroup] & [
     }
   ]
   if _c[0].name == "edge" {
-      ingress: netv1b1.#Ingress & {
+      ingress: netv1.#Ingress & {
         {
           apiVersion: "networking.k8s.io/v1beta1"
           kind: "Ingress"
@@ -207,10 +207,12 @@ manifests: [...#ManifestGroup] & [
                 host: IngressSubDomain
                 http: paths: [
                     {
-                      path: "/"
+                      pathType: "ImplementationSpecific"
                       backend: {
-                        serviceName: "edge"
-                        servicePort: MeshPort
+                        service: {
+                          name: "edge"
+                          port: number: MeshPort
+                        }
                       }
                     },
                   ]
