@@ -188,7 +188,7 @@ manifests: [...#ManifestGroup] & [
   if _c[0].name == "edge" {
       ingress: netv1.#Ingress & {
         {
-          apiVersion: "networking.k8s.io/v1beta1"
+          apiVersion: "networking.k8s.io/v1"
           kind: "Ingress"
           metadata: {
             name: "greymatter-ingress"
