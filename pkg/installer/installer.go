@@ -35,7 +35,7 @@ type Installer struct {
 }
 
 // Returns *Installer for tracking which Grey Matter version is installed for each mesh
-func New(c client.Client, imagePullSecretName, clusterType string) (*Installer, error) {
+func New(c client.Client, imagePullSecretName string) (*Installer, error) {
 	versions, err := version.Load()
 	if err != nil {
 		logger.Error(err, "Failed to initialize installer")

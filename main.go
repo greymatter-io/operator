@@ -134,14 +134,8 @@ func main() {
 		cfg.ImagePullSecretName = "gm-docker-secret"
 	}
 
-	// Set the default cluster type to openshift
-	// TODO: Make the operator automatically determine which clusterType it is running in
-	if cfg.ClusterType == "" {
-		cfg.ClusterType = "openshift"
-	}
-
 	// Initialize installer
-	inst, err := installer.New(c, cfg.ImagePullSecretName, cfg.ClusterType)
+	inst, err := installer.New(c, cfg.ImagePullSecretName)
 	if err != nil {
 		os.Exit(1)
 	}

@@ -9,4 +9,3 @@ leaderElection:
   leaderElect: true
   resourceName: 715805a0.greymatter.io
 imagePullSecretName: gm-docker-secret
-clusterType: openshift
