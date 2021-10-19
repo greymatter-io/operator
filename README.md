@@ -43,7 +43,7 @@ kubectl create secret docker-registry gm-docker-secret \
   --docker-server=<your-registry-server> \
   --docker-username=<your-username> \
   --docker-password=<your-password> \
-  --docker-email=<your-email>
+  --docker-email=<your-email> -n gm-operator
 ```
 
 Finally, the following command will build a binary from code and run it from your host to talk to the local cluster from the outside. You can continue to develop the code and run this command as you work on this project:
