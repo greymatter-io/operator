@@ -7,8 +7,6 @@ InstallNamespace: string
 // The scope of the mesh network; includes InstallNamespace
 WatchNamespaces: string
 
-MeshName: string
-
 IngressSubDomain: *"localhost" | string
 
 Zone: *"default-zone" | string
