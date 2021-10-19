@@ -8,6 +8,7 @@ require (
 	github.com/go-logr/logr v0.4.0
 	github.com/go-redis/redis/v8 v8.11.3
 	github.com/kylelemons/godebug v1.1.0
+	github.com/openshift/api v0.0.0-20210924154557-a4f696157341
 	github.com/tidwall/gjson v1.9.4
 	k8s.io/api v0.22.2
 	k8s.io/apimachinery v0.22.2

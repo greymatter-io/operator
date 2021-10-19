@@ -7,6 +7,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/greymatter-io/operator/pkg/cueutils"
+
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -181,6 +182,46 @@ func TestVersions(t *testing.T) {
 					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 						// unimplemented
 						// check for expected secret and references to secret
+					},
+				},
+				{
+					name:    "Ingress Check",
+					options: []InstallOption{InstallNamespace("mynamespace"), MeshPort(10999), IngressSubDomain("myaddress.com")},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						edge := manifests[0]
+						if edge.Ingress == nil {
+							t.Fatal("Ingress was not created")
+						}
+					},
+				},
+				{
+					name:    "Ingress Check (tls edge ingress)",
+					options: []InstallOption{InstallNamespace("mynamespace"), MeshPort(10999), IngressSubDomain("myaddress.com"), EdgeTls(true)},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						edge := manifests[0]
+						if edge.Ingress == nil {
+							t.Fatal("Ingress was not created")
+						}
+						// var meta *metav1.ObjectMeta
+						meta := &edge.Ingress.ObjectMeta
+						if meta.Annotations == nil {
+							t.Fatal("No Ingress annotations were applied even though they should have been applied")
+						}
+					},
+				},
+				{
+					name:    "Ingress Check (no tls edge ingress)",
+					options: []InstallOption{InstallNamespace("mynamespace"), MeshPort(10999), IngressSubDomain("myaddress.com"), EdgeTls(false)},
+					checkManifests: func(t *testing.T, manifests []ManifestGroup) {
+						edge := manifests[0]
+						if edge.Ingress == nil {
+							t.Fatal("Ingress was not created")
+						}
+						// var meta *metav1.ObjectMeta
+						meta := &edge.Ingress.ObjectMeta
+						if meta.Annotations != nil {
+							t.Fatal("Annotations were applied even though they should not have")
+						}
 					},
 				},
 			} {

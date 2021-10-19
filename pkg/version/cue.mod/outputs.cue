@@ -1,8 +1,9 @@
 package base
 
 import (
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+	appsv1     "k8s.io/api/apps/v1"
+	corev1     "k8s.io/api/core/v1"
+	netv1      "k8s.io/api/networking/v1"
 )
 
 manifests: [...#ManifestGroup] & [
@@ -184,6 +185,44 @@ manifests: [...#ManifestGroup] & [
       }
     }
   ]
+  if _c[0].name == "edge" {
+      ingress: netv1.#Ingress & {
+        {
+          apiVersion: "networking.k8s.io/v1"
+          kind: "Ingress"
+          metadata: {
+            name: "greymatter-ingress"
+            namespace: InstallNamespace
+            if EdgeTlsIngress {
+              annotations: {
+                "nginx.ingress.kubernetes.io/ssl-passthrough": "true"
+                "nginx.ingress.kubernetes.io/force-ssl-redirect": "true"
+                "nginx.ingress.kubernetes.io/backend-protocol": "https"
+              }
+            }
+          }
+          spec: {
+            rules: [
+              {
+                host: IngressSubDomain
+                http: paths: [
+                    {
+                      pathType: "ImplementationSpecific"
+                      backend: {
+                        service: {
+                          name: "edge"
+                          port: number: MeshPort
+                        }
+                      }
+                    },
+                  ]
+                
+              }
+            ]
+          }
+        }
+      }
+  }
 }
 
 sidecar: {

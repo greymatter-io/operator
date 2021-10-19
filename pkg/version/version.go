@@ -163,3 +163,18 @@ func JWTSecrets(v *Version) {
 		}`,
 	))
 }
+
+func IngressSubDomain(addr string) InstallOption {
+	return func(v *Version) {
+		installNamespace := fmt.Sprintf("%s", v.cue.LookupPath(cue.ParsePath("InstallNamespace")))
+		meshName := fmt.Sprintf("%s", v.cue.LookupPath(cue.ParsePath("MeshName")))
+		// TODO: validate mesh name is unique.  once this is done we can strip the namespace from the subdomain spec
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`IngressSubDomain: "%s.%s.%s"`, strings.TrimSpace(meshName), strings.TrimSpace(installNamespace), strings.TrimSpace(addr))))
+	}
+}
+
+func EdgeTls(tlsIngress bool) InstallOption {
+	return func(v *Version) {
+		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`EdgeTlsIngress: %t`, tlsIngress)))
+	}
+}

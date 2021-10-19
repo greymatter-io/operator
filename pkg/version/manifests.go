@@ -8,6 +8,7 @@ import (
 	"github.com/greymatter-io/operator/pkg/cueutils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 )
 
 // The manifests applied for a Grey Matter component or dependency.
@@ -17,6 +18,7 @@ type ManifestGroup struct {
 	Service     *corev1.Service     `json:"service"`
 	ConfigMaps  []*corev1.ConfigMap `json:"configMaps"`
 	Secrets     []*corev1.Secret    `json:"secrets"`
+	Ingress     *netv1.Ingress      `json:"ingress"`
 }
 
 // Extracts manifests from a Version's cue.Value.

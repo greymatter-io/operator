@@ -138,6 +138,9 @@ MANIFEST_LOOP:
 		if group.Service != nil {
 			apply(i.client, group.Service, mesh, scheme)
 		}
+		if group.Ingress != nil {
+			apply(i.client, group.Ingress, mesh, scheme)
+		}
 	}
 }
 
