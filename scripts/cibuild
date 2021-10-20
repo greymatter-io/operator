@@ -21,7 +21,6 @@ install_operator-sdk() {
 install_cue_deps() {
   go install cuelang.org/go/cmd/cue@latest
   (cd ./pkg/version/cue.mod; cue get go k8s.io/api/...)
-  (cd ./pkg/version/cue.mod; cue get go github.com/openshift/api/route/v1/...)
 }
 
 install_staticcheck() {
