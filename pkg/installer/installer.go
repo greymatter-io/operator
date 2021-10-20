@@ -60,6 +60,11 @@ func New(c client.Client, imagePullSecretName string) (*Installer, error) {
 // Retrieves the image pull secret in the gm-operator namespace (default name is gm-docker-secret).
 // This retries indefinitely at 30s intervals and will block by design.
 func getImagePullSecret(c client.Client, imagePullSecretName string) *corev1.Secret {
+	// If the BootstrapConfig did not specify an ImagePullSecretName, use the default.
+	if imagePullSecretName == "" {
+		imagePullSecretName = "gm-docker-secret"
+	}
+
 	key := client.ObjectKey{Name: imagePullSecretName, Namespace: "gm-operator"}
 	operatorSecret := &corev1.Secret{}
 	for operatorSecret.CreationTimestamp.IsZero() {
