@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/greymatter-io/operator/pkg/version"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -13,17 +14,20 @@ var (
 
 func (m Mesh) InstallOptions() []version.InstallOption {
 	opts := []version.InstallOption{
-		version.MeshName(m.Name),
-		version.MeshPort(m.Spec.MeshPort),
-		version.EdgeTls(m.Spec.EdgeTlsIngress),
-		version.InstallNamespace(m.ObjectMeta.Namespace),
-		// TODO: figure out how to get domain from the clusterUrl without making this a mesh config
-		version.IngressSubDomain(m.Spec.ClusterUrl),
-		version.WatchNamespaces(append(m.Spec.WatchNamespaces, m.ObjectMeta.Namespace)...),
-	}
-
-	if m.Spec.Zone != "" {
-		opts = append(opts, version.Zone(m.Spec.Zone))
+		version.Strings(map[string]string{
+			"MeshName":         m.Name,
+			"InstallNamespace": m.Namespace,
+			"Zone":             m.Spec.Zone,
+			// TODO: figure out how to get the domain dynamically
+			"IngressSubDomain": fmt.Sprintf("%s.%s.%s", m.Name, m.Namespace, m.Spec.ClusterUrl),
+		}),
+		version.StringSlices(map[string][]string{
+			"WatchNamespaces": append(m.Spec.WatchNamespaces, m.Namespace),
+		}),
+		version.Interfaces(map[string]interface{}{
+			"MeshPort":       m.Spec.MeshPort,
+			"EdgeTlsIngress": m.Spec.EdgeTlsIngress,
+		}),
 	}
 
 	if m.Spec.ExternalRedis != nil {

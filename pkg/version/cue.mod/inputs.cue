@@ -1,17 +1,27 @@
 package base
 
+import (
+  "list"
+  "strings"
+)
+
 MeshName: string
 
 // Where to install components
 InstallNamespace: string
-// The scope of the mesh network; includes InstallNamespace
-WatchNamespaces: string
-
-IngressSubDomain: *"localhost" | string
 
 Zone: *"default-zone" | string
 
-ImagePullSecretName: *"gm-docker-secret" | string
+IngressSubDomain: *"localhost" | string
+
+// The scope of the mesh network
+WatchNamespaces: [...string]
+
+// Add the install namespace to watch namespaces, and then use list comprehension to identify unique values
+allWatchNamespaces: WatchNamespaces + [InstallNamespace]
+controlNamespaces: strings.Join([
+  for i, ns in allWatchNamespaces if !list.Contains(list.Drop(allWatchNamespaces, i+1), ns) { ns }
+], ",")
 
 MeshPort: *10808 | int32
 EdgeTlsIngress: *true | bool

@@ -32,9 +32,6 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	// Apply options for mutating the version copy's internal Cue value.
 	opts := append(
 		mesh.InstallOptions(),
-		// Note: Each copied ImagePullSecret will always be named "gm-docker-secret"
-		// even if the original secret in the gm-operator namespace has a different name.
-		version.ImagePullSecretName("gm-docker-secret"),
 		version.JWTSecrets,
 	)
 	v.Apply(opts...)

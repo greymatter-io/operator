@@ -46,7 +46,7 @@ manifests: [...#ManifestGroup] & [
         spec: {
           if _c[0].name != "gm-redis" && _c[0].name != "gm-prometheus" {
             imagePullSecrets: [
-              { name: ImagePullSecretName }
+              { name: "gm-docker-secret" }
             ]
           }
           containers: [
