@@ -39,66 +39,42 @@ func (v *Version) Apply(opts ...InstallOption) {
 // An option for mutating the Version's cue.Value.
 type InstallOption func(*Version)
 
-func MeshName(name string) InstallOption {
+func Strings(kvs map[string]string) InstallOption {
 	return func(v *Version) {
-		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`MeshName: "%s"`, name)))
+		var s string
+		for k, v := range kvs {
+			if v != "" {
+				s += fmt.Sprintf(`%s: "%s"`, k, v) + "\n"
+			}
+		}
+		v.cue = v.cue.Unify(cueutils.FromStrings(s))
 	}
 }
 
-// An InstallOption for injecting an InstallNamespace value.
-func InstallNamespace(namespace string) InstallOption {
+func StringSlices(kvs map[string][]string) InstallOption {
 	return func(v *Version) {
-		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`InstallNamespace: "%s"`, namespace)))
+		var s string
+		for k, v := range kvs {
+			if len(v) > 0 {
+				var quoted []string
+				for _, vv := range v {
+					quoted = append(quoted, fmt.Sprintf(`"%s"`, vv))
+				}
+				s += fmt.Sprintf(`%s: [%s]`, k, strings.Join(quoted, ",")) + "\n"
+			}
+		}
+		v.cue = v.cue.Unify(cueutils.FromStrings(s))
 	}
 }
 
-// An InstallOption for injecting a WatchNamespaces value.
-func WatchNamespaces(watchNamespaces ...string) InstallOption {
+func Interfaces(kvs map[string]interface{}) InstallOption {
 	return func(v *Version) {
-		watchNamespaces = unique(watchNamespaces)
-		wns := strings.Join(watchNamespaces, ",")
-		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`WatchNamespaces: "%s"`, wns)))
+		var s string
+		for k, v := range kvs {
+			s += fmt.Sprintf(`%s: %v`, k, v) + "\n"
+		}
+		v.cue = v.cue.Unify(cueutils.FromStrings(s))
 	}
-}
-
-func unique(slice []string) []string {
-	keys := make(map[string]struct{})
-	for _, entry := range slice {
-		keys[strings.ToLower(entry)] = struct{}{}
-	}
-	var list []string
-	for k := range keys {
-		list = append(list, k)
-	}
-	return list
-}
-
-// An InstallOption for injecting a Zone value.
-func Zone(zone string) InstallOption {
-	return func(v *Version) {
-		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`Zone: "%s"`, zone)))
-	}
-}
-
-// An InstallOption for injecting an ImagePullSecretName value.
-func ImagePullSecretName(imagePullSecretName string) InstallOption {
-	return func(v *Version) {
-		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`ImagePullSecretName: "%s"`, imagePullSecretName)))
-	}
-}
-
-// An InstallOption for injecting a port to be used for ingress traffic into the data plane.
-// This will also be used as the ingress port for traffic from each sidecar to its localhosts.
-// A separate egress port will be set internally for egress traffic from localhosts to sidecars.
-func MeshPort(port int32) InstallOption {
-	return func(v *Version) {
-		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`MeshPort: %d`, port)))
-	}
-}
-
-// An InstallOption for injecting SPIRE configuration.
-func SPIRE(v *Version) {
-	v.cue = v.cue.Unify(cueutils.FromStrings(`Spire: true`))
 }
 
 // An InstallOption for injecting Redis configuration for either an external
@@ -162,19 +138,4 @@ func JWTSecrets(v *Version) {
 			privateKey: "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1JSGNBZ0VCQkVJQkhRY01yVUh5ZEFFelNnOU1vQWxneFF1a3lqQTROL2laa21ETVIvdFRkVmg3U3hNYk8xVE4KeXdzRkJDdTYvZEZXTE5rUDJGd1FFQmtqREpRZU9mc3hKZWlnQndZRks0RUVBQ09oZ1lrRGdZWUFCQUJEWklJeAp6a082cWpkWmF6ZG1xWFg1dnRFcWtodzlkcVREeTN6d0JkcXBRUmljWDRlS2lZUUQyTTJkVFJtWk0yZE9FRHh1Clhja0hzcVMxZDNtWHBpcDh2UUZHTWJCM1hRVm9DZWN0SUlLMkczRUlwWmhGZFNGdG1sa2t5U1N4angzcS9UcloKaVlRTjhJakpPbUNueUdXZ1VWUkdERURiNWlZdkZXc3dpSkljSWYyOGVRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
 		}`,
 	))
-}
-
-func IngressSubDomain(addr string) InstallOption {
-	return func(v *Version) {
-		installNamespace := fmt.Sprintf("%s", v.cue.LookupPath(cue.ParsePath("InstallNamespace")))
-		meshName := fmt.Sprintf("%s", v.cue.LookupPath(cue.ParsePath("MeshName")))
-		// TODO: validate mesh name is unique.  once this is done we can strip the namespace from the subdomain spec
-		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`IngressSubDomain: "%s.%s.%s"`, strings.TrimSpace(meshName), strings.TrimSpace(installNamespace), strings.TrimSpace(addr))))
-	}
-}
-
-func EdgeTls(tlsIngress bool) InstallOption {
-	return func(v *Version) {
-		v.cue = v.cue.Unify(cueutils.FromStrings(fmt.Sprintf(`EdgeTlsIngress: %t`, tlsIngress)))
-	}
 }
