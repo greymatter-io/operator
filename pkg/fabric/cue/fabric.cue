@@ -8,6 +8,8 @@ MeshPort: *10808 | int32
 
 ServiceName: string
 ServiceIngresses: [string]: int32
+ServiceLocalEgresses: [...string]
+ServiceExternalEgresses: [...string]
 
 // Outputs
 
@@ -20,12 +22,17 @@ edgeDomain: #Domain & {
 
 service: #Tmpl & {
   _name: ServiceName
-  _ports: ServiceIngresses
+  _ingresses: ServiceIngresses
+  _localEgresses: ServiceLocalEgresses
+  _externalEgresses: ServiceExternalEgresses
 }
 
 #Tmpl: {
   _name: string
-  _ports: [string]: int32
+  _ingresses: [string]: int32
+  _localEgresses: [...string]
+  _externalEgresses: [...string]
+
   catalogservice: #CatalogService & {
     mesh_id: MeshName
     service_id: _name
@@ -59,11 +66,22 @@ service: #Tmpl & {
       description: "A data store for caching Grey Matter core service configurations."
     }
   }
+
   proxy: #Proxy & {
     name: _name
     zone_key: Zone
-    domain_keys: [_name]
-    listener_keys: [_name]
+    domain_keys: [
+      _name,
+      if len(_localEgresses) > 0 {
+        "\(_name)-http-local-egress",
+      }
+    ]
+    listener_keys: [
+      _name,
+      if len(_localEgresses) > 0 {
+        "\(_name)-http-local-egress",
+      }
+    ]
   }
   domain: #Domain & {
     domain_key: _name
@@ -81,62 +99,65 @@ service: #Tmpl & {
     name: _name
     zone_key: Zone
   }
-  if _name != "dashboard" {
-    route: #Route & {
-      route_key: _name
-      domain_key: "edge"
-      zone_key: Zone
-      route_match: {
-        path: "/services/\(_name)/"
-        match_type: "prefix"
-      }
-      redirects: [
-        {
-          from: "^/services/\(_name)$"
-          to: route_match.path
-          redirect_type: "permanent"
+  routes: [...#Route] & [
+    if _name != "dashboard" {
+      {
+        route_key: _name
+        domain_key: "edge"
+        zone_key: Zone
+        route_match: {
+          path: "/services/\(_name)/"
+          match_type: "prefix"
         }
-      ]
-      prefix_rewrite: "/"
-      rules: [
-        {
-          constraints: {
-            light: [
-              {
-                cluster_key: _name
-                weight: 1
-              }
-            ]
+        redirects: [
+          {
+            from: "^/services/\(_name)$"
+            to: route_match.path
+            redirect_type: "permanent"
           }
-        }
-      ]
-    }
-  }
-  if _name == "dashboard" {
-    route: #Route & {
-      route_key: _name
-      domain_key: "edge"
-      zone_key: Zone
-      route_match: {
-        path: "/"
-        match_type: "prefix"
-      }
-      rules: [
-        {
-          constraints: {
-            light: [
-              {
-                cluster_key: _name
-                weight: 1
-              }
-            ]
+        ]
+        prefix_rewrite: "/"
+        rules: [
+          {
+            constraints: {
+              light: [
+                {
+                  cluster_key: _name
+                  weight: 1
+                }
+              ]
+            }
           }
-        }
-      ]
+        ]
+      }
     }
-  }
+    if _name == "dashboard" {
+      {
+        route_key: _name
+        domain_key: "edge"
+        zone_key: Zone
+        route_match: {
+          path: "/"
+          match_type: "prefix"
+        }
+        rules: [
+          {
+            constraints: {
+              light: [
+                {
+                  cluster_key: _name
+                  weight: 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+
   ingresses: {
-    for k, v in _ports if len(_ports) > 0 {
+    for k, v in _ingresses if len(_ingresses) > 0 {
       let key = "\(_name)-\(v)"
       "\(key)": {
         cluster: #Cluster & {
@@ -149,41 +170,94 @@ service: #Tmpl & {
             }
           ]
         }
-        if len(_ports) == 1 {
-          route: #Route & {
-            route_key: cluster.name
-            domain_key: _name
-            zone_key: Zone
-            route_match: {
-              path: "/"
-              match_type: "prefix"
-            }
-            rules: [
-              {
-                constraints: {
-                  light: [
-                    {
-                      cluster_key: cluster.name
-                      weight: 1
-                    }
-                  ]
-                }
+        routes: [...#Route] & [
+          if len(_ingresses) == 1 {
+            {
+              route_key: cluster.name
+              domain_key: _name
+              zone_key: Zone
+              route_match: {
+                path: "/"
+                match_type: "prefix"
               }
-            ]
+              rules: [
+                {
+                  constraints: {
+                    light: [
+                      {
+                        cluster_key: cluster.name
+                        weight: 1
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
           }
-        }
-        if len(_ports) > 1 {
-          route: #Route & {
-            route_key: cluster.name
-            domain_key: _name
+          if len(_ingresses) > 1 {
+            {
+              route_key: cluster.name
+              domain_key: _name
+              zone_key: Zone
+              route_match: {
+                path: "/\(k)/"
+                match_type: "prefix"
+              }
+              redirects: [
+                {
+                  from: "^/\(k)$"
+                  to: route_match.path
+                  redirect_type: "permanent"
+                }
+              ]
+              prefix_rewrite: "/"
+              rules: [
+                {
+                  constraints: {
+                    light: [
+                      {
+                        cluster_key: cluster.name
+                        weight: 1
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+  
+  localEgresses: {
+    if len(_localEgresses) > 0 {
+      let key = "\(_name)-http-local-egress"
+      domain: #Domain & {
+        zone_key: Zone
+        domain_key: key
+        port: 10909
+      }
+      listener: #Listener & {
+        zone_key: Zone
+        name: key
+        listener_key: key
+        domain_keys: [key]
+        port: 10909
+      }
+      routes: [...#Route] & [
+        for _, cluster in _localEgresses {
+          {
+            route_key: "\(key)-to-\(cluster)"
+            domain_key: key
             zone_key: Zone
             route_match: {
-              path: "/\(k)/"
+              path: "/\(cluster)/"
               match_type: "prefix"
             }
             redirects: [
               {
-                from: "^/\(k)$"
+                from: "^/\(cluster)$"
                 to: route_match.path
                 redirect_type: "permanent"
               }
@@ -194,7 +268,7 @@ service: #Tmpl & {
                 constraints: {
                   light: [
                     {
-                      cluster_key: cluster.name
+                      cluster_key: cluster
                       weight: 1
                     }
                   ]
@@ -203,7 +277,9 @@ service: #Tmpl & {
             ]
           }
         }
-      }
+      ]
     }
   }
+
+  externalEgresses: {}
 }

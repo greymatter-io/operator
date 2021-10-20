@@ -140,10 +140,14 @@ func (c *CLI) ConfigureService(mesh, workload string, containers []corev1.Contai
 	cl.controlCmds <- mkApply("listener", objects.Listener)
 	cl.controlCmds <- mkApply("proxy", objects.Proxy)
 	cl.controlCmds <- mkApply("cluster", objects.Cluster)
-	cl.controlCmds <- mkApply("route", objects.Route)
+	for _, route := range objects.Routes {
+		cl.controlCmds <- mkApply("route", route)
+	}
 	for _, ingress := range objects.Ingresses {
 		cl.controlCmds <- mkApply("cluster", ingress.Cluster)
-		cl.controlCmds <- mkApply("route", ingress.Route)
+		for _, route := range ingress.Routes {
+			cl.controlCmds <- mkApply("route", route)
+		}
 	}
 	cl.catalogCmds <- mkApply("catalog-service", objects.CatalogService)
 	// cl.catalogCmds <- mkApply("catalogservice", objects.CatalogService)

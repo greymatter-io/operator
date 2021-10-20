@@ -32,13 +32,15 @@ func New(mesh *v1alpha1.Mesh) *Fabric {
 }
 
 type Objects struct {
-	Proxy          json.RawMessage    `json:"proxy,omitempty"`
-	Domain         json.RawMessage    `json:"domain,omitempty"`
-	Listener       json.RawMessage    `json:"listener,omitempty"`
-	Cluster        json.RawMessage    `json:"cluster,omitempty"`
-	Route          json.RawMessage    `json:"route,omitempty"`
-	Ingresses      map[string]Objects `json:"ingresses,omitempty"`
-	CatalogService json.RawMessage    `json:"catalogservice,omitempty"`
+	Proxy            json.RawMessage    `json:"proxy,omitempty"`
+	Domain           json.RawMessage    `json:"domain,omitempty"`
+	Listener         json.RawMessage    `json:"listener,omitempty"`
+	Cluster          json.RawMessage    `json:"cluster,omitempty"`
+	Routes           []json.RawMessage  `json:"routes,omitempty"`
+	Ingresses        map[string]Objects `json:"ingresses,omitempty"`
+	LocalEgresses    *Objects           `json:"localEgresses,omitempty"`
+	ExternalEgresses *Objects           `json:"externalEgresses,omitempty"`
+	CatalogService   json.RawMessage    `json:"catalogservice,omitempty"`
 }
 
 // Extracts the edge domain from a Fabric's cue.Value.
@@ -53,22 +55,50 @@ func (f *Fabric) EdgeDomain() json.RawMessage {
 	return e.EdgeDomain
 }
 
+type Egress struct {
+	// Protocol string // http or tcp; TODO
+	Cluster  string // the name of a cluster; if external, this is a FQDN
+	External bool
+}
+
 // Extracts service configs from a Fabric's cue.Value.
-func (f *Fabric) Service(name string, ingresses map[string]int32) (Objects, error) {
+func (f *Fabric) Service(name string, ingresses map[string]int32, egresses ...Egress) (Objects, error) {
 	if ingresses == nil {
 		ingresses = make(map[string]int32)
 	}
 
-	j, err := json.Marshal(ingresses)
+	i, err := json.Marshal(ingresses)
 	if err != nil {
 		return Objects{}, fmt.Errorf("failed to marshal ingresses")
 	}
 
+	localEgresses := []string{}
+	externalEgresses := []string{}
+	for _, e := range egresses {
+		if e.External {
+			externalEgresses = append(externalEgresses, e.Cluster)
+		} else {
+			localEgresses = append(localEgresses, e.Cluster)
+		}
+	}
+
+	locals, err := json.Marshal(localEgresses)
+	if err != nil {
+		return Objects{}, fmt.Errorf("failed to marshal local egresses")
+	}
+
+	externals, err := json.Marshal(externalEgresses)
+	if err != nil {
+		return Objects{}, fmt.Errorf("failed to marshal external egresses")
+	}
+
 	value := f.cue.Unify(
 		cueutils.FromStrings(fmt.Sprintf(`
-			ServiceName: "%s",
+			ServiceName: "%s"
 			ServiceIngresses: %s
-		`, name, string(j))),
+			ServiceLocalEgresses: %s
+			ServiceExternalEgresses: %s
+		`, name, string(i), string(locals), string(externals))),
 	)
 	if err := value.Err(); err != nil {
 		cueutils.LogError(logger, err)
