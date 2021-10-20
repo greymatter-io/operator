@@ -43,6 +43,9 @@ type MeshSpec struct {
 	// +kubebuilder:default=default-zone
 	Zone string `json:"zone"`
 
+	// Install Namespace
+	InstallNamespace string `json:"install_namespace"`
+
 	// Namespaces included in the mesh network.
 	// +optional
 	WatchNamespaces []string `json:"watch_namespaces,omitempty"`
@@ -67,7 +70,7 @@ type MeshStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Namespaced
+// +kubebuilder:resource:scope=Cluster
 
 // The schema used to define a Grey Matter mesh's desired state and describe its observed state.
 type Mesh struct {

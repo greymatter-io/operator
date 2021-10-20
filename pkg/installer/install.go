@@ -40,7 +40,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	if prev == nil {
 		secret := i.imagePullSecret.DeepCopy()
 		secret.Name = "gm-docker-secret"
-		secret.Namespace = mesh.Namespace
+		secret.Namespace = mesh.Spec.InstallNamespace
 		apply(i.client, secret, mesh, scheme)
 		// If this is the first mesh, setup RBAC for control plane service accounts to view pods.
 		if len(i.sidecars) == 0 {
@@ -58,12 +58,12 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	watch := make(map[string]struct{})
 	i.Lock()
 	{
-		i.namespaces[mesh.Namespace] = mesh.Name
+		i.namespaces[mesh.Spec.InstallNamespace] = mesh.Name
 		for _, namespace := range mesh.Spec.WatchNamespaces {
 			i.namespaces[namespace] = mesh.Name
 			watch[namespace] = struct{}{}
 			// Also inject the Docker image pull secret where sidecars will be injected.
-			if namespace != mesh.Namespace {
+			if namespace != mesh.Spec.InstallNamespace {
 				secret := i.imagePullSecret.DeepCopy()
 				secret.Name = "gm-docker-secret"
 				secret.Namespace = namespace
@@ -86,7 +86,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	deployments := &appsv1.DeploymentList{}
 	i.client.List(context.TODO(), deployments)
 	for _, deployment := range deployments.Items {
-		if _, ok := watch[deployment.Namespace]; ok || deployment.Namespace == mesh.Namespace {
+		if _, ok := watch[deployment.Namespace]; ok || deployment.Namespace == mesh.Spec.InstallNamespace {
 			if _, ok := deployment.Spec.Template.Labels["greymatter.io/cluster"]; !ok {
 				if deployment.Spec.Template.Labels == nil {
 					deployment.Spec.Template.Labels = make(map[string]string)
@@ -99,7 +99,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	statefulsets := &appsv1.StatefulSetList{}
 	i.client.List(context.TODO(), statefulsets)
 	for _, statefulset := range statefulsets.Items {
-		if _, ok := watch[statefulset.Namespace]; ok || statefulset.Namespace == mesh.Namespace {
+		if _, ok := watch[statefulset.Namespace]; ok || statefulset.Namespace == mesh.Spec.InstallNamespace {
 			if _, ok := statefulset.Spec.Template.Labels["greymatter.io/cluster"]; !ok {
 				if statefulset.Spec.Template.Labels == nil {
 					statefulset.Spec.Template.Labels = make(map[string]string)
@@ -226,7 +226,7 @@ func applyServiceAccount(c client.Client, mesh *v1alpha1.Mesh, scheme *runtime.S
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "gm-control",
-			Namespace: mesh.Namespace,
+			Namespace: mesh.Spec.InstallNamespace,
 		},
 		AutomountServiceAccountToken: func() *bool {
 			b := true
@@ -261,10 +261,10 @@ func applyServiceAccount(c client.Client, mesh *v1alpha1.Mesh, scheme *runtime.S
 // Cleanup if a Mesh CR is deleted.
 func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 	watch := make(map[string]struct{})
-	watch[mesh.Namespace] = struct{}{}
+	watch[mesh.Spec.InstallNamespace] = struct{}{}
 
 	i.Lock()
-	delete(i.namespaces, mesh.Namespace)
+	delete(i.namespaces, mesh.Spec.InstallNamespace)
 	for _, namespace := range mesh.Spec.WatchNamespaces {
 		watch[namespace] = struct{}{}
 		delete(i.namespaces, namespace)

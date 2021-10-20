@@ -9,6 +9,7 @@ import (
 	"github.com/greymatter-io/operator/pkg/installer"
 
 	admissionv1 "k8s.io/api/admission/v1"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -41,6 +42,7 @@ type meshValidator struct {
 	*installer.Installer
 	*cli.CLI
 	*admission.Decoder
+	ctrlclient.Client
 }
 
 // Implements admission.DecoderInjector.
@@ -63,6 +65,26 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 
 	if req.Namespace == "gm-operator" {
 		return admission.ValidationResponse(false, "attempted to create Mesh in 'gm-operator' namespace")
+	}
+
+	// Ensure that each mesh spec has a unique install-namespace
+	meshList := &v1alpha1.MeshList{}
+	if err := mv.List(context.TODO(), meshList); err != nil {
+		return admission.ValidationResponse(false, "Unable to get list of existing mesh resources")
+	}
+	var hasInstallNamespace bool
+	// parse through meshes  and see if the request object Namespace is already in a mesh spec
+	for _, mesh := range meshList.Items {
+		obj := &v1alpha1.Mesh{}
+		if err := mv.DecodeRaw(req.Object, obj); err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		if mesh.Spec.InstallNamespace == obj.Spec.InstallNamespace {
+			hasInstallNamespace = true
+		}
+	}
+	if hasInstallNamespace {
+		return admission.ValidationResponse(false, "A mesh exists with the specified install_namespace already.")
 	}
 
 	// TODO: Ensure only one mesh exists in a namespace
