@@ -6,10 +6,26 @@ Zone: *"default-zone" | string
 
 MeshPort: *10808 | int32
 
+#HttpFilters: {
+  "gm.metrics": true
+}
+#NetworkFilters: {
+  "envoy.tcp_proxy": *false | bool
+}
+
+#Egress: {
+  isTCP: bool
+  cluster: string
+  externalHost: string
+  externalPort: int
+}
+
 ServiceName: string
-ServiceIngresses: [string]: int32
-ServiceLocalEgresses: [...string]
-ServiceExternalEgresses: [...string]
+HttpFilters: #HttpFilters
+NetworkFilters: #NetworkFilters
+Ingresses: [string]: int32
+LocalEgresses: [...#Egress]
+ExternalEgresses: [...#Egress]
 
 // Outputs
 
@@ -22,16 +38,16 @@ edgeDomain: #Domain & {
 
 service: #Tmpl & {
   _name: ServiceName
-  _ingresses: ServiceIngresses
-  _localEgresses: ServiceLocalEgresses
-  _externalEgresses: ServiceExternalEgresses
+  _ingresses: Ingresses
+  _localEgresses: LocalEgresses
+  _externalEgresses: ExternalEgresses
 }
 
 #Tmpl: {
   _name: string
   _ingresses: [string]: int32
-  _localEgresses: [...string]
-  _externalEgresses: [...string]
+  _localEgresses: [...#Egress]
+  _externalEgresses: [...#Egress]
 
   catalogservice: #CatalogService & {
     mesh_id: MeshName
@@ -75,11 +91,17 @@ service: #Tmpl & {
       if len(_localEgresses) > 0 {
         "\(_name)-http-local-egress",
       }
+      if len(_externalEgresses) > 0 {
+        "\(_name)-http-external-egress",
+      }
     ]
     listener_keys: [
       _name,
       if len(_localEgresses) > 0 {
         "\(_name)-http-local-egress",
+      }
+      if len(_externalEgresses) > 0 {
+        "\(_name)-http-external-egress",
       }
     ]
   }
@@ -94,11 +116,49 @@ service: #Tmpl & {
     zone_key: Zone
     port: domain.port
     domain_keys: [_name]
+    active_http_filters: [
+      "gm.metrics"
+    ]
+    http_filters: {
+      gm_metrics: {
+        metrics_host: "0.0.0.0"
+        metrics_port: 8081
+        metrics_dashboard_uri_path: "/metrics"
+        metrics_prometheus_uri_path: "prometheus"
+        metrics_ring_buffer_size: 4096
+        prometheus_system_metrics_interval_seconds: 15
+        metrics_key_function: "depth"
+        if _name == "edge" {
+          metrics_key_depth: 1
+        }
+        if _name != "edge" {
+          metrics_key_depth: 3
+        }
+      }
+    }
+    active_network_filters: [
+      if NetworkFilters["envoy.tcp_proxy"] && len(_ingresses) == 1 {
+        "envoy.tcp_proxy"
+      }
+    ]
+    network_filters: {
+      if NetworkFilters["envoy.tcp_proxy"] && len(_ingresses) == 1 {
+        envoy_tcp_proxy: {
+          for k, v in _ingresses {
+            let key = "\(_name)-\(k)"
+            cluster: key
+            stat_prefix: key
+          }
+        }
+      }
+    }
   }
-  cluster: #Cluster & {
-    name: _name
-    zone_key: Zone
-  }
+  clusters: [...#Cluster] & [
+    {
+      name: _name
+      zone_key: Zone
+    }
+  ]
   routes: [...#Route] & [
     if _name != "dashboard" {
       {
@@ -158,22 +218,24 @@ service: #Tmpl & {
 
   ingresses: {
     for k, v in _ingresses if len(_ingresses) > 0 {
-      let key = "\(_name)-\(v)"
+      let key = "\(_name)-\(k)"
       "\(key)": {
-        cluster: #Cluster & {
-          name: key
-          zone_key: Zone
-          instances: [
-            {
-              host: "127.0.0.1"
-              port: v
-            }
-          ]
-        }
+        clusters: [...#Cluster] & [
+          {
+            name: key
+            zone_key: Zone
+            instances: [
+              {
+                host: "127.0.0.1"
+                port: v
+              }
+            ]
+          }
+        ]
         routes: [...#Route] & [
           if len(_ingresses) == 1 {
             {
-              route_key: cluster.name
+              route_key: clusters[0].name
               domain_key: _name
               zone_key: Zone
               route_match: {
@@ -185,7 +247,7 @@ service: #Tmpl & {
                   constraints: {
                     light: [
                       {
-                        cluster_key: cluster.name
+                        cluster_key: clusters[0].name
                         weight: 1
                       }
                     ]
@@ -196,7 +258,7 @@ service: #Tmpl & {
           }
           if len(_ingresses) > 1 {
             {
-              route_key: cluster.name
+              route_key: clusters[0].name
               domain_key: _name
               zone_key: Zone
               route_match: {
@@ -216,7 +278,7 @@ service: #Tmpl & {
                   constraints: {
                     light: [
                       {
-                        cluster_key: cluster.name
+                        cluster_key: clusters[0].name
                         weight: 1
                       }
                     ]
@@ -236,28 +298,28 @@ service: #Tmpl & {
       domain: #Domain & {
         zone_key: Zone
         domain_key: key
-        port: 10909
+        port: 10818
       }
       listener: #Listener & {
         zone_key: Zone
         name: key
         listener_key: key
         domain_keys: [key]
-        port: 10909
+        port: 10818
       }
       routes: [...#Route] & [
-        for _, cluster in _localEgresses {
+        for _, e in _localEgresses {
           {
-            route_key: "\(key)-to-\(cluster)"
+            route_key: "\(key)-to-\(e.cluster)"
             domain_key: key
             zone_key: Zone
             route_match: {
-              path: "/\(cluster)/"
+              path: "/\(e.cluster)/"
               match_type: "prefix"
             }
             redirects: [
               {
-                from: "^/\(cluster)$"
+                from: "^/\(e.cluster)$"
                 to: route_match.path
                 redirect_type: "permanent"
               }
@@ -268,7 +330,7 @@ service: #Tmpl & {
                 constraints: {
                   light: [
                     {
-                      cluster_key: cluster
+                      cluster_key: e.cluster
                       weight: 1
                     }
                   ]
@@ -281,5 +343,68 @@ service: #Tmpl & {
     }
   }
 
-  externalEgresses: {}
+  externalEgresses: {
+    if len(_externalEgresses) > 0 {
+      let key = "\(_name)-http-external-egress"
+      domain: #Domain & {
+        zone_key: Zone
+        domain_key: key
+        port: 10919
+      }
+      listener: #Listener & {
+        zone_key: Zone
+        name: key
+        listener_key: key
+        domain_keys: [key]
+        port: 10919
+      }
+      clusters: [...#Cluster] & [
+        for _, e in _externalEgresses {
+          {
+            name: "\(_name)-to-\(e.cluster)"
+            zone_key: Zone
+            instances: [
+              {
+                host: e.externalHost
+                port: e.externalPort
+              }
+            ]
+          }
+        }
+      ]
+      routes: [...#Route] & [
+        for _, e in _externalEgresses {
+          {
+            route_key: "\(key)-to-\(e.cluster)"
+            domain_key: key
+            zone_key: Zone
+            route_match: {
+              path: "/\(e.cluster)/"
+              match_type: "prefix"
+            }
+            redirects: [
+              {
+                from: "^/\(e.cluster)$"
+                to: route_match.path
+                redirect_type: "permanent"
+              }
+            ]
+            prefix_rewrite: "/"
+            rules: [
+              {
+                constraints: {
+                  light: [
+                    {
+                      cluster_key: "\(_name)-to-\(e.cluster)"
+                      weight: 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
 }

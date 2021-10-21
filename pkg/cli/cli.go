@@ -111,7 +111,7 @@ func (c *CLI) RemoveMeshClient(name string) {
 // Configures mesh objects given a mesh name, an appsv1.Deployment/StatefulSet name, and a list of corev1.Containers.
 // TODO: Remove ingresses if container ports are modified.
 // This may require passing a changelog vs containers.
-func (c *CLI) ConfigureService(mesh, workload string, containers []corev1.Container) {
+func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]string, containers []corev1.Container) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -130,7 +130,7 @@ func (c *CLI) ConfigureService(mesh, workload string, containers []corev1.Contai
 		}
 	}
 
-	objects, err := cl.f.Service(workload, ingresses)
+	objects, err := cl.f.Service(workload, annotations, ingresses)
 	if err != nil {
 		logger.Error(err, "failed to configure fabric objects for workload", "Mesh", mesh, "Workload", workload)
 		return
@@ -139,12 +139,16 @@ func (c *CLI) ConfigureService(mesh, workload string, containers []corev1.Contai
 	cl.controlCmds <- mkApply("domain", objects.Domain)
 	cl.controlCmds <- mkApply("listener", objects.Listener)
 	cl.controlCmds <- mkApply("proxy", objects.Proxy)
-	cl.controlCmds <- mkApply("cluster", objects.Cluster)
+	for _, cluster := range objects.Clusters {
+		cl.controlCmds <- mkApply("cluster", cluster)
+	}
 	for _, route := range objects.Routes {
 		cl.controlCmds <- mkApply("route", route)
 	}
 	for _, ingress := range objects.Ingresses {
-		cl.controlCmds <- mkApply("cluster", ingress.Cluster)
+		for _, cluster := range ingress.Clusters {
+			cl.controlCmds <- mkApply("cluster", cluster)
+		}
 		for _, route := range ingress.Routes {
 			cl.controlCmds <- mkApply("route", route)
 		}

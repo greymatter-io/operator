@@ -4,6 +4,7 @@ package fabric
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cueutils"
@@ -35,7 +36,7 @@ type Objects struct {
 	Proxy            json.RawMessage    `json:"proxy,omitempty"`
 	Domain           json.RawMessage    `json:"domain,omitempty"`
 	Listener         json.RawMessage    `json:"listener,omitempty"`
-	Cluster          json.RawMessage    `json:"cluster,omitempty"`
+	Clusters         []json.RawMessage  `json:"clusters,omitempty"`
 	Routes           []json.RawMessage  `json:"routes,omitempty"`
 	Ingresses        map[string]Objects `json:"ingresses,omitempty"`
 	LocalEgresses    *Objects           `json:"localEgresses,omitempty"`
@@ -56,49 +57,64 @@ func (f *Fabric) EdgeDomain() json.RawMessage {
 }
 
 type Egress struct {
-	// Protocol string // http or tcp; TODO
-	Cluster  string // the name of a cluster; if external, this is a FQDN
-	External bool
+	IsTCP        bool   `json:"isTCP"`
+	Cluster      string `json:"cluster"` // name of a cluster; if external, cluster is generated
+	ExternalHost string `json:"externalHost"`
+	ExternalPort int32  `json:"externalPort"`
 }
 
 // Extracts service configs from a Fabric's cue.Value.
-func (f *Fabric) Service(name string, ingresses map[string]int32, egresses ...Egress) (Objects, error) {
+func (f *Fabric) Service(name string, annotations map[string]string, ingresses map[string]int32, egresses ...Egress) (Objects, error) {
 	if ingresses == nil {
 		ingresses = make(map[string]int32)
 	}
 
-	i, err := json.Marshal(ingresses)
-	if err != nil {
-		return Objects{}, fmt.Errorf("failed to marshal ingresses")
-	}
+	// All ingress routes, whether HTTP or TCP, use 10808.
+	// HTTP egress routes that are local (in-mesh) go to 10818; external go to 10919.
+	// TCP egress routes that are local or external go to 10920 and up, and are assigned.
 
-	localEgresses := []string{}
-	externalEgresses := []string{}
+	localEgresses := []Egress{} // TODO: tack on http vs tcp
+	externalEgresses := []Egress{}
 	for _, e := range egresses {
-		if e.External {
-			externalEgresses = append(externalEgresses, e.Cluster)
+		if e.ExternalHost != "" && e.ExternalPort != 0 {
+			externalEgresses = append(externalEgresses, e)
 		} else {
-			localEgresses = append(localEgresses, e.Cluster)
+			localEgresses = append(localEgresses, e)
 		}
 	}
 
-	locals, err := json.Marshal(localEgresses)
-	if err != nil {
-		return Objects{}, fmt.Errorf("failed to marshal local egresses")
+	if annotations == nil {
+		annotations = make(map[string]string)
 	}
-
-	externals, err := json.Marshal(externalEgresses)
-	if err != nil {
-		return Objects{}, fmt.Errorf("failed to marshal external egresses")
+	httpFilters := make(map[string]bool)
+	if hf, ok := annotations["greymatter.io/http-filters"]; ok {
+		for _, f := range strings.Split(hf, ",") {
+			httpFilters[f] = true
+		}
+	}
+	networkFilters := make(map[string]bool)
+	if nf, ok := annotations["greymatter.io/network-filters"]; ok {
+		for _, f := range strings.Split(nf, ",") {
+			networkFilters[f] = true
+		}
 	}
 
 	value := f.cue.Unify(
 		cueutils.FromStrings(fmt.Sprintf(`
 			ServiceName: "%s"
-			ServiceIngresses: %s
-			ServiceLocalEgresses: %s
-			ServiceExternalEgresses: %s
-		`, name, string(i), string(locals), string(externals))),
+			HttpFilters: %s
+			NetworkFilters: %s
+			Ingresses: %s
+			LocalEgresses: %s
+			ExternalEgresses: %s
+		`,
+			name,
+			mustMarshal(httpFilters),
+			mustMarshal(networkFilters),
+			mustMarshal(ingresses),
+			mustMarshal(localEgresses),
+			mustMarshal(externalEgresses),
+		)),
 	)
 	if err := value.Err(); err != nil {
 		cueutils.LogError(logger, err)
@@ -112,4 +128,12 @@ func (f *Fabric) Service(name string, ingresses map[string]int32, egresses ...Eg
 	}
 	codec.Encode(value, &s)
 	return s.Service, nil
+}
+
+func mustMarshal(i interface{}) string {
+	result, err := json.Marshal(i)
+	if err != nil {
+		logger.Error(err, "failed to marshal", "data", i)
+	}
+	return string(result)
 }

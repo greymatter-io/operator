@@ -109,7 +109,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-			go wd.ConfigureService(mesh, req.Name, deployment.Spec.Template.Spec.Containers)
+			go wd.ConfigureService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
 		} else {
 			wd.DecodeRaw(req.OldObject, deployment)
 			go wd.RemoveService(mesh, req.Name, deployment.Spec.Template.Spec.Containers)
@@ -127,7 +127,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-			go wd.ConfigureService(mesh, req.Name, statefulset.Spec.Template.Spec.Containers)
+			go wd.ConfigureService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
 		} else {
 			wd.DecodeRaw(req.OldObject, statefulset)
 			go wd.RemoveService(mesh, req.Name, statefulset.Spec.Template.Spec.Containers)
