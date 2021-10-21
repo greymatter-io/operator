@@ -72,19 +72,15 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 	if err := mv.List(context.TODO(), meshList); err != nil {
 		return admission.ValidationResponse(false, "Unable to get list of existing mesh resources")
 	}
-	var hasInstallNamespace bool
 	// parse through meshes  and see if the request object Namespace is already in a mesh spec
-	for _, mesh := range meshList.Items {
-		obj := &v1alpha1.Mesh{}
-		if err := mv.DecodeRaw(req.Object, obj); err != nil {
-			return admission.Errored(http.StatusInternalServerError, err)
-		}
-		if mesh.Spec.InstallNamespace == obj.Spec.InstallNamespace {
-			hasInstallNamespace = true
-		}
+	obj := &v1alpha1.Mesh{}
+	if err := mv.DecodeRaw(req.Object, obj); err != nil {
+		return admission.Errored(http.StatusInternalServerError, err)
 	}
-	if hasInstallNamespace {
-		return admission.ValidationResponse(false, "A mesh exists with the specified install_namespace already.")
+	for _, mesh := range meshList.Items {
+		if mesh.Spec.InstallNamespace == obj.Spec.InstallNamespace {
+			return admission.ValidationResponse(false, "A mesh exists with the specified install_namespace already.")
+		}
 	}
 
 	// TODO: Ensure only one mesh exists in a namespace
