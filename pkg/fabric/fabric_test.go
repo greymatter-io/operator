@@ -84,7 +84,7 @@ func TestTCPProxyFilter(t *testing.T) {
 	testContains(service.Listener,
 		`"active_network_filters":["envoy.tcp_proxy"]`,
 		`"network_filters":{"envoy_tcp_proxy":{`,
-		`"cluster":"example-tcpport",`,
+		`"cluster":"example-tcpport"`,
 	)(t)
 }
 
@@ -190,6 +190,11 @@ func TestServiceOneHTTPLocalEgress(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	t.Run("Proxy", testContains(service.Proxy,
+		`"domain_keys":["example","example-http-egress"]`,
+		`"listener_keys":["example","example-http-egress"]`,
+	))
+
 	if service.HTTPEgresses == nil {
 		t.Fatal("HTTPEgresses is nil")
 	}
@@ -205,12 +210,8 @@ func TestServiceOneHTTPLocalEgress(t *testing.T) {
 		`"domain_keys":["example-http-egress"]`,
 		`"port":10909`,
 	))
-	t.Run("Proxy", testContains(service.Proxy,
-		`"domain_keys":["example","example-http-egress"]`,
-		`"listener_keys":["example","example-http-egress"]`,
-	))
 	t.Run("Route", testContains(service.HTTPEgresses.Routes[0],
-		`"route_key":"example-http-egress-to-othercluster"`,
+		`"route_key":"example-to-othercluster"`,
 		`"domain_key":"example-http-egress"`,
 		`"zone_key":"myzone"`,
 		`"cluster_key":"othercluster"`,
@@ -237,7 +238,7 @@ func TestServiceMultipleHTTPLocalEgresses(t *testing.T) {
 
 	for i, cluster := range []string{"othercluster1", "othercluster2"} {
 		t.Run(fmt.Sprintf("Route:%s", cluster), testContains(service.HTTPEgresses.Routes[i],
-			fmt.Sprintf(`"route_key":"example-http-egress-to-%s"`, cluster),
+			fmt.Sprintf(`"route_key":"example-to-%s"`, cluster),
 			`"domain_key":"example-http-egress"`,
 			`"zone_key":"myzone"`,
 			fmt.Sprintf(`"cluster_key":"%s"`, cluster),
@@ -251,11 +252,16 @@ func TestServiceOneHTTPExternalEgress(t *testing.T) {
 	f := loadMock(t)
 
 	service, err := f.Service("example", map[string]string{
-		"greymatter.io/http-external-egress": "google;www.google.com:80",
+		"greymatter.io/http-external-egress": "google;google.com:80",
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	t.Run("Proxy", testContains(service.Proxy,
+		`"domain_keys":["example","example-http-egress"]`,
+		`"listener_keys":["example","example-http-egress"]`,
+	))
 
 	if service.HTTPEgresses == nil {
 		t.Fatal("ExternalEgresses is nil")
@@ -272,14 +278,10 @@ func TestServiceOneHTTPExternalEgress(t *testing.T) {
 		`"domain_keys":["example-http-egress"]`,
 		`"port":10909`,
 	))
-	t.Run("Proxy", testContains(service.Proxy,
-		`"domain_keys":["example","example-http-egress"]`,
-		`"listener_keys":["example","example-http-egress"]`,
-	))
 	t.Run("Cluster", testContains(service.HTTPEgresses.Clusters[0],
 		`"cluster_key":"example-to-external-google"`,
 		`"zone_key":"myzone"`,
-		`"instances":[{"host":"www.google.com","port":80}]`,
+		`"instances":[{"host":"google.com","port":80}]`,
 	))
 	t.Run("Route", testContains(service.HTTPEgresses.Routes[0],
 		`"route_key":"example-to-external-google"`,
@@ -295,7 +297,7 @@ func TestServiceMultipleHTTPExternalEgresses(t *testing.T) {
 	f := loadMock(t)
 
 	service, err := f.Service("example", map[string]string{
-		"greymatter.io/http-external-egress": "google;www.google.com:80,amazon;www.amazon.com:80",
+		"greymatter.io/http-external-egress": "google;google.com:80,amazon;amazon.com:80",
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -309,7 +311,7 @@ func TestServiceMultipleHTTPExternalEgresses(t *testing.T) {
 		t.Run(fmt.Sprintf("Cluster:%s", cluster), testContains(service.HTTPEgresses.Clusters[i],
 			fmt.Sprintf(`"cluster_key":"example-to-external-%s"`, cluster),
 			`"zone_key":"myzone"`,
-			fmt.Sprintf(`"instances":[{"host":"www.%s.com","port":80}]`, cluster),
+			fmt.Sprintf(`"instances":[{"host":"%s.com","port":80}]`, cluster),
 		))
 		t.Run(fmt.Sprintf("Route:%s", cluster), testContains(service.HTTPEgresses.Routes[i],
 			fmt.Sprintf(`"route_key":"example-to-external-%s"`, cluster),
@@ -334,28 +336,32 @@ func TestServiceOneTCPLocalEgress(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	t.Run("Proxy", testContains(service.Proxy,
+		`"domain_keys":["example","example-tcp-egress-to-othercluster"]`,
+		`"listener_keys":["example","example-tcp-egress-to-othercluster"]`,
+	))
+
 	if count := len(service.TCPEgresses); count != 1 {
 		t.Fatalf("Expected 1 TCP egress but got %d", count)
 	}
 
 	t.Run("Domain", testContains(service.TCPEgresses[0].Domain,
-		`"domain_key":"example-http-egress"`,
+		`"domain_key":"example-tcp-egress-to-othercluster"`,
 		`"zone_key":"myzone"`,
 		`"port":10910`,
 	))
 	t.Run("Listener", testContains(service.TCPEgresses[0].Listener,
-		`"listener_key":"example-http-egress"`,
+		`"listener_key":"example-tcp-egress-to-othercluster"`,
 		`"zone_key":"myzone"`,
-		`"domain_keys":["example-http-egress"]`,
+		`"domain_keys":["example-tcp-egress-to-othercluster"]`,
 		`"port":10910`,
-	))
-	t.Run("Proxy", testContains(service.Proxy,
-		`"domain_keys":["example","example-http-egress"]`,
-		`"listener_keys":["example","example-http-egress"]`,
+		`"active_network_filters":["envoy.tcp_proxy"]`,
+		`"network_filters":{"envoy_tcp_proxy":{`,
+		`"cluster":"othercluster"`,
 	))
 	t.Run("Route", testContains(service.TCPEgresses[0].Routes[0],
-		`"route_key":"example-http-egress-to-othercluster"`,
-		`"domain_key":"example-http-egress"`,
+		`"route_key":"example-to-othercluster"`,
+		`"domain_key":"example-tcp-egress-to-othercluster"`,
 		`"zone_key":"myzone"`,
 		`"cluster_key":"othercluster"`,
 		`"route_match":{"path":"/"`,
@@ -367,25 +373,150 @@ func TestServiceMultipleTCPLocalEgresses(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/http-local-egress": "othercluster1,othercluster2",
+			"greymatter.io/tcp-local-egress": "c1,c2",
 		}, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if service.HTTPEgresses == nil {
-		t.Fatal("HTTPEgresses is nil")
+	t.Run("Proxy", testContains(service.Proxy,
+		`"domain_keys":["example","example-tcp-egress-to-c1","example-tcp-egress-to-c2"]`,
+		`"listener_keys":["example","example-tcp-egress-to-c1","example-tcp-egress-to-c2"]`,
+	))
+
+	if count := len(service.TCPEgresses); count != 2 {
+		t.Fatalf("Expected 1 TCP egress but got %d", count)
 	}
 
-	for i, cluster := range []string{"othercluster1", "othercluster2"} {
-		t.Run(fmt.Sprintf("Route:%s", cluster), testContains(service.HTTPEgresses.Routes[i],
-			fmt.Sprintf(`"route_key":"example-http-egress-to-%s"`, cluster),
-			`"domain_key":"example-http-egress"`,
+	for i, e := range []struct {
+		cluster string
+		tcpPort int32
+	}{
+		{"c1", 10910},
+		{"c2", 10911},
+	} {
+		t.Run(fmt.Sprintf("Domain:%s", e.cluster), testContains(service.TCPEgresses[i].Domain,
+			fmt.Sprintf(`"domain_key":"example-tcp-egress-to-%s"`, e.cluster),
 			`"zone_key":"myzone"`,
-			fmt.Sprintf(`"cluster_key":"%s"`, cluster),
-			fmt.Sprintf(`"route_match":{"path":"/%s/"`, cluster),
-			fmt.Sprintf(`"redirects":[{"from":"^/%s$","to":"/%s/"`, cluster, cluster),
+			fmt.Sprintf(`"port":%d`, e.tcpPort),
+		))
+		t.Run(fmt.Sprintf("Listener:%s", e.cluster), testContains(service.TCPEgresses[i].Listener,
+			fmt.Sprintf(`"listener_key":"example-tcp-egress-to-%s"`, e.cluster),
+			`"zone_key":"myzone"`,
+			fmt.Sprintf(`"domain_keys":["example-tcp-egress-to-%s"]`, e.cluster),
+			fmt.Sprintf(`"port":%d`, e.tcpPort),
+			`"active_network_filters":["envoy.tcp_proxy"]`,
+			`"network_filters":{"envoy_tcp_proxy":{`,
+			fmt.Sprintf(`"cluster":"%s"`, e.cluster),
+		))
+		t.Run(fmt.Sprintf("Route:%s", e.cluster), testContains(service.TCPEgresses[i].Routes[0],
+			fmt.Sprintf(`"route_key":"example-to-%s"`, e.cluster),
+			fmt.Sprintf(`"domain_key":"example-tcp-egress-to-%s"`, e.cluster),
+			`"zone_key":"myzone"`,
+			fmt.Sprintf(`"cluster_key":"%s"`, e.cluster),
+			`"route_match":{"path":"/"`,
+		))
+	}
+}
+
+func TestServiceOneTCPExternalEgress(t *testing.T) {
+	f := loadMock(t)
+
+	service, err := f.Service("example",
+		map[string]string{
+			"greymatter.io/tcp-external-egress": "redis;1.2.3.4:6379",
+		}, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("Proxy", testContains(service.Proxy,
+		`"domain_keys":["example","example-tcp-egress-to-external-redis"]`,
+		`"listener_keys":["example","example-tcp-egress-to-external-redis"]`,
+	))
+
+	if count := len(service.TCPEgresses); count != 1 {
+		t.Fatalf("Expected 1 TCP egress but got %d", count)
+	}
+
+	t.Run("Domain", testContains(service.TCPEgresses[0].Domain,
+		`"domain_key":"example-tcp-egress-to-external-redis"`,
+		`"zone_key":"myzone"`,
+		`"port":10910`,
+	))
+	t.Run("Listener", testContains(service.TCPEgresses[0].Listener,
+		`"listener_key":"example-tcp-egress-to-external-redis"`,
+		`"zone_key":"myzone"`,
+		`"domain_keys":["example-tcp-egress-to-external-redis"]`,
+		`"port":10910`,
+		`"active_network_filters":["envoy.tcp_proxy"]`,
+		`"network_filters":{"envoy_tcp_proxy":{`,
+		`"cluster":"example-to-external-redis"`,
+	))
+	t.Run("Cluster", testContains(service.TCPEgresses[0].Clusters[0],
+		`"cluster_key":"example-to-external-redis"`,
+		`"zone_key":"myzone"`,
+		`"instances":[{"host":"1.2.3.4","port":6379}]`,
+	))
+	t.Run("Route", testContains(service.TCPEgresses[0].Routes[0],
+		`"route_key":"example-to-external-redis"`,
+		`"domain_key":"example-tcp-egress-to-external-redis"`,
+		`"zone_key":"myzone"`,
+		`"cluster_key":"example-to-external-redis"`,
+		`"route_match":{"path":"/"`,
+	))
+}
+
+func TestServiceMultipleTCPExternalEgresses(t *testing.T) {
+	f := loadMock(t)
+
+	service, err := f.Service("example",
+		map[string]string{
+			"greymatter.io/tcp-external-egress": "s1;1.1.1.1:1111,s2;2.2.2.2:2222",
+		}, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("Proxy", testContains(service.Proxy,
+		`"domain_keys":["example","example-tcp-egress-to-external-s1","example-tcp-egress-to-external-s2"]`,
+		`"listener_keys":["example","example-tcp-egress-to-external-s1","example-tcp-egress-to-external-s2"]`,
+	))
+
+	if count := len(service.TCPEgresses); count != 2 {
+		t.Fatalf("Expected 1 TCP egress but got %d", count)
+	}
+
+	for i, e := range []struct {
+		cluster string
+		tcpPort int32
+	}{
+		{"s1", 10910},
+		{"s2", 10911},
+	} {
+		t.Run(fmt.Sprintf("Domain:%s", e.cluster), testContains(service.TCPEgresses[i].Domain,
+			fmt.Sprintf(`"domain_key":"example-tcp-egress-to-external-%s"`, e.cluster),
+			`"zone_key":"myzone"`,
+			fmt.Sprintf(`"port":%d`, e.tcpPort),
+		))
+		t.Run(fmt.Sprintf("Listener:%s", e.cluster), testContains(service.TCPEgresses[i].Listener,
+			fmt.Sprintf(`"listener_key":"example-tcp-egress-to-external-%s"`, e.cluster),
+			`"zone_key":"myzone"`,
+			fmt.Sprintf(`"domain_keys":["example-tcp-egress-to-external-%s"]`, e.cluster),
+			fmt.Sprintf(`"port":%d`, e.tcpPort),
+			`"active_network_filters":["envoy.tcp_proxy"]`,
+			`"network_filters":{"envoy_tcp_proxy":{`,
+			fmt.Sprintf(`"cluster":"example-to-external-%s"`, e.cluster),
+		))
+		t.Run(fmt.Sprintf("Route:%s", e.cluster), testContains(service.TCPEgresses[i].Routes[0],
+			fmt.Sprintf(`"route_key":"example-to-external-%s"`, e.cluster),
+			fmt.Sprintf(`"domain_key":"example-tcp-egress-to-external-%s"`, e.cluster),
+			`"zone_key":"myzone"`,
+			fmt.Sprintf(`"cluster_key":"example-to-external-%s"`, e.cluster),
+			`"route_match":{"path":"/"`,
 		))
 	}
 }
@@ -409,6 +540,7 @@ func loadMock(t *testing.T) *Fabric {
 
 func testContains(obj json.RawMessage, subs ...string) func(t *testing.T) {
 	return func(t *testing.T) {
+		t.Helper()
 		for _, sub := range subs {
 			if !bytes.Contains(obj, json.RawMessage(sub)) {
 				t.Errorf("did not contain substring '%s'", sub)

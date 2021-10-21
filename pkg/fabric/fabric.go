@@ -67,6 +67,7 @@ type EgressArgs struct {
 	Cluster    string `json:"cluster"` // name of a cluster; if external, cluster is created
 	Host       string `json:"host"`
 	Port       int32  `json:"port"`
+	TCPPort    int32  `json:"tcpPort"`
 }
 
 // Extracts service configs from a Fabric's cue.Value.
@@ -127,12 +128,38 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	}
 
 	// TCP egresses are served at 10910 and up (one listener each).
-	tcpEgresses := make(map[string]EgressArgs)
+	tcpEgresses := []EgressArgs{}
+	tcpPort := int32(10910)
 	if locals, ok := annotations["greymatter.io/tcp-local-egress"]; ok {
-		port := int32(10910)
 		for _, cluster := range strings.Split(locals, ",") {
-			tcpEgresses[fmt.Sprintf("%d", port)] = EgressArgs{Cluster: strings.TrimSpace(cluster)}
-			port++
+			tcpEgresses = append(tcpEgresses, EgressArgs{
+				Cluster: strings.TrimSpace(cluster),
+				TCPPort: tcpPort,
+			})
+			tcpPort++
+		}
+	}
+	if externals, ok := annotations["greymatter.io/tcp-external-egress"]; ok {
+		for _, e := range strings.Split(externals, ",") {
+			split := strings.Split(strings.TrimSpace(e), ";")
+			if len(split) == 2 {
+				addr := strings.Split(split[1], ":")
+				if len(addr) == 2 {
+					port, err := strconv.ParseInt(addr[1], 0, 32)
+					if err != nil {
+						logger.Error(err, "invalid port specified in external egress", "value", e)
+					} else {
+						tcpEgresses = append(tcpEgresses, EgressArgs{
+							IsExternal: true,
+							Cluster:    split[0],
+							Host:       addr[0],
+							Port:       int32(port),
+							TCPPort:    tcpPort,
+						})
+						tcpPort++
+					}
+				}
+			}
 		}
 	}
 
@@ -150,7 +177,7 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 			mustMarshal(networkFilters, `{}`),
 			mustMarshal(ingresses, `[]`),
 			mustMarshal(httpEgresses, `[]`),
-			mustMarshal(tcpEgresses, `{}`),
+			mustMarshal(tcpEgresses, `[]`),
 		)),
 	)
 	if err := value.Err(); err != nil {

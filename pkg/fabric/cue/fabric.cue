@@ -17,6 +17,7 @@ MeshPort: *10808 | int32
   cluster: string
   host: string
   port: int
+  tcpPort: int
 }
 
 ServiceName: string
@@ -24,7 +25,7 @@ HttpFilters: #HttpFilters
 NetworkFilters: #NetworkFilters
 Ingresses: [string]: int32
 HTTPEgresses: [...#EgressArgs]
-TCPEgresses: [string]: #EgressArgs
+TCPEgresses: [...#EgressArgs]
 
 // Outputs
 
@@ -78,8 +79,13 @@ service: {
       if len(HTTPEgresses) > 0 {
         "\(ServiceName)-http-egress",
       }
-      for k in TCPEgresses if len(TCPEgresses) > 0 {
-        "\(ServiceName)-tcp-egress-\(k)",
+      for _, e in TCPEgresses if len(TCPEgresses) > 0 {
+        if e.isExternal {
+          "\(ServiceName)-tcp-egress-to-external-\(e.cluster)"
+        }
+        if !e.isExternal {
+          "\(ServiceName)-tcp-egress-to-\(e.cluster)"
+        }
       }
     ]
     listener_keys: [
@@ -87,8 +93,13 @@ service: {
       if len(HTTPEgresses) > 0 {
         "\(ServiceName)-http-egress",
       }
-      for k in TCPEgresses if len(TCPEgresses) > 0 {
-        "\(ServiceName)-tcp-egress-\(k)",
+      for _, e in TCPEgresses if len(TCPEgresses) > 0 {
+        if e.isExternal {
+          "\(ServiceName)-tcp-egress-to-external-\(e.cluster)"
+        }
+        if !e.isExternal {
+          "\(ServiceName)-tcp-egress-to-\(e.cluster)"
+        }
       }
     ]
   }
@@ -359,79 +370,89 @@ service: {
     }
   }
 
-  tcpEgresses: {
-    if len(TCPEgresses) > 0 {
-      for k, v in TCPEgresses {
-        let key = "\(ServiceName)-tcp-egress-\(k)"
-        domain: #Domain & {
-          zone_key: Zone
-          domain_key: key
-          port: k
-        }
-        listener: #Listener & {
-          zone_key: Zone
-          name: key
-          listener_key: key
-          domain_keys: [key]
-          port: k
-          active_network_filters: [
-            "envoy.tcp_proxy"
-          ]
-          network_filters: {
-            envoy_tcp_proxy: {
-              cluster: "\(ServiceName)-to-external-\(v.cluster)"
-              stat_prefix: cluster
-            }
-          }
-        }
-        clusters: [...#Cluster] & [
-          if v.isExternal {
-            {
-              name: "\(ServiceName)-to-external-\(v.cluster)"
-              zone_key: Zone
-              instances: [
-                {
-                  host: v.host
-                  port: v.port
-                }
-              ]
-            }
-          }
+  tcpEgresses: [
+    for _, e in TCPEgresses if len(TCPEgresses) > 0 {
+      _key: string
+      if e.isExternal {
+        _key: "\(ServiceName)-tcp-egress-to-external-\(e.cluster)"
+      }
+      if !e.isExternal {
+        _key: "\(ServiceName)-tcp-egress-to-\(e.cluster)"
+      }
+      domain: #Domain & {
+        zone_key: Zone
+        domain_key: _key
+        port: e.tcpPort
+      }
+      listener: #Listener & {
+        zone_key: Zone
+        name: _key
+        listener_key: _key
+        domain_keys: [_key]
+        port: e.tcpPort
+        active_network_filters: [
+          "envoy.tcp_proxy"
         ]
-        routes: [...#Route] & [
+        network_filters: {
+          envoy_tcp_proxy: {
+            if e.isExternal {
+              cluster: "\(ServiceName)-to-external-\(e.cluster)"
+              stat_prefix: "\(ServiceName)-to-external-\(e.cluster)"
+            }
+            if !e.isExternal {
+              cluster: e.cluster
+              stat_prefix: e.cluster
+            }
+          }
+        }
+      }
+      clusters: [...#Cluster] & [
+        if e.isExternal {
           {
-            if v.isExternal {
-              route_key: "\(ServiceName)-to-external-\(v.cluster)"
-            }
-            if !v.isExternal {
-              route_key: "\(ServiceName)-to-\(v.cluster)"
-            }
-            domain_key: key
+            name: "\(ServiceName)-to-external-\(e.cluster)"
             zone_key: Zone
-            route_match: {
-              path: "/"
-              match_type: "prefix"
-            }
-            rules: [
+            instances: [
               {
-                constraints: {
-                  light: [
-                    {
-                      if v.isExternal {
-                        cluster_key: "\(ServiceName)-to-external-\(v.cluster)"
-                      }
-                      if !v.isExternal {
-                        cluster_key: v.cluster
-                      }
-                      weight: 1
-                    }
-                  ]
-                }
+                host: e.host
+                port: e.port
               }
             ]
           }
-        ]
-      }
+        }
+      ]
+      routes: [...#Route] & [
+        {
+          if e.isExternal {
+            route_key: "\(ServiceName)-to-external-\(e.cluster)"
+          }
+          if !e.isExternal {
+            route_key: "\(ServiceName)-to-\(e.cluster)"
+          }
+          domain_key: _key
+          zone_key: Zone
+          route_match: {
+            path: "/"
+            match_type: "prefix"
+          }
+          rules: [
+            {
+              constraints: {
+                light: [
+                  {
+                    if e.isExternal {
+                      cluster_key: "\(ServiceName)-to-external-\(e.cluster)"
+                    }
+                    if !e.isExternal {
+                      cluster_key: e.cluster
+                    }
+                    weight: 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
-  }
+  ]
 }
