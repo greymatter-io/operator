@@ -94,6 +94,9 @@ control_api: #Component & {
 
 catalog: #Component & {
   name: "catalog"
+  annotations: {
+    "greymatter.io/tcp-local-egress": "gm-redis"
+  }
   image: =~"^docker.greymatter.io/(release|development)/gm-catalog:" & !~"latest$"
   ports: api: 8080
   env: {
@@ -102,8 +105,10 @@ catalog: #Component & {
     CONFIG_SOURCE: "redis"
     REDIS_MAX_RETRIES: "50"
     REDIS_RETRY_DELAY: "5s"
-    REDIS_HOST: Redis.host
-    REDIS_PORT: Redis.port
+    REDIS_HOST: "127.0.0.1"
+    REDIS_PORT: "10910"
+    // REDIS_HOST: Redis.host
+    // REDIS_PORT: Redis.port
     REDIS_DB: Redis.db
   }
   envFrom: REDIS_PASS: {

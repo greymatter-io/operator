@@ -138,7 +138,6 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 
 	cl.controlCmds <- mkApply("domain", objects.Domain)
 	cl.controlCmds <- mkApply("listener", objects.Listener)
-	cl.controlCmds <- mkApply("proxy", objects.Proxy)
 	for _, cluster := range objects.Clusters {
 		cl.controlCmds <- mkApply("cluster", cluster)
 	}
@@ -153,6 +152,27 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 			cl.controlCmds <- mkApply("route", route)
 		}
 	}
+	if objects.HTTPEgresses != nil && len(objects.HTTPEgresses.Routes) > 0 {
+		cl.controlCmds <- mkApply("domain", objects.HTTPEgresses.Domain)
+		cl.controlCmds <- mkApply("listener", objects.HTTPEgresses.Listener)
+		for _, cluster := range objects.HTTPEgresses.Clusters {
+			cl.controlCmds <- mkApply("cluster", cluster)
+		}
+		for _, route := range objects.HTTPEgresses.Routes {
+			cl.controlCmds <- mkApply("route", route)
+		}
+	}
+	for _, egress := range objects.TCPEgresses {
+		cl.controlCmds <- mkApply("domain", egress.Domain)
+		cl.controlCmds <- mkApply("listener", egress.Listener)
+		for _, cluster := range egress.Clusters {
+			cl.controlCmds <- mkApply("cluster", cluster)
+		}
+		for _, route := range egress.Routes {
+			cl.controlCmds <- mkApply("route", route)
+		}
+	}
+	cl.controlCmds <- mkApply("proxy", objects.Proxy)
 	cl.catalogCmds <- mkApply("catalog-service", objects.CatalogService)
 	// cl.catalogCmds <- mkApply("catalogservice", objects.CatalogService)
 }

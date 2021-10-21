@@ -108,12 +108,16 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	if externals, ok := annotations["greymatter.io/http-external-egress"]; ok {
 		for _, e := range strings.Split(externals, ",") {
 			split := strings.Split(strings.TrimSpace(e), ";")
-			if len(split) == 2 {
+			if len(split) != 2 {
+				logger.Error(fmt.Errorf("unable to parse"), "HTTP external egress", "value", e)
+			} else {
 				addr := strings.Split(split[1], ":")
-				if len(addr) == 2 {
+				if len(addr) != 2 {
+					logger.Error(fmt.Errorf("unable to parse"), "HTTP external egress", "value", e)
+				} else {
 					port, err := strconv.ParseInt(addr[1], 0, 32)
 					if err != nil {
-						logger.Error(err, "invalid port specified in external egress", "value", e)
+						logger.Error(fmt.Errorf("unable to parse"), "HTTP external egress", "value", e)
 					} else {
 						httpEgresses = append(httpEgresses, EgressArgs{
 							IsExternal: true,
@@ -142,12 +146,16 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	if externals, ok := annotations["greymatter.io/tcp-external-egress"]; ok {
 		for _, e := range strings.Split(externals, ",") {
 			split := strings.Split(strings.TrimSpace(e), ";")
-			if len(split) == 2 {
+			if len(split) != 2 {
+				logger.Error(fmt.Errorf("unable to parse"), "TCP external egress", "value", e)
+			} else {
 				addr := strings.Split(split[1], ":")
-				if len(addr) == 2 {
+				if len(addr) != 2 {
+					logger.Error(fmt.Errorf("unable to parse"), "TCP external egress", "value", e)
+				} else {
 					port, err := strconv.ParseInt(addr[1], 0, 32)
 					if err != nil {
-						logger.Error(err, "invalid port specified in external egress", "value", e)
+						logger.Error(fmt.Errorf("unable to parse"), "TCP external egress", "value", e)
 					} else {
 						tcpEgresses = append(tcpEgresses, EgressArgs{
 							IsExternal: true,

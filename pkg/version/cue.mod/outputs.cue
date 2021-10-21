@@ -33,8 +33,8 @@ manifests: [...#ManifestGroup] & [
         "app.kubernetes.io/name": _c[0].name
         "app.kubernetes.io/part-of": "greymatter"
         // TODO: Tag with version prior to first release.
-        "app.kubernetes.io/created-by": "Grey Matter Operator"
-        "app.kubernetes.io/managed-by": "Grey Matter Operator"
+        "app.kubernetes.io/created-by": "gm-operator"
+        "app.kubernetes.io/managed-by": "gm-operator"
       }
     }
     spec: {

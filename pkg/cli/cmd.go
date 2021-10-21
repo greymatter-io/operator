@@ -93,6 +93,7 @@ func (c cmd) run(flags []string, from ...src) result {
 			select {
 			case <-c.retry.done():
 			default:
+				logger.Info(fmt.Sprintf("%s: failed to execute", c.args), "retries", len(from))
 				time.Sleep(c.retry.dur)
 				from = append(from, src{c.args, "retry"})
 				return c.run(flags, from...)
