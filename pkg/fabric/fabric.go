@@ -40,16 +40,14 @@ type Objects struct {
 	Clusters []json.RawMessage `json:"clusters,omitempty"`
 	Routes   []json.RawMessage `json:"routes,omitempty"`
 	// Ingresses are in the same pod as a sidecar, reached via 10808.
+	// The key takes the form of '{sidecar-cluster}-{containerPort.name}'.
 	Ingresses map[string]Objects `json:"ingresses,omitempty"`
-	// HTTP local egresses are in the same mesh, reached via 10818.
-	HTTPLocalEgresses *Objects `json:"httpLocalEgresses,omitempty"`
-	// HTTP external egresses are outside of the mesh, reached via 10919.
-	HTTPExternalEgresses *Objects `json:"httpExternalEgresses,omitempty"`
-	// TCPEgresses
+	// HTTP egresses are reached via the same listener on port 10909.
+	// They can be local (in the same mesh) or external.
+	HTTPEgresses *Objects `json:"httpEgresses,omitempty"`
+	// TCP egresses are served at 10910 and up (one listener each).
+	TCPEgresses    []Objects       `json:"tcpEgresses,omitempty"`
 	CatalogService json.RawMessage `json:"catalogservice,omitempty"`
-}
-
-type Egress struct {
 }
 
 // Extracts the edge domain from a Fabric's cue.Value.
@@ -65,21 +63,27 @@ func (f *Fabric) EdgeDomain() json.RawMessage {
 }
 
 type EgressArgs struct {
-	IsTCP        bool   `json:"isTCP"`
-	Cluster      string `json:"cluster"` // name of a cluster; if external, cluster is generated
-	ExternalHost string `json:"externalHost"`
-	ExternalPort int32  `json:"externalPort"`
+	IsExternal bool   `json:"isExternal"`
+	Cluster    string `json:"cluster"` // name of a cluster; if external, cluster is created
+	Host       string `json:"host"`
+	Port       int32  `json:"port"`
 }
 
 // Extracts service configs from a Fabric's cue.Value.
 func (f *Fabric) Service(name string, annotations map[string]string, ingresses map[string]int32) (Objects, error) {
-	if annotations == nil {
-		annotations = make(map[string]string)
-	}
+
+	// All ingress routes use 10808. They are defined from named container ports.
+	// There may only be one ingress if TCP (via the envoy.tcp_proxy filter).
 	if ingresses == nil {
 		ingresses = make(map[string]int32)
 	}
 
+	// Annotations are used for setting filters and creating egress routes.
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+
+	// Filter names are passed as comma-delimited strings, but transformed into lookup tables for Cue.
 	httpFilters := make(map[string]bool)
 	if hf, ok := annotations["greymatter.io/http-filters"]; ok {
 		for _, f := range strings.Split(hf, ",") {
@@ -93,23 +97,16 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 		}
 	}
 
-	// All ingress routes, whether HTTP or TCP, use 10808.
-	// HTTP egress routes that are local (in-mesh) go to 10818; external go to 10909.
-	// TCP egress routes that are local or external go to 10920 and up, and are assigned.
-
-	// TODO: If TCP, the user should use tcp:cluster
-	httpLocalEgresses := []EgressArgs{}
-	if le, ok := annotations["greymatter.io/local-egress"]; ok {
-		for _, cluster := range strings.Split(le, ",") {
-			httpLocalEgresses = append(httpLocalEgresses, EgressArgs{Cluster: strings.TrimSpace(cluster)})
+	// All HTTP egress routes use 10909. They can be local (in-mesh) or external.
+	httpEgresses := []EgressArgs{}
+	if locals, ok := annotations["greymatter.io/http-local-egress"]; ok {
+		for _, cluster := range strings.Split(locals, ",") {
+			httpEgresses = append(httpEgresses, EgressArgs{Cluster: strings.TrimSpace(cluster)})
 		}
 	}
-
-	// TODO: Consider parsing JSON here, as this is getting too complex
-	httpExternalEgresses := []EgressArgs{}
-	if ex, ok := annotations["greymatter.io/external-egress"]; ok {
-		for _, e := range strings.Split(ex, ",") {
-			split := strings.Split(e, ";")
+	if externals, ok := annotations["greymatter.io/http-external-egress"]; ok {
+		for _, e := range strings.Split(externals, ",") {
+			split := strings.Split(strings.TrimSpace(e), ";")
 			if len(split) == 2 {
 				addr := strings.Split(split[1], ":")
 				if len(addr) == 2 {
@@ -117,14 +114,25 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 					if err != nil {
 						logger.Error(err, "invalid port specified in external egress", "value", e)
 					} else {
-						httpExternalEgresses = append(httpExternalEgresses, EgressArgs{
-							Cluster:      split[0],
-							ExternalHost: addr[0],
-							ExternalPort: int32(port),
+						httpEgresses = append(httpEgresses, EgressArgs{
+							IsExternal: true,
+							Cluster:    split[0],
+							Host:       addr[0],
+							Port:       int32(port),
 						})
 					}
 				}
 			}
+		}
+	}
+
+	// TCP egresses are served at 10910 and up (one listener each).
+	tcpEgresses := make(map[string]EgressArgs)
+	if locals, ok := annotations["greymatter.io/tcp-local-egress"]; ok {
+		port := int32(10910)
+		for _, cluster := range strings.Split(locals, ",") {
+			tcpEgresses[fmt.Sprintf("%d", port)] = EgressArgs{Cluster: strings.TrimSpace(cluster)}
+			port++
 		}
 	}
 
@@ -134,15 +142,15 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 			HttpFilters: %s
 			NetworkFilters: %s
 			Ingresses: %s
-			HTTPLocalEgresses: %s
-			HTTPExternalEgresses: %s
+			HTTPEgresses: %s
+			TCPEgresses: %s
 		`,
 			name,
-			mustMarshal(httpFilters),
-			mustMarshal(networkFilters),
-			mustMarshal(ingresses),
-			mustMarshal(httpLocalEgresses),
-			mustMarshal(httpExternalEgresses),
+			mustMarshal(httpFilters, `{}`),
+			mustMarshal(networkFilters, `{}`),
+			mustMarshal(ingresses, `[]`),
+			mustMarshal(httpEgresses, `[]`),
+			mustMarshal(tcpEgresses, `{}`),
 		)),
 	)
 	if err := value.Err(); err != nil {
@@ -159,10 +167,11 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	return s.Service, nil
 }
 
-func mustMarshal(i interface{}) string {
+func mustMarshal(i interface{}, fallback string) string {
 	result, err := json.Marshal(i)
 	if err != nil {
-		logger.Error(err, "failed to marshal", "data", i)
+		logger.Error(err, "failed to marshal, using default", "data", i)
+		result = json.RawMessage(fallback)
 	}
 	return string(result)
 }

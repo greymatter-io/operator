@@ -1,9 +1,7 @@
 // Inputs
 
 MeshName: string
-
 Zone: *"default-zone" | string
-
 MeshPort: *10808 | int32
 
 #HttpFilters: {
@@ -15,18 +13,18 @@ MeshPort: *10808 | int32
 }
 
 #EgressArgs: {
-  isTCP: bool
+  isExternal: bool
   cluster: string
-  externalHost: string
-  externalPort: int
+  host: string
+  port: int
 }
 
 ServiceName: string
 HttpFilters: #HttpFilters
 NetworkFilters: #NetworkFilters
 Ingresses: [string]: int32
-HTTPLocalEgresses: [...#EgressArgs]
-HTTPExternalEgresses: [...#EgressArgs]
+HTTPEgresses: [...#EgressArgs]
+TCPEgresses: [string]: #EgressArgs
 
 // Outputs
 
@@ -37,86 +35,75 @@ edgeDomain: #Domain & {
   port: MeshPort
 }
 
-service: #Tmpl & {
-  _name: ServiceName
-  _ingresses: Ingresses
-  _httpLocalEgresses: HTTPLocalEgresses
-  _httpExternalEgresses: HTTPExternalEgresses
-}
-
-#Tmpl: {
-  _name: string
-  _ingresses: [string]: int32
-  _httpLocalEgresses: [...#EgressArgs]
-  _httpExternalEgresses: [...#EgressArgs]
-
+service: {
   catalogservice: #CatalogService & {
     mesh_id: MeshName
-    service_id: _name
+    service_id: ServiceName
 
-    if _name == "edge" {
+    if ServiceName == "edge" {
       name: "Grey Matter Edge"
       description: "Handles north/south traffic flowing through the mesh."
       api_endpoint: "/"
     }
-    if _name == "jwt-security" {
+    if ServiceName == "jwt-security" {
       name: "Grey Matter JWT Security"
       description: "A JWT token generation and retrieval service."
       api_endpoint: "/services/jwt-security/"
     }
-    if _name == "control" {
+    if ServiceName == "control" {
       name: "Grey Matter Control"
       description: "Manages the configuration of the Grey Matter data plane."
       api_endpoint: "/services/control/api/"
     }
-    if _name == "catalog" {
+    if ServiceName == "catalog" {
       name: "Grey Matter Catalog"
       description: "Interfaces with the control plane to expose the current state of the mesh."
       api_endpoint: "/services/catalog/"
     }
-    if _name == "dashboard" {
+    if ServiceName == "dashboard" {
       name: "Grey Matter Dashboard"
       description: "A user dashboard that paints a high-level picture of the mesh."
     }
-    if _name == "gm-redis" {
+    if ServiceName == "gm-redis" {
       name: "Redis"
       description: "A data store for caching Grey Matter core service configurations."
     }
   }
 
   proxy: #Proxy & {
-    name: _name
+    name: ServiceName
     zone_key: Zone
     domain_keys: [
-      _name,
-      if len(_httpLocalEgresses) > 0 {
-        "\(_name)-http-local-egress",
+      ServiceName,
+      if len(HTTPEgresses) > 0 {
+        "\(ServiceName)-http-egress",
       }
-      if len(_httpExternalEgresses) > 0 {
-        "\(_name)-http-external-egress",
+      for k in TCPEgresses if len(TCPEgresses) > 0 {
+        "\(ServiceName)-tcp-egress-\(k)",
       }
     ]
     listener_keys: [
-      _name,
-      if len(_httpLocalEgresses) > 0 {
-        "\(_name)-http-local-egress",
+      ServiceName,
+      if len(HTTPEgresses) > 0 {
+        "\(ServiceName)-http-egress",
       }
-      if len(_httpExternalEgresses) > 0 {
-        "\(_name)-http-external-egress",
+      for k in TCPEgresses if len(TCPEgresses) > 0 {
+        "\(ServiceName)-tcp-egress-\(k)",
       }
     ]
   }
+
   domain: #Domain & {
-    domain_key: _name
+    domain_key: ServiceName
     zone_key: Zone
     name: "*"
     port: MeshPort
   }
   listener: #Listener & {
-    name: _name
+    name: ServiceName
     zone_key: Zone
     port: domain.port
-    domain_keys: [_name]
+    domain_keys: [ServiceName]
     active_http_filters: [
       "gm.metrics"
     ]
@@ -129,24 +116,24 @@ service: #Tmpl & {
         metrics_ring_buffer_size: 4096
         prometheus_system_metrics_interval_seconds: 15
         metrics_key_function: "depth"
-        if _name == "edge" {
+        if ServiceName == "edge" {
           metrics_key_depth: 1
         }
-        if _name != "edge" {
+        if ServiceName != "edge" {
           metrics_key_depth: 3
         }
       }
     }
     active_network_filters: [
-      if NetworkFilters["envoy.tcp_proxy"] && len(_ingresses) == 1 {
+      if NetworkFilters["envoy.tcp_proxy"] && len(Ingresses) == 1 {
         "envoy.tcp_proxy"
       }
     ]
     network_filters: {
-      if NetworkFilters["envoy.tcp_proxy"] && len(_ingresses) == 1 {
+      if NetworkFilters["envoy.tcp_proxy"] && len(Ingresses) == 1 {
         envoy_tcp_proxy: {
-          for k, v in _ingresses {
-            let key = "\(_name)-\(k)"
+          for k, v in Ingresses {
+            let key = "\(ServiceName)-\(k)"
             cluster: key
             stat_prefix: key
           }
@@ -154,25 +141,27 @@ service: #Tmpl & {
       }
     }
   }
+
   clusters: [...#Cluster] & [
     {
-      name: _name
+      name: ServiceName
       zone_key: Zone
     }
   ]
+
   routes: [...#Route] & [
-    if _name != "dashboard" {
+    if ServiceName != "dashboard" {
       {
-        route_key: _name
+        route_key: ServiceName
         domain_key: "edge"
         zone_key: Zone
         route_match: {
-          path: "/services/\(_name)/"
+          path: "/services/\(ServiceName)/"
           match_type: "prefix"
         }
         redirects: [
           {
-            from: "^/services/\(_name)$"
+            from: "^/services/\(ServiceName)$"
             to: route_match.path
             redirect_type: "permanent"
           }
@@ -183,7 +172,7 @@ service: #Tmpl & {
             constraints: {
               light: [
                 {
-                  cluster_key: _name
+                  cluster_key: ServiceName
                   weight: 1
                 }
               ]
@@ -192,9 +181,9 @@ service: #Tmpl & {
         ]
       }
     }
-    if _name == "dashboard" {
+    if ServiceName == "dashboard" {
       {
-        route_key: _name
+        route_key: ServiceName
         domain_key: "edge"
         zone_key: Zone
         route_match: {
@@ -206,7 +195,7 @@ service: #Tmpl & {
             constraints: {
               light: [
                 {
-                  cluster_key: _name
+                  cluster_key: ServiceName
                   weight: 1
                 }
               ]
@@ -218,8 +207,8 @@ service: #Tmpl & {
   ]
 
   ingresses: {
-    for k, v in _ingresses if len(_ingresses) > 0 {
-      let key = "\(_name)-\(k)"
+    for k, v in Ingresses if len(Ingresses) > 0 {
+      let key = "\(ServiceName)-\(k)"
       "\(key)": {
         clusters: [...#Cluster] & [
           {
@@ -234,10 +223,10 @@ service: #Tmpl & {
           }
         ]
         routes: [...#Route] & [
-          if len(_ingresses) == 1 {
+          if len(Ingresses) == 1 {
             {
               route_key: clusters[0].name
-              domain_key: _name
+              domain_key: ServiceName
               zone_key: Zone
               route_match: {
                 path: "/"
@@ -257,10 +246,10 @@ service: #Tmpl & {
               ]
             }
           }
-          if len(_ingresses) > 1 {
+          if len(Ingresses) > 1 {
             {
               route_key: clusters[0].name
-              domain_key: _name
+              domain_key: ServiceName
               zone_key: Zone
               route_match: {
                 path: "/\(k)/"
@@ -292,61 +281,10 @@ service: #Tmpl & {
       }
     }
   }
-  
-  httpLocalEgresses: {
-    if len(_httpLocalEgresses) > 0 {
-      let key = "\(_name)-http-local-egress"
-      domain: #Domain & {
-        zone_key: Zone
-        domain_key: key
-        port: 10818
-      }
-      listener: #Listener & {
-        zone_key: Zone
-        name: key
-        listener_key: key
-        domain_keys: [key]
-        port: 10818
-      }
-      routes: [...#Route] & [
-        for _, e in _httpLocalEgresses {
-          {
-            route_key: "\(key)-to-\(e.cluster)"
-            domain_key: key
-            zone_key: Zone
-            route_match: {
-              path: "/\(e.cluster)/"
-              match_type: "prefix"
-            }
-            redirects: [
-              {
-                from: "^/\(e.cluster)$"
-                to: route_match.path
-                redirect_type: "permanent"
-              }
-            ]
-            prefix_rewrite: "/"
-            rules: [
-              {
-                constraints: {
-                  light: [
-                    {
-                      cluster_key: e.cluster
-                      weight: 1
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        }
-      ]
-    }
-  }
 
-  httpExternalEgresses: {
-    if len(_httpExternalEgresses) > 0 {
-      let key = "\(_name)-http-external-egress"
+  httpEgresses: {
+    if len(HTTPEgresses) > 0 {
+      let key = "\(ServiceName)-http-egress"
       domain: #Domain & {
         zone_key: Zone
         domain_key: key
@@ -360,23 +298,30 @@ service: #Tmpl & {
         port: 10909
       }
       clusters: [...#Cluster] & [
-        for _, e in _httpExternalEgresses {
-          {
-            name: "\(_name)-to-\(e.cluster)"
-            zone_key: Zone
-            instances: [
-              {
-                host: e.externalHost
-                port: e.externalPort
-              }
-            ]
+        for _, e in HTTPEgresses {
+          if e.isExternal {
+            {
+              name: "\(ServiceName)-to-external-\(e.cluster)"
+              zone_key: Zone
+              instances: [
+                {
+                  host: e.host
+                  port: e.port
+                }
+              ]
+            }
           }
         }
       ]
       routes: [...#Route] & [
-        for _, e in _httpExternalEgresses {
+        for _, e in HTTPEgresses {
           {
-            route_key: "\(key)-to-\(e.cluster)"
+            if e.isExternal {
+              route_key: "\(ServiceName)-to-external-\(e.cluster)"
+            }
+            if !e.isExternal {
+              route_key: "\(ServiceName)-to-\(e.cluster)"
+            }
             domain_key: key
             zone_key: Zone
             route_match: {
@@ -396,7 +341,12 @@ service: #Tmpl & {
                 constraints: {
                   light: [
                     {
-                      cluster_key: "\(_name)-to-\(e.cluster)"
+                      if e.isExternal {
+                        cluster_key: "\(ServiceName)-to-external-\(e.cluster)"
+                      }
+                      if !e.isExternal {
+                        cluster_key: e.cluster
+                      }
                       weight: 1
                     }
                   ]
@@ -406,6 +356,82 @@ service: #Tmpl & {
           }
         }
       ]
+    }
+  }
+
+  tcpEgresses: {
+    if len(TCPEgresses) > 0 {
+      for k, v in TCPEgresses {
+        let key = "\(ServiceName)-tcp-egress-\(k)"
+        domain: #Domain & {
+          zone_key: Zone
+          domain_key: key
+          port: k
+        }
+        listener: #Listener & {
+          zone_key: Zone
+          name: key
+          listener_key: key
+          domain_keys: [key]
+          port: k
+          active_network_filters: [
+            "envoy.tcp_proxy"
+          ]
+          network_filters: {
+            envoy_tcp_proxy: {
+              cluster: "\(ServiceName)-to-external-\(v.cluster)"
+              stat_prefix: cluster
+            }
+          }
+        }
+        clusters: [...#Cluster] & [
+          if v.isExternal {
+            {
+              name: "\(ServiceName)-to-external-\(v.cluster)"
+              zone_key: Zone
+              instances: [
+                {
+                  host: v.host
+                  port: v.port
+                }
+              ]
+            }
+          }
+        ]
+        routes: [...#Route] & [
+          {
+            if v.isExternal {
+              route_key: "\(ServiceName)-to-external-\(v.cluster)"
+            }
+            if !v.isExternal {
+              route_key: "\(ServiceName)-to-\(v.cluster)"
+            }
+            domain_key: key
+            zone_key: Zone
+            route_match: {
+              path: "/"
+              match_type: "prefix"
+            }
+            rules: [
+              {
+                constraints: {
+                  light: [
+                    {
+                      if v.isExternal {
+                        cluster_key: "\(ServiceName)-to-external-\(v.cluster)"
+                      }
+                      if !v.isExternal {
+                        cluster_key: v.cluster
+                      }
+                      weight: 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
     }
   }
 }
