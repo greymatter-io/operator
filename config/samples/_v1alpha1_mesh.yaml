@@ -7,3 +7,5 @@ spec:
   release_version: '1.6'
   mesh_port: 10808
   zone: default-zone
+  edge_tls_ingress: false
+  cluster_url: "https://localhost"

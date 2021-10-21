@@ -43,6 +43,13 @@ import (
 var (
 	scheme = runtime.NewScheme()
 	logger = ctrl.Log.WithName("setup")
+
+	// Global config flags
+	configFile           string
+	metricsAddr          string
+	probeAddr            string
+	enableLeaderElection bool
+	development          bool
 )
 
 func init() {
@@ -60,12 +67,6 @@ func init() {
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
 func main() {
-	var configFile string
-	var metricsAddr string
-	var probeAddr string
-	var enableLeaderElection bool
-	var development bool
-
 	flag.StringVar(&configFile, "config", "", "The operator will load its initial configuration from this file if defined.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -89,10 +90,10 @@ func main() {
 	// These values will not be replaced by any values set in a read configFile.
 	var err error
 	options := ctrl.Options{
-		Scheme:         scheme,
-		LeaderElection: enableLeaderElection,
-		// TODO: Generate hash for ID; should be unique with multiple operator replicas
-		LeaderElectionID: "715805a0.greymatter.io",
+		Scheme:                  scheme,
+		LeaderElection:          enableLeaderElection,
+		LeaderElectionID:        "715805a0.greymatter.io",
+		LeaderElectionNamespace: "gm-operator",
 	}
 
 	// Attempt to read a configFile if one has been configured.
@@ -154,6 +155,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize CA bundles for prexisting operator webhooks so we can remote deploy to vanilla k8s
+	err = webhooks.InjectCA(c)
+	if err != nil {
+		logger.Error(err, "unable to initialize CA bundles in pre-existing webhooks")
+		os.Exit(1)
+	}
 	webhooks.Register(mgr, inst, gmcli)
 
 	//+kubebuilder:scaffold:builder
