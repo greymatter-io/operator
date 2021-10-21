@@ -9,11 +9,12 @@ MeshPort: *10808 | int32
 #HttpFilters: {
   "gm.metrics": true
 }
+
 #NetworkFilters: {
   "envoy.tcp_proxy": *false | bool
 }
 
-#Egress: {
+#EgressArgs: {
   isTCP: bool
   cluster: string
   externalHost: string
@@ -24,8 +25,8 @@ ServiceName: string
 HttpFilters: #HttpFilters
 NetworkFilters: #NetworkFilters
 Ingresses: [string]: int32
-LocalEgresses: [...#Egress]
-ExternalEgresses: [...#Egress]
+HTTPLocalEgresses: [...#EgressArgs]
+HTTPExternalEgresses: [...#EgressArgs]
 
 // Outputs
 
@@ -39,15 +40,15 @@ edgeDomain: #Domain & {
 service: #Tmpl & {
   _name: ServiceName
   _ingresses: Ingresses
-  _localEgresses: LocalEgresses
-  _externalEgresses: ExternalEgresses
+  _httpLocalEgresses: HTTPLocalEgresses
+  _httpExternalEgresses: HTTPExternalEgresses
 }
 
 #Tmpl: {
   _name: string
   _ingresses: [string]: int32
-  _localEgresses: [...#Egress]
-  _externalEgresses: [...#Egress]
+  _httpLocalEgresses: [...#EgressArgs]
+  _httpExternalEgresses: [...#EgressArgs]
 
   catalogservice: #CatalogService & {
     mesh_id: MeshName
@@ -88,19 +89,19 @@ service: #Tmpl & {
     zone_key: Zone
     domain_keys: [
       _name,
-      if len(_localEgresses) > 0 {
+      if len(_httpLocalEgresses) > 0 {
         "\(_name)-http-local-egress",
       }
-      if len(_externalEgresses) > 0 {
+      if len(_httpExternalEgresses) > 0 {
         "\(_name)-http-external-egress",
       }
     ]
     listener_keys: [
       _name,
-      if len(_localEgresses) > 0 {
+      if len(_httpLocalEgresses) > 0 {
         "\(_name)-http-local-egress",
       }
-      if len(_externalEgresses) > 0 {
+      if len(_httpExternalEgresses) > 0 {
         "\(_name)-http-external-egress",
       }
     ]
@@ -292,8 +293,8 @@ service: #Tmpl & {
     }
   }
   
-  localEgresses: {
-    if len(_localEgresses) > 0 {
+  httpLocalEgresses: {
+    if len(_httpLocalEgresses) > 0 {
       let key = "\(_name)-http-local-egress"
       domain: #Domain & {
         zone_key: Zone
@@ -308,7 +309,7 @@ service: #Tmpl & {
         port: 10818
       }
       routes: [...#Route] & [
-        for _, e in _localEgresses {
+        for _, e in _httpLocalEgresses {
           {
             route_key: "\(key)-to-\(e.cluster)"
             domain_key: key
@@ -343,23 +344,23 @@ service: #Tmpl & {
     }
   }
 
-  externalEgresses: {
-    if len(_externalEgresses) > 0 {
+  httpExternalEgresses: {
+    if len(_httpExternalEgresses) > 0 {
       let key = "\(_name)-http-external-egress"
       domain: #Domain & {
         zone_key: Zone
         domain_key: key
-        port: 10919
+        port: 10909
       }
       listener: #Listener & {
         zone_key: Zone
         name: key
         listener_key: key
         domain_keys: [key]
-        port: 10919
+        port: 10909
       }
       clusters: [...#Cluster] & [
-        for _, e in _externalEgresses {
+        for _, e in _httpExternalEgresses {
           {
             name: "\(_name)-to-\(e.cluster)"
             zone_key: Zone
@@ -373,7 +374,7 @@ service: #Tmpl & {
         }
       ]
       routes: [...#Route] & [
-        for _, e in _externalEgresses {
+        for _, e in _httpExternalEgresses {
           {
             route_key: "\(key)-to-\(e.cluster)"
             domain_key: key
