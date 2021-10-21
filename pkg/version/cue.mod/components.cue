@@ -6,7 +6,8 @@ import (
 
 #Component: {
   name: string
-  isStatefulset: bool
+  annotations: [string]: string
+  isStatefulset: *false | bool
   image: string
   command: [...string]
   args: [...string]
@@ -23,7 +24,6 @@ import (
 
 proxy: #Component & {
   image: =~"^docker.greymatter.io/(release|development)/gm-proxy:" & !~"latest$"
-  isStatefulset: false
   ports: proxy: MeshPort
   env: {
     ENVOY_ADMIN_LOG_PATH: "/dev/stdout",
@@ -49,7 +49,6 @@ edge: #Component & proxy & {
 
 control: #Component & {
   name: "control"
-  isStatefulset: false
   image: =~"^docker.greymatter.io/(release|development)/gm-control:" & !~"latest$"
   ports: xds: 50000
   env: {
@@ -70,7 +69,6 @@ control: #Component & {
 
 control_api: #Component & {
   name: "control-api"
-  isStatefulset: false
   image: =~"^docker.greymatter.io/(release|development)/gm-control-api:" & !~"latest$"
   ports: api: 5555
   env: {
@@ -96,7 +94,6 @@ control_api: #Component & {
 
 catalog: #Component & {
   name: "catalog"
-  isStatefulset: false
   image: =~"^docker.greymatter.io/(release|development)/gm-catalog:" & !~"latest$"
   ports: api: 8080
   env: {
@@ -136,7 +133,6 @@ catalog: #Component & {
 
 dashboard: #Component & {
   name: "dashboard"
-  isStatefulset: false
   image: =~"^docker.greymatter.io/(release|development)/gm-dashboard:" & !~"latest$"
   ports: app: 1337
   env: {
@@ -169,7 +165,6 @@ dashboard: #Component & {
 
 jwt_security: #Component & {
   name: "jwt-security"
-  isStatefulset: false
   image: =~"^docker.greymatter.io/(release|development)/gm-jwt-security:" & !~"latest$"
   ports: api: 3000
   env: {
@@ -219,6 +214,9 @@ jwt_security: #Component & {
 
 redis: #Component & {
   name: "gm-redis"
+  annotations: {
+    "greymatter.io/network-filters": "envoy.tcp_proxy"
+  }
   isStatefulset: true
   image: =~"redis:"
   command: ["redis-server"]

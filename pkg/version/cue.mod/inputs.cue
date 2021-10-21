@@ -24,7 +24,6 @@ controlNamespaces: strings.Join([
 ], ",")
 
 MeshPort: *10808 | int32
-EdgeTlsIngress: *true | bool
 
 Spire: *false | bool
 

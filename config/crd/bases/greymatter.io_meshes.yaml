@@ -41,10 +41,6 @@ spec:
                 description: 'The base url of the openshift cluster (ex: console-openshift-console.apps.coffee.greymatter.services
                   would be apps.coffee.greymatter.services)'
                 type: string
-              edge_tls_ingress:
-                default: true
-                description: Specify to use tls for edge ingress or not
-                type: boolean
               mesh_port:
                 default: 10808
                 description: Defines the port for ingress traffic into the mesh.
@@ -96,7 +92,6 @@ spec:
                 type: string
             required:
             - cluster_url
-            - edge_tls_ingress
             - mesh_port
             - release_version
             - zone

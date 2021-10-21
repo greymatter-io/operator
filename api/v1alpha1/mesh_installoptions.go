@@ -25,8 +25,7 @@ func (m Mesh) InstallOptions() []version.InstallOption {
 			"WatchNamespaces": append(m.Spec.WatchNamespaces, m.Namespace),
 		}),
 		version.Interfaces(map[string]interface{}{
-			"MeshPort":       m.Spec.MeshPort,
-			"EdgeTlsIngress": m.Spec.EdgeTlsIngress,
+			"MeshPort": m.Spec.MeshPort,
 		}),
 	}
 
