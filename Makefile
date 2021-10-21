@@ -98,7 +98,7 @@ build: generate fmt vet ## Build manager binary.
 	mkdir -p bin/cue.mod/ && cp -r pkg/version/cue.mod/ bin/cue.mod
 
 run: manifests generate build ## Run a controller from your host.
-	cd bin && ./manager --config ../config/manager/bootstrap_config.yaml --development
+	./scripts/run
 
 docker-build: test ## Build docker image with the manager.
 	docker build -t ${IMG} .
