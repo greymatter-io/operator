@@ -18,6 +18,7 @@ kubernetes_deploy() {
 openshift_cleanup() {
   operator-sdk cleanup -n gm-operator gm-operator
   oc delete clusterrole gm-control
+  oc delete pvc gm-redis-append-dir-gm-redis-0
 }
 
 kubernetes_cleanup() {
