@@ -23,8 +23,6 @@ controlNamespaces: strings.Join([
   for i, ns in allWatchNamespaces if !list.Contains(list.Drop(allWatchNamespaces, i+1), ns) { ns }
 ], ",")
 
-MeshPort: *10808 | int32
-
 Spire: *false | bool
 
 JWT: {

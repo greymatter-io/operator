@@ -209,12 +209,11 @@ manifests: [...#ManifestGroup] & [
                     backend: {
                       service: {
                         name: "edge"
-                        port: number: MeshPort
+                        port: number: 10808
                       }
                     }
                   },
                 ]
-              
             }
           ]
         }

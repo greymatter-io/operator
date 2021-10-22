@@ -28,8 +28,7 @@ func TestNewClient(t *testing.T) {
 	c.configureMeshClient(&v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mesh"},
 		Spec: v1alpha1.MeshSpec{
-			Zone:     "zone",
-			MeshPort: 10808,
+			Zone: "zone",
 		},
 	},
 		"--api.host localhost:5555",

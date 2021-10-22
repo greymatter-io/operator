@@ -220,54 +220,20 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 			name: "Interfaces",
 			options: []InstallOption{
 				Interfaces(map[string]interface{}{
-					"MeshPort": 10999,
-					"Spire":    true,
+					"Spire": true,
 				}),
 			},
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-				y, _ := yaml.Marshal(manifests)
-				fmt.Println(string(y))
-				t.Run("MeshPort", func(t *testing.T) {
-					edge := manifests[0].Deployment.Spec.Template.Spec.Containers[0]
-					var port *corev1.ContainerPort
-					for _, p := range edge.Ports {
-						if p.Name == "proxy" {
-							port = &p
-						}
-					}
-					if port == nil {
-						t.Fatal("No mesh port found in edge")
-					}
-					if port.ContainerPort != 10999 {
-						t.Errorf("Expected mesh port to be 10999 but got %d", port.ContainerPort)
-					}
-				})
-
 				t.Run("SPIRE", func(t *testing.T) {})
 			},
-
 			checkSidecar: func(t *testing.T, sidecar Sidecar) {
-				t.Run("MeshPort", func(t *testing.T) {
-					var port *corev1.ContainerPort
-					for _, p := range sidecar.Container.Ports {
-						if p.Name == "proxy" {
-							port = &p
-						}
-					}
-					if port == nil {
-						t.Fatal("No mesh port found in edge")
-					}
-					if port.ContainerPort != 10999 {
-						t.Errorf("Expected mesh port to be 10999 but got %d", port.ContainerPort)
-					}
-				})
-
+				y, _ := yaml.Marshal(sidecar.Container)
+				fmt.Println(string(y))
 				t.Run("SPIRE", func(t *testing.T) {
 					if _, ok := getEnvValue(sidecar.Container, "SPIRE_PATH"); !ok {
 						t.Fatal("did not find 'SPIRE_PATH' env in edge container")
 					}
 				})
-
 			},
 		},
 		{
@@ -317,9 +283,6 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 				Strings(map[string]string{
 					"InstallNamespace": "ns",
 					"IngressSubDomain": "myaddress.com",
-				}),
-				Interfaces(map[string]interface{}{
-					"MeshPort": 10999,
 				}),
 			},
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {

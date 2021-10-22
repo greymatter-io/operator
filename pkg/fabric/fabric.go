@@ -28,8 +28,7 @@ func New(mesh *v1alpha1.Mesh) *Fabric {
 		cueutils.FromStrings(fmt.Sprintf(`
 			MeshName: "%s"
 			Zone: "%s"
-			MeshPort: %d
-		`, mesh.Name, mesh.Spec.Zone, mesh.Spec.MeshPort)),
+		`, mesh.Name, mesh.Spec.Zone)),
 	)}
 }
 

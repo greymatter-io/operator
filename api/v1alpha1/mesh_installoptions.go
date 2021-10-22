@@ -24,9 +24,6 @@ func (m Mesh) InstallOptions() []version.InstallOption {
 		version.StringSlices(map[string][]string{
 			"WatchNamespaces": append(m.Spec.WatchNamespaces, m.Namespace),
 		}),
-		version.Interfaces(map[string]interface{}{
-			"MeshPort": m.Spec.MeshPort,
-		}),
 	}
 
 	if m.Spec.ExternalRedis != nil {

@@ -32,10 +32,6 @@ type MeshSpec struct {
 	// +kubebuilder:default="1.6"
 	ReleaseVersion string `json:"release_version"`
 
-	// Defines the port for ingress traffic into the mesh.
-	// +kubebuilder:default=10808
-	MeshPort int32 `json:"mesh_port"`
-
 	// Label this mesh as belonging to a particular zone.
 	// +kubebuilder:default=default-zone
 	Zone string `json:"zone"`

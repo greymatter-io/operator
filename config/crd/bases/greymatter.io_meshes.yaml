@@ -41,11 +41,6 @@ spec:
                 description: 'The base url of the openshift cluster (ex: console-openshift-console.apps.coffee.greymatter.services
                   would be apps.coffee.greymatter.services)'
                 type: string
-              mesh_port:
-                default: 10808
-                description: Defines the port for ingress traffic into the mesh.
-                format: int32
-                type: integer
               redis:
                 description: Adds an external Redis provider for caching Grey Matter
                   configuration state.
@@ -92,7 +87,6 @@ spec:
                 type: string
             required:
             - cluster_url
-            - mesh_port
             - release_version
             - zone
             type: object

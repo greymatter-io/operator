@@ -2,7 +2,6 @@
 
 MeshName: string
 Zone: *"default-zone" | string
-MeshPort: *10808 | int32
 
 #EnabledHttpFilters: {
   "gm.metrics": true
@@ -33,7 +32,7 @@ edgeDomain: #Domain & {
   domain_key: "edge"
   zone_key: Zone
   name: "*"
-  port: MeshPort
+  port: 10808
 }
 
 service: {
@@ -108,7 +107,7 @@ service: {
     domain_key: ServiceName
     zone_key: Zone
     name: "*"
-    port: MeshPort
+    port: 10808
   }
   listener: #Listener & {
     name: ServiceName

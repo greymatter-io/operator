@@ -549,8 +549,7 @@ func loadMock(t *testing.T) *Fabric {
 	return New(&v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mymesh"},
 		Spec: v1alpha1.MeshSpec{
-			Zone:     "myzone",
-			MeshPort: 10808,
+			Zone: "myzone",
 		},
 	})
 }
