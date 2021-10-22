@@ -24,6 +24,11 @@ type Version struct {
 	cue cue.Value
 }
 
+// Exposes the cue.Value (for unifying with fabric's cue.Value)
+func (v Version) Cue() cue.Value {
+	return v.cue
+}
+
 // Deeply copies the Version's cue.Value into a new Version.
 func (v Version) Copy() Version {
 	return Version{v.cue}
@@ -78,7 +83,7 @@ func Interfaces(kvs map[string]interface{}) InstallOption {
 }
 
 // An InstallOption for injecting Redis configuration for either an external
-// Redis server (if the config is not nil) or otherwise an internal Redis deployment.
+// Redis server (if the string is not empty) or otherwise an internal Redis deployment.
 func Redis(externalURL string) InstallOption {
 	return func(v *Version) {
 		// NOTE: Generation happens each time as this option is applied, which will cause a service restart to update envs.

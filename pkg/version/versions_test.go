@@ -31,7 +31,7 @@ func TestVersion_1_6(t *testing.T) {
 func testVersion(t *testing.T, name string, to ...testOptions) {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	versions, err := loadBaseWithVersions()
+	versions, err := loadBaseWithVersions("")
 	if err != nil {
 		cueutils.LogError(logger, err)
 		t.FailNow()
@@ -72,6 +72,7 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 					"InstallNamespace": "ns",
 					"Zone":             "myzone",
 				}),
+				Redis(""),
 			},
 
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {

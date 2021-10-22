@@ -10,6 +10,7 @@ import (
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
+	"github.com/greymatter-io/operator/pkg/version"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -59,7 +60,7 @@ func New(ctx context.Context) (*CLI, error) {
 }
 
 // Initializes or updates a client with flags pointing to Control and Catalog for the given mesh.
-func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
+func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, v version.Version) {
 
 	// for CLI 4
 	// conf := fmt.Sprintf(`
@@ -78,11 +79,11 @@ func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
 		fmt.Sprintf("--catalog.mesh %s", mesh.Name),
 	}
 
-	c.configureMeshClient(mesh, flags...)
+	c.configureMeshClient(mesh, v, flags...)
 }
 
 // Initializes or updates a client.
-func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) {
+func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, v version.Version, flags ...string) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -91,7 +92,9 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) {
 		cl.cancel()
 	}
 
-	c.clients[mesh.Name] = newClient(mesh, flags...)
+	logger.Info("Initializing fabric objects", "Mesh", mesh.Name)
+
+	c.clients[mesh.Name] = newClient(mesh, v, flags...)
 }
 
 // Closes a client's cmds channels before deleting the client.
@@ -103,6 +106,8 @@ func (c *CLI) RemoveMeshClient(name string) {
 	if !ok {
 		return
 	}
+
+	logger.Info("Removing all fabric objects", "Mesh", name)
 
 	cl.cancel()
 	delete(c.clients, name)
@@ -136,6 +141,7 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 		return
 	}
 
+	logger.Info("configuring fabric objects", "Mesh", mesh, "Workload", workload)
 	if workload != "edge" {
 		cl.controlCmds <- mkApply("domain", objects.Domain)
 	}
@@ -147,7 +153,7 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 		cl.controlCmds <- mkApply("route", route)
 	}
 	if objects.Ingresses != nil && len(objects.Ingresses.Routes) > 0 {
-		logger.Info("configuring ingresses", "workload", workload)
+		logger.Info("configuring ingresses", "Mesh", mesh, "Workload", workload)
 		for _, cluster := range objects.Ingresses.Clusters {
 			cl.controlCmds <- mkApply("cluster", cluster)
 		}
@@ -156,7 +162,7 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 		}
 	}
 	if objects.HTTPEgresses != nil && len(objects.HTTPEgresses.Routes) > 0 {
-		logger.Info("configuring HTTP egresses", "workload", workload)
+		logger.Info("configuring HTTP egresses", "Mesh", mesh, "Workload", workload)
 		cl.controlCmds <- mkApply("domain", objects.HTTPEgresses.Domain)
 		cl.controlCmds <- mkApply("listener", objects.HTTPEgresses.Listener)
 		for _, cluster := range objects.HTTPEgresses.Clusters {
@@ -166,9 +172,7 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 			cl.controlCmds <- mkApply("route", route)
 		}
 	}
-	if len(objects.TCPEgresses) > 0 {
-		logger.Info("configuring TCP egresses", "workload", workload)
-	}
+	logger.Info("configuring TCP egresses", "Mesh", mesh, "Workload", workload)
 	for _, egress := range objects.TCPEgresses {
 		cl.controlCmds <- mkApply("domain", egress.Domain)
 		cl.controlCmds <- mkApply("listener", egress.Listener)
@@ -209,6 +213,7 @@ func (c *CLI) RemoveService(mesh, workload string, annotations map[string]string
 		return
 	}
 
+	logger.Info("removing fabric objects", "Mesh", mesh, "Workload", workload)
 	cl.controlCmds <- mkDelete("domain", objects.Domain)
 	cl.controlCmds <- mkDelete("listener", objects.Listener)
 	for _, cluster := range objects.Clusters {
@@ -218,7 +223,7 @@ func (c *CLI) RemoveService(mesh, workload string, annotations map[string]string
 		cl.controlCmds <- mkDelete("route", route)
 	}
 	if objects.Ingresses != nil && len(objects.Ingresses.Routes) > 0 {
-		logger.Info("removing ingresses", "workload", workload)
+		logger.Info("removing ingresses", "Mesh", mesh, "Workload", workload)
 		for _, cluster := range objects.Ingresses.Clusters {
 			cl.controlCmds <- mkDelete("cluster", cluster)
 		}
@@ -227,7 +232,7 @@ func (c *CLI) RemoveService(mesh, workload string, annotations map[string]string
 		}
 	}
 	if objects.HTTPEgresses != nil && len(objects.HTTPEgresses.Routes) > 0 {
-		logger.Info("removing HTTP egresses", "workload", workload)
+		logger.Info("removing HTTP egresses", "Mesh", mesh, "Workload", workload)
 		cl.controlCmds <- mkDelete("domain", objects.HTTPEgresses.Domain)
 		cl.controlCmds <- mkDelete("listener", objects.HTTPEgresses.Listener)
 		for _, cluster := range objects.HTTPEgresses.Clusters {
@@ -237,9 +242,7 @@ func (c *CLI) RemoveService(mesh, workload string, annotations map[string]string
 			cl.controlCmds <- mkDelete("route", route)
 		}
 	}
-	if len(objects.TCPEgresses) > 0 {
-		logger.Info("removing TCP egresses", "workload", workload)
-	}
+	logger.Info("removing TCP egresses", "Mesh", mesh, "Workload", workload)
 	for _, egress := range objects.TCPEgresses {
 		cl.controlCmds <- mkDelete("domain", egress.Domain)
 		cl.controlCmds <- mkDelete("listener", egress.Listener)

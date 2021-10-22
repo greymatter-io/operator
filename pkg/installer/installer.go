@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/version"
 
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +23,7 @@ var (
 // Stores a map of version.Version and a distinct version.Sidecar for each mesh.
 type Installer struct {
 	*sync.RWMutex
+	*cli.CLI
 
 	client client.Client
 	// The Docker image pull secret to create in namespaces where core services are installed.
@@ -35,8 +37,8 @@ type Installer struct {
 }
 
 // Returns *Installer for tracking which Grey Matter version is installed for each mesh
-func New(c client.Client, imagePullSecretName string) (*Installer, error) {
-	versions, err := version.Load()
+func New(c client.Client, gmcli *cli.CLI, imagePullSecretName string) (*Installer, error) {
+	versions, err := version.Load("")
 	if err != nil {
 		logger.Error(err, "Failed to initialize installer")
 		return nil, err
@@ -44,6 +46,7 @@ func New(c client.Client, imagePullSecretName string) (*Installer, error) {
 
 	i := &Installer{
 		RWMutex:    &sync.RWMutex{},
+		CLI:        gmcli,
 		client:     c,
 		versions:   versions,
 		namespaces: make(map[string]string),

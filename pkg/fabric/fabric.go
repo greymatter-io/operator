@@ -8,6 +8,7 @@ import (
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cueutils"
+	"github.com/greymatter-io/operator/pkg/version"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"cuelang.org/go/cue"
@@ -23,12 +24,11 @@ type Fabric struct {
 	cue cue.Value
 }
 
-func New(mesh *v1alpha1.Mesh) *Fabric {
-	return &Fabric{cue: value.Unify(
+func New(mesh *v1alpha1.Mesh, v version.Version) *Fabric {
+	return &Fabric{cue: value.Unify(v.Cue()).Unify(
 		cueutils.FromStrings(fmt.Sprintf(`
-			MeshName: "%s"
-			Zone: "%s"
-		`, mesh.Name, mesh.Spec.Zone)),
+			MeshVersion: "%s"
+		`, mesh.Spec.ReleaseVersion)),
 	)}
 }
 
@@ -45,6 +45,8 @@ type Objects struct {
 	// They can be local (in the same mesh) or external.
 	HTTPEgresses *Objects `json:"httpEgresses"`
 	// TCP egresses are served at 10910 and up (one listener each).
+	// Note that 10910 and 10911 are reserved for internal use by Redis and NATS,
+	// so any configured TCP egresses via annotations will start at 10912.
 	TCPEgresses    []Objects       `json:"tcpEgresses"`
 	CatalogService json.RawMessage `json:"catalogservice"`
 }
@@ -131,8 +133,14 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	}
 
 	// TCP egresses are served at 10910 and up (one listener each).
-	tcpEgresses := []EgressArgs{}
-	tcpPort := int32(10910)
+	// Redis and (eventually) NATS TCP egresses are prepended by default for all services.
+	tcpEgresses := []EgressArgs{
+		// Note that even gm-redis' sidecars will get 'egress' listeners to its own cluster,
+		// used exclusively for publishing metrics to the metrics receiver.
+		{Cluster: "gm-redis", TCPPort: 10910},
+		// {Cluster: "gm-nats", TCPPort: 10911}
+	}
+	tcpPort := int32(10912)
 	if locals, ok := annotations["greymatter.io/tcp-local-egress"]; ok {
 		for _, cluster := range strings.Split(locals, ",") {
 			tcpEgresses = append(tcpEgresses, EgressArgs{

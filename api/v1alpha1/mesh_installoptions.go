@@ -24,6 +24,7 @@ func (m Mesh) InstallOptions() []version.InstallOption {
 		version.StringSlices(map[string][]string{
 			"WatchNamespaces": append(m.Spec.WatchNamespaces, m.Namespace),
 		}),
+		version.JWTSecrets,
 	}
 
 	if m.Spec.ExternalRedis != nil {

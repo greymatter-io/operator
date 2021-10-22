@@ -344,6 +344,11 @@
     prometheus_system_metrics_interval_seconds: int
     metrics_key_function: string
 		metrics_key_depth: string
+		metrics_receiver?: {
+			redis_connection_string?: string
+			nats_connection_string?: string
+			push_interval_seconds: int
+		}
 	}
 }
 

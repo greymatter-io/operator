@@ -19,6 +19,11 @@ import (
 
 // Installs and updates Grey Matter core components and dependencies.
 func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
+	if prev == nil {
+		logger.Info("Installing Mesh", "Name", mesh.Name)
+	} else {
+		logger.Info("Re-installing Mesh", "Name", mesh.Name)
+	}
 
 	// Obtain the scheme used by our client
 	scheme := i.client.Scheme()
@@ -30,11 +35,21 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	i.RUnlock()
 
 	// Apply options for mutating the version copy's internal Cue value.
-	opts := append(
-		mesh.InstallOptions(),
-		version.JWTSecrets,
-	)
-	v.Apply(opts...)
+	v.Apply(mesh.InstallOptions()...)
+
+	// var rpStr string
+	// redisPass := v.Lookup("Redis.password")
+	// if err := redisPass.Err(); err != nil {
+	// 	logger.Error(err, "unable to obtain Redis password for fabric object configuration")
+	// } else {
+	// 	var err error
+	// 	rpStr, err = redisPass.String()
+	// 	if err != nil {
+	// 		logger.Error(err, "unable to obtain Redis password for fabric object configuration")
+	// 	}
+	// }
+
+	go i.ConfigureMeshClient(mesh, v)
 
 	// Create a Docker image pull secret and service account in this namespace if this Mesh is new.
 	if prev == nil {
@@ -260,6 +275,10 @@ func applyServiceAccount(c client.Client, mesh *v1alpha1.Mesh, scheme *runtime.S
 
 // Cleanup if a Mesh CR is deleted.
 func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
+	logger.Info("Uninstalling Mesh", "Name", mesh.Name)
+
+	go i.RemoveMeshClient(mesh.Name)
+
 	watch := make(map[string]struct{})
 	watch[mesh.Namespace] = struct{}{}
 

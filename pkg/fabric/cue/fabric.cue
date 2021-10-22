@@ -1,7 +1,21 @@
 // Inputs
 
+// Values pre-defined from version.Version
 MeshName: string
-Zone: *"default-zone" | string
+Zone: string
+Spire: bool
+Redis: {...}
+
+// Values injected in fabric.New
+MeshVersion: string
+
+// Values injected in fabric.Service
+ServiceName: string
+HttpFilters: #EnabledHttpFilters
+NetworkFilters: #EnabledNetworkFilters
+Ingresses: [string]: int32
+HTTPEgresses: [...#EgressArgs]
+TCPEgresses: [...#EgressArgs]
 
 #EnabledHttpFilters: {
   "gm.metrics": true
@@ -18,13 +32,6 @@ Zone: *"default-zone" | string
   port: int
   tcpPort: int
 }
-
-ServiceName: string
-HttpFilters: #EnabledHttpFilters
-NetworkFilters: #EnabledNetworkFilters
-Ingresses: [string]: int32
-HTTPEgresses: [...#EgressArgs]
-TCPEgresses: [...#EgressArgs]
 
 // Outputs
 
@@ -76,28 +83,28 @@ service: {
     domain_keys: [
       ServiceName,
       if len(HTTPEgresses) > 0 {
-        "\(ServiceName)-http-egress",
+        "\(ServiceName)-egress-http",
       }
-      for _, e in TCPEgresses if len(TCPEgresses) > 0 {
+      for _, e in TCPEgresses {
         if e.isExternal {
-          "\(ServiceName)-tcp-egress-to-external-\(e.cluster)"
+          "\(ServiceName)-egress-tcp-to-external-\(e.cluster)"
         }
         if !e.isExternal {
-          "\(ServiceName)-tcp-egress-to-\(e.cluster)"
+          "\(ServiceName)-egress-tcp-to-\(e.cluster)"
         }
       }
     ]
     listener_keys: [
       ServiceName,
       if len(HTTPEgresses) > 0 {
-        "\(ServiceName)-http-egress",
+        "\(ServiceName)-egress-http",
       }
-      for _, e in TCPEgresses if len(TCPEgresses) > 0 {
+      for _, e in TCPEgresses {
         if e.isExternal {
-          "\(ServiceName)-tcp-egress-to-external-\(e.cluster)"
+          "\(ServiceName)-egress-tcp-to-external-\(e.cluster)"
         }
         if !e.isExternal {
-          "\(ServiceName)-tcp-egress-to-\(e.cluster)"
+          "\(ServiceName)-egress-tcp-to-\(e.cluster)"
         }
       }
     ]
@@ -131,6 +138,14 @@ service: {
         }
         if ServiceName != "edge" {
           metrics_key_depth: "3"
+        }
+        if MeshVersion != "1.6" {
+          metrics_receiver: {
+            // TODO: Use NATS for the metrics_receiver universally instead of Redis.
+            // No external NATS option is required since it's an event bus, not a DB.
+            redis_connection_string: "redis://:\(Redis.password)@127.0.0.1:10910"
+            push_interval_seconds: 10
+          }
         }
       }
     }
@@ -294,7 +309,7 @@ service: {
 
   httpEgresses: {
     if len(HTTPEgresses) > 0 {
-      let key = "\(ServiceName)-http-egress"
+      let key = "\(ServiceName)-egress-http"
       domain: #Domain & {
         zone_key: Zone
         domain_key: key
@@ -370,13 +385,13 @@ service: {
   }
 
   tcpEgresses: [
-    for _, e in TCPEgresses if len(TCPEgresses) > 0 {
+    for _, e in TCPEgresses {
       _key: string
       if e.isExternal {
-        _key: "\(ServiceName)-tcp-egress-to-external-\(e.cluster)"
+        _key: "\(ServiceName)-egress-tcp-to-external-\(e.cluster)"
       }
       if !e.isExternal {
-        _key: "\(ServiceName)-tcp-egress-to-\(e.cluster)"
+        _key: "\(ServiceName)-egress-tcp-to-\(e.cluster)"
       }
       domain: #Domain & {
         zone_key: Zone

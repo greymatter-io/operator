@@ -18,16 +18,16 @@ var (
 	filesystem embed.FS
 )
 
-func Load() (map[string]Version, error) {
-	versions, err := loadBaseWithVersions()
+func Load(dirPath string) (map[string]Version, error) {
+	versions, err := loadBaseWithVersions(dirPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load versioned install configurations: %w", err)
 	}
 	return versions, nil
 }
 
-func loadBaseWithVersions() (map[string]Version, error) {
-	base, err := loadBase()
+func loadBaseWithVersions(dirPath string) (map[string]Version, error) {
+	base, err := loadBase(dirPath)
 	if err != nil {
 		return nil, err
 	}
@@ -40,15 +40,18 @@ func loadBaseWithVersions() (map[string]Version, error) {
 	return versions, nil
 }
 
-func loadBase() (cue.Value, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return cue.Value{}, fmt.Errorf("failed to determine working directory")
+func loadBase(dirPath string) (cue.Value, error) {
+	if dirPath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return cue.Value{}, fmt.Errorf("failed to determine working directory")
+		}
+		dirPath = wd
 	}
 	instances := load.Instances([]string{"greymatter.io/operator/version/cue.mod:base"}, &load.Config{
 		Package:    "base",
-		ModuleRoot: wd,
-		Dir:        fmt.Sprintf("%s/cue.mod", wd),
+		ModuleRoot: dirPath,
+		Dir:        fmt.Sprintf("%s/cue.mod", dirPath),
 	})
 	base := cuecontext.New().BuildInstance(instances[0])
 	if err := base.Err(); err != nil {

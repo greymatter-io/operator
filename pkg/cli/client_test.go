@@ -3,10 +3,13 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/version"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -25,12 +28,24 @@ func TestNewClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c.configureMeshClient(&v1alpha1.Mesh{
-		ObjectMeta: metav1.ObjectMeta{Name: "mesh"},
-		Spec: v1alpha1.MeshSpec{
-			Zone: "zone",
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal("failed to determine working directory")
+	}
+
+	versions, err := version.Load(strings.Replace(wd, "/fabric", "/version", 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c.configureMeshClient(
+		&v1alpha1.Mesh{
+			ObjectMeta: metav1.ObjectMeta{Name: "mesh"},
+			Spec: v1alpha1.MeshSpec{
+				Zone: "zone",
+			},
 		},
-	},
+		versions["1.7"],
 		"--api.host localhost:5555",
 		"--catalog.host localhost:8181",
 		"--catalog.mesh mesh",

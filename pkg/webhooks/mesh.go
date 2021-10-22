@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
-	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -39,7 +38,6 @@ func (md *meshDefaulter) Handle(ctx context.Context, req admission.Request) admi
 
 type meshValidator struct {
 	*installer.Installer
-	*cli.CLI
 	*admission.Decoder
 }
 
@@ -57,7 +55,6 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 		go mv.RemoveMesh(prev)
-		go mv.RemoveMeshClient(req.Name)
 		return admission.ValidationResponse(true, "allowed")
 	}
 
@@ -73,8 +70,6 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 	if err := mv.Decode(req, mesh); err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
-
-	go mv.ConfigureMeshClient(mesh)
 
 	if req.Operation == admissionv1.Create {
 		go mv.ApplyMesh(nil, mesh)

@@ -94,9 +94,6 @@ control_api: #Component & {
 
 catalog: #Component & {
   name: "catalog"
-  annotations: {
-    "greymatter.io/tcp-local-egress": "gm-redis"
-  }
   image: =~"^docker.greymatter.io/(release|development)/gm-catalog:" & !~"latest$"
   ports: api: 8080
   env: {
@@ -105,10 +102,11 @@ catalog: #Component & {
     CONFIG_SOURCE: "redis"
     REDIS_MAX_RETRIES: "50"
     REDIS_RETRY_DELAY: "5s"
+    // The TCP egress route is configured internally in fabric.go.
+    // Otherwise, it would be configured via annotation: i.e. `greymatter.io/tcp-local-egress: gm-redis`
+    // All sidecars have TCP egress routes to Redis on 10910 and (eventually) NATS on 10911 by default.
     REDIS_HOST: "127.0.0.1"
     REDIS_PORT: "10910"
-    // REDIS_HOST: Redis.host
-    // REDIS_PORT: Redis.port
     REDIS_DB: Redis.db
   }
   envFrom: REDIS_PASS: {
@@ -133,6 +131,12 @@ catalog: #Component & {
         default:
           url: control.\(InstallNamespace).svc:50000
           zone: \(Zone)
+      extensions:
+        metrics:
+          sessions:
+            redis_example:
+              client_type: redis
+              connection_string: redis://:\(Redis.password)@127.0.0.1:10910
     """
 }
 
