@@ -87,21 +87,16 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 	// TODO: Ensure namespace doesn't belong to another Mesh (as a WatchNamespace)
 	// TODO: Ensure Mesh watch namespaces are unique
 
-	mesh := &v1alpha1.Mesh{}
-	if err := mv.Decode(req, mesh); err != nil {
-		return admission.Errored(http.StatusInternalServerError, err)
-	}
-
-	go mv.ConfigureMeshClient(mesh)
+	go mv.ConfigureMeshClient(obj)
 
 	if req.Operation == admissionv1.Create {
-		go mv.ApplyMesh(nil, mesh)
+		go mv.ApplyMesh(nil, obj)
 	} else {
 		prev := &v1alpha1.Mesh{}
 		if err := mv.DecodeRaw(req.OldObject, prev); err != nil {
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
-		go mv.ApplyMesh(prev, mesh)
+		go mv.ApplyMesh(prev, obj)
 	}
 
 	return admission.ValidationResponse(true, "allowed")
