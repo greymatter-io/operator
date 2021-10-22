@@ -14,7 +14,7 @@ spec:
     listKind: MeshList
     plural: meshes
     singular: mesh
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:
@@ -45,6 +45,9 @@ spec:
                 default: true
                 description: Specify to use tls for edge ingress or not
                 type: boolean
+              install_namespace:
+                description: Install Namespace
+                type: string
               mesh_port:
                 default: 10808
                 description: Defines the port for ingress traffic into the mesh.
@@ -97,6 +100,7 @@ spec:
             required:
             - cluster_url
             - edge_tls_ingress
+            - install_namespace
             - mesh_port
             - release_version
             - zone
