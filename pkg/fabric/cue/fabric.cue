@@ -143,7 +143,12 @@ service: {
           metrics_receiver: {
             // TODO: Use NATS for the metrics_receiver universally instead of Redis.
             // No external NATS option is required since it's an event bus, not a DB.
-            redis_connection_string: "redis://:\(Redis.password)@127.0.0.1:10910"
+            if ServiceName != "gm-redis" {
+              redis_connection_string: "redis://:\(Redis.password)@127.0.0.1:10910"
+            }
+            if ServiceName == "gm-redis" {
+              redis_connection_string: "redis://:\(Redis.password)@127.0.0.1:10808"
+            }
             push_interval_seconds: 10
           }
         }

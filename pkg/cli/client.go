@@ -50,7 +50,7 @@ func newClient(mesh *v1alpha1.Mesh, v version.Version, flags ...string) *client 
 			},
 			and: cmdOpt{cmd: &cmd{
 				args:   fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
-				reader: values("zone_key", "checksum"),
+				reader: values("zone_key"),
 				retry: retry{
 					dur: time.Second * 10,
 					ctx: ctx,
@@ -113,12 +113,12 @@ func mkApply(kind string, data json.RawMessage) cmd {
 	return cmd{
 		args:   fmt.Sprintf("create %s", kind),
 		stdin:  data,
-		reader: values(kk, "checksum"),
+		reader: values(kk),
 		or: cmdOpt{
 			cmd: &cmd{
 				args:   fmt.Sprintf("edit %s %s", kind, objKey(kind, data)),
 				stdin:  data,
-				reader: values(kk, "checksum"),
+				reader: values(kk),
 			},
 			when: func(out string) bool {
 				return strings.Contains(out, "duplicate") || strings.Contains(out, "exists")

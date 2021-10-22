@@ -73,7 +73,7 @@ func (c cmd) run(flags []string, from ...src) result {
 		if c.and.cmd != nil {
 			// If c.and is specified, pipe cmdout into it and run it next.
 			c.and.stdin = out
-			from = append(from, src{c.args, ">"})
+			from = append(from, src{strings.Split(c.args, " ")[0], ">"})
 			return c.and.run(flags, from...)
 		} else if c.reader != nil {
 			// Otherwise, if reader is specified, attempt to read cmdout.
@@ -86,7 +86,7 @@ func (c cmd) run(flags []string, from ...src) result {
 	if r.err != nil {
 		// Run c.or if specified and if it passes or.when (if specified).
 		if c.or.cmd != nil && (c.or.when == nil || c.or.when(cmdout)) {
-			from = append(from, src{c.args, "||"})
+			from = append(from, src{strings.Split(c.args, " ")[0], "||"})
 			return c.or.run(flags, from...)
 		}
 		// Otherwise, if c.retry.dur > 0, run again after waiting.

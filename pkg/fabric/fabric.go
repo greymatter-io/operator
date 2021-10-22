@@ -134,12 +134,13 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 
 	// TCP egresses are served at 10910 and up (one listener each).
 	// Redis and (eventually) NATS TCP egresses are prepended by default for all services.
-	tcpEgresses := []EgressArgs{
-		// Note that even gm-redis' sidecars will get 'egress' listeners to its own cluster,
-		// used exclusively for publishing metrics to the metrics receiver.
-		{Cluster: "gm-redis", TCPPort: 10910},
-		// {Cluster: "gm-nats", TCPPort: 10911}
+	tcpEgresses := []EgressArgs{}
+	if name != "gm-redis" {
+		tcpEgresses = append(tcpEgresses, EgressArgs{Cluster: "gm-redis", TCPPort: 10910})
 	}
+	// if name != "gm-nats" {
+	// 	tcpEgresses = append(tcpEgresses, EgressArgs{Cluster: "gm-nats", TCPPort: 10911})
+	// }
 	tcpPort := int32(10912)
 	if locals, ok := annotations["greymatter.io/tcp-local-egress"]; ok {
 		for _, cluster := range strings.Split(locals, ",") {
