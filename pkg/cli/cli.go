@@ -69,13 +69,13 @@ func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, v version.Version) {
 	// [catalog]
 	// host = "http://catalog.%s.svc:8080"
 	// mesh = "%s"
-	// `, mesh.Namespace, mesh.Namespace, mesh.Name)
+	// `, mesh.Spec.InstallNamespace, mesh.Spec.InstallNamespace, mesh.Name)
 	// conf = base64.StdEncoding.EncodeToString([]byte(conf))
 	// flags := []string{"--base64-config", conf}
 
 	flags := []string{
-		fmt.Sprintf("--api.host control.%s.svc:5555", mesh.Namespace),
-		fmt.Sprintf("--catalog.host catalog.%s.svc:8080", mesh.Namespace),
+		fmt.Sprintf("--api.host control.%s.svc:5555", mesh.Spec.InstallNamespace),
+		fmt.Sprintf("--catalog.host catalog.%s.svc:8080", mesh.Spec.InstallNamespace),
 		fmt.Sprintf("--catalog.mesh %s", mesh.Name),
 	}
 

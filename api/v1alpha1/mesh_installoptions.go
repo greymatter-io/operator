@@ -16,13 +16,13 @@ func (m Mesh) InstallOptions() []version.InstallOption {
 	opts := []version.InstallOption{
 		version.Strings(map[string]string{
 			"MeshName":         m.Name,
-			"InstallNamespace": m.Namespace,
+			"InstallNamespace": m.Spec.InstallNamespace,
 			"Zone":             m.Spec.Zone,
 			// TODO: figure out how to get the domain dynamically
-			"IngressSubDomain": fmt.Sprintf("%s.%s.%s", m.Name, m.Namespace, m.Spec.ClusterUrl),
+			"IngressSubDomain": fmt.Sprintf("%s.%s.%s", m.Name, m.Spec.InstallNamespace, m.Spec.ClusterUrl),
 		}),
 		version.StringSlices(map[string][]string{
-			"WatchNamespaces": append(m.Spec.WatchNamespaces, m.Namespace),
+			"WatchNamespaces": append(m.Spec.WatchNamespaces, m.Spec.InstallNamespace),
 		}),
 		version.JWTSecrets,
 	}
@@ -36,7 +36,7 @@ func (m Mesh) InstallOptions() []version.InstallOption {
 	if len(m.Spec.UserTokens) > 0 {
 		users, err := json.Marshal(m.Spec.UserTokens)
 		if err != nil {
-			logger.Error(err, "Failed to unmarshal UserTokens", "Namesapce", m.Namespace, "Mesh", m.Name)
+			logger.Error(err, "Failed to unmarshal UserTokens", "Namesapce", m.Spec.InstallNamespace, "Mesh", m.Name)
 		} else {
 			opts = append(opts, version.UserTokens(string(users)))
 		}

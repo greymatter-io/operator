@@ -14,7 +14,7 @@ spec:
     listKind: MeshList
     plural: meshes
     singular: mesh
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:
@@ -40,6 +40,10 @@ spec:
               cluster_url:
                 description: 'The base url of the openshift cluster (ex: console-openshift-console.apps.coffee.greymatter.services
                   would be apps.coffee.greymatter.services)'
+                type: string
+              install_namespace:
+                description: Namespace where mesh core components and dependencies
+                  should be installed.
                 type: string
               redis:
                 description: Adds an external Redis provider for caching Grey Matter
@@ -77,7 +81,7 @@ spec:
                   type: object
                 type: array
               watch_namespaces:
-                description: Namespaces included in the mesh network.
+                description: Namespaces to include in the mesh network.
                 items:
                   type: string
                 type: array
@@ -87,6 +91,7 @@ spec:
                 type: string
             required:
             - cluster_url
+            - install_namespace
             - release_version
             - zone
             type: object

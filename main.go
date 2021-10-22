@@ -149,7 +149,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	webhooks.Register(mgr, inst, gmcli)
+	webhooks.Register(mgr, inst, gmcli, c)
 
 	//+kubebuilder:scaffold:builder
 

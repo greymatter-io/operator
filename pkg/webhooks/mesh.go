@@ -2,12 +2,15 @@ package webhooks
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/installer"
 
 	admissionv1 "k8s.io/api/admission/v1"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -39,6 +42,7 @@ func (md *meshDefaulter) Handle(ctx context.Context, req admission.Request) admi
 type meshValidator struct {
 	*installer.Installer
 	*admission.Decoder
+	ctrlclient.Client
 }
 
 // Implements admission.DecoderInjector.
@@ -58,17 +62,41 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 		return admission.ValidationResponse(true, "allowed")
 	}
 
-	if req.Namespace == "gm-operator" {
-		return admission.ValidationResponse(false, "attempted to create Mesh in 'gm-operator' namespace")
+	mesh := &v1alpha1.Mesh{}
+	if err := mv.DecodeRaw(req.Object, mesh); err != nil {
+		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	// TODO: Ensure only one mesh exists in a namespace
-	// TODO: Ensure namespace doesn't belong to another Mesh (as a WatchNamespace)
-	// TODO: Ensure Mesh watch namespaces are unique
+	installNS := mesh.Spec.InstallNamespace
+	watchNS := strings.Join(mesh.Spec.WatchNamespaces, ",")
+	if installNS == "gm-operator" {
+		return admission.ValidationResponse(false, "blocked attempt to install Mesh in 'gm-operator' namespace")
+	}
 
-	mesh := &v1alpha1.Mesh{}
-	if err := mv.Decode(req, mesh); err != nil {
-		return admission.Errored(http.StatusInternalServerError, err)
+	meshList := &v1alpha1.MeshList{}
+	if err := mv.List(context.TODO(), meshList); err != nil {
+		logger.Error(err, "failed to list all meshes to validate namespaces", "Mesh", mesh.Name)
+		return admission.ValidationResponse(false, "Internal server error; check logs with valid cluster permissions")
+	}
+	for _, m := range meshList.Items {
+		// Ensure install namespace isn't occupied by another Mesh
+		if m.Spec.InstallNamespace == installNS {
+			return admission.ValidationResponse(false, fmt.Sprintf("blocked attempt to install second Mesh in namespace %s (occupied by Mesh %s)", installNS, m.Name))
+		}
+		// Ensure watch namespaces don't include another Mesh's install namespace
+		if strings.Contains(watchNS, m.Spec.InstallNamespace) {
+			return admission.ValidationResponse(false, fmt.Sprintf("blocked attempt to include watch namespace %s in Mesh (install namespace for Mesh %s)", installNS, m.Name))
+		}
+		for _, watched := range m.Spec.WatchNamespaces {
+			// Ensure install namespace isn't watched by another Mesh
+			if watched == installNS {
+				return admission.ValidationResponse(false, fmt.Sprintf("blocked attempt to install Mesh in watched namespace %s (watched by Mesh %s)", installNS, m.Name))
+			}
+			// Ensure watch namespaces don't include a namespace watched by another Mesh
+			if strings.Contains(watchNS, watched) {
+				return admission.ValidationResponse(false, fmt.Sprintf("blocked attempt to include watch namespace %s in Mesh (already watched by Mesh %s)", watched, m.Name))
+			}
+		}
 	}
 
 	if req.Operation == admissionv1.Create {

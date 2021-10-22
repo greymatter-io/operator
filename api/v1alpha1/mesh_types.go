@@ -24,9 +24,11 @@ import (
 
 // Defines the desired state of a Grey Matter mesh.
 type MeshSpec struct {
+
 	// The base url of the openshift cluster
 	// (ex: console-openshift-console.apps.coffee.greymatter.services would be apps.coffee.greymatter.services)
 	ClusterUrl string `json:"cluster_url"`
+
 	// The version of Grey Matter to install for this mesh.
 	// +kubebuilder:validation:Enum="1.6";"1.7"
 	// +kubebuilder:default="1.6"
@@ -36,7 +38,10 @@ type MeshSpec struct {
 	// +kubebuilder:default=default-zone
 	Zone string `json:"zone"`
 
-	// Namespaces included in the mesh network.
+	// Namespace where mesh core components and dependencies should be installed.
+	InstallNamespace string `json:"install_namespace"`
+
+	// Namespaces to include in the mesh network.
 	// +optional
 	WatchNamespaces []string `json:"watch_namespaces,omitempty"`
 
@@ -60,7 +65,7 @@ type MeshStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Namespaced
+// +kubebuilder:resource:scope=Cluster
 
 // The schema used to define a Grey Matter mesh's desired state and describe its observed state.
 type Mesh struct {
