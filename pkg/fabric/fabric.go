@@ -34,20 +34,20 @@ func New(mesh *v1alpha1.Mesh) *Fabric {
 }
 
 type Objects struct {
-	Proxy    json.RawMessage   `json:"proxy,omitempty"`
-	Domain   json.RawMessage   `json:"domain,omitempty"`
-	Listener json.RawMessage   `json:"listener,omitempty"`
-	Clusters []json.RawMessage `json:"clusters,omitempty"`
-	Routes   []json.RawMessage `json:"routes,omitempty"`
+	Proxy    json.RawMessage   `json:"proxy"`
+	Domain   json.RawMessage   `json:"domain"`
+	Listener json.RawMessage   `json:"listener"`
+	Clusters []json.RawMessage `json:"clusters"`
+	Routes   []json.RawMessage `json:"routes"`
 	// Ingresses are in the same pod as a sidecar, reached via 10808.
 	// The key takes the form of '{sidecar-cluster}-{containerPort.name}'.
-	Ingresses map[string]Objects `json:"ingresses,omitempty"`
+	Ingresses *Objects `json:"ingresses"`
 	// HTTP egresses are reached via the same listener on port 10909.
 	// They can be local (in the same mesh) or external.
-	HTTPEgresses *Objects `json:"httpEgresses,omitempty"`
+	HTTPEgresses *Objects `json:"httpEgresses"`
 	// TCP egresses are served at 10910 and up (one listener each).
-	TCPEgresses    []Objects       `json:"tcpEgresses,omitempty"`
-	CatalogService json.RawMessage `json:"catalogservice,omitempty"`
+	TCPEgresses    []Objects       `json:"tcpEgresses"`
+	CatalogService json.RawMessage `json:"catalogservice"`
 }
 
 // Extracts the edge domain from a Fabric's cue.Value.

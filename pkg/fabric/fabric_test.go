@@ -43,6 +43,7 @@ func TestService(t *testing.T) {
 		`"port":10808`,
 		`"active_http_filters":["gm.metrics"]`,
 		`"http_filters":{"gm_metrics":{`,
+		`"metrics_key_depth":"3"`,
 	))
 	t.Run("Proxy", testContains(service.Proxy,
 		`"name":"example"`,
@@ -76,7 +77,7 @@ func TestTCPProxyFilter(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{"greymatter.io/network-filters": "envoy.tcp_proxy"},
-		map[string]int32{"tcpport": 6379})
+		map[string]int32{"redis": 6379})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +85,7 @@ func TestTCPProxyFilter(t *testing.T) {
 	testContains(service.Listener,
 		`"active_network_filters":["envoy.tcp_proxy"]`,
 		`"network_filters":{"envoy_tcp_proxy":{`,
-		`"cluster":"example-tcpport"`,
+		`"cluster":"example-6379"`,
 	)(t)
 }
 
@@ -96,8 +97,16 @@ func TestServiceNoIngress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if count := len(service.Ingresses); count != 0 {
-		t.Fatalf("expected 0 ingress, got %d", count)
+	if service.Ingresses == nil {
+		t.Fatal("Ingresses should not be nil")
+	}
+
+	if count := len(service.Ingresses.Clusters); count != 0 {
+		t.Errorf("expected len(Ingresses.Clusters) to be 0 but got %d", count)
+	}
+
+	if count := len(service.Ingresses.Routes); count != 0 {
+		t.Errorf("expected len(Ingresses.Routes) to be 0 but got %d", count)
 	}
 }
 
@@ -111,25 +120,29 @@ func TestServiceOneIngress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if count := len(service.Ingresses); count != 1 {
-		t.Fatalf("expected 1 ingress, got %d", count)
+	if service.Ingresses == nil {
+		t.Fatal("Ingresses should not be nil")
 	}
 
-	ingress, ok := service.Ingresses["example-api"]
-	if !ok {
-		t.Fatal("did not find example-api in ingresses")
+	if count := len(service.Ingresses.Clusters); count != 1 {
+		t.Fatalf("expected len(Ingresses.Clusters) to be 1 but got %d", count)
 	}
 
-	t.Run("Cluster", testContains(ingress.Clusters[0],
-		`"cluster_key":"example-api"`,
+	t.Run("Cluster", testContains(service.Ingresses.Clusters[0],
+		`"cluster_key":"example-5555"`,
 		`"zone_key":"myzone"`,
 		`"instances":[{"host":"127.0.0.1","port":5555}]`,
 	))
-	t.Run("Route", testContains(ingress.Routes[0],
-		`"route_key":"example-api"`,
+
+	if count := len(service.Ingresses.Routes); count != 1 {
+		t.Fatalf("expected len(Ingresses.Routes) to be 1 but got %d", count)
+	}
+
+	t.Run("Route", testContains(service.Ingresses.Routes[0],
+		`"route_key":"example-5555"`,
 		`"domain_key":"example"`,
 		`"zone_key":"myzone"`,
-		`"cluster_key":"example-api"`,
+		`"cluster_key":"example-5555"`,
 		`"route_match":{"path":"/"`,
 		`"redirects":[]`,
 	))
@@ -138,43 +151,47 @@ func TestServiceOneIngress(t *testing.T) {
 func TestServiceMultipleIngresses(t *testing.T) {
 	f := loadMock(t)
 
-	ports := map[string]int32{
+	service, err := f.Service("example", nil, map[string]int32{
 		"api":  5555,
 		"api2": 8080,
-	}
-
-	service, err := f.Service("example", nil, ports)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if count := len(service.Ingresses); count != 2 {
-		t.Fatalf("expected 2 ingresses, got %d", count)
+	if service.Ingresses == nil {
+		t.Fatal("Ingresses should not be nil")
 	}
 
-	for name, port := range ports {
-		key := fmt.Sprintf("example-%s", name)
+	if count := len(service.Ingresses.Clusters); count != 2 {
+		t.Fatalf("expected len(Ingresses.Clusters) to be 2 but got %d", count)
+	}
 
-		t.Run(key, func(t *testing.T) {
-			ingress, ok := service.Ingresses[key]
-			if !ok {
-				t.Fatalf("did not find %s in ingresses", key)
-			}
+	if count := len(service.Ingresses.Routes); count != 2 {
+		t.Fatalf("expected len(Ingresses.Routes) to be 2 but got %d", count)
+	}
 
-			t.Run("Cluster", testContains(ingress.Clusters[0],
-				fmt.Sprintf(`"cluster_key":"%s"`, key),
-				`"zone_key":"myzone"`,
-				fmt.Sprintf(`"instances":[{"host":"127.0.0.1","port":%d}]`, port),
-			))
-			t.Run("Route", testContains(ingress.Routes[0],
-				fmt.Sprintf(`"route_key":"%s"`, key),
-				`"domain_key":"example"`,
-				`"zone_key":"myzone"`,
-				fmt.Sprintf(`"cluster_key":"%s"`, key),
-				fmt.Sprintf(`"route_match":{"path":"/%s/"`, name),
-				fmt.Sprintf(`"redirects":[{"from":"^/%s$","to":"/%s/"`, name, name),
-			))
-		})
+	for i, e := range []struct {
+		cluster string
+		port    int32
+	}{
+		{"api", 5555},
+		{"api2", 8080},
+	} {
+		key := fmt.Sprintf("example-%d", e.port)
+		t.Run("Cluster", testContains(service.Ingresses.Clusters[i],
+			fmt.Sprintf(`"cluster_key":"%s"`, key),
+			`"zone_key":"myzone"`,
+			fmt.Sprintf(`"instances":[{"host":"127.0.0.1","port":%d}]`, e.port),
+		))
+		t.Run("Route", testContains(service.Ingresses.Routes[i],
+			fmt.Sprintf(`"route_key":"%s"`, key),
+			`"domain_key":"example"`,
+			`"zone_key":"myzone"`,
+			fmt.Sprintf(`"cluster_key":"%s"`, key),
+			fmt.Sprintf(`"route_match":{"path":"/%s/"`, e.cluster),
+			fmt.Sprintf(`"redirects":[{"from":"^/%s$","to":"/%s/"`, e.cluster, e.cluster),
+		))
 	}
 }
 

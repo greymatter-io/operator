@@ -4,11 +4,11 @@ MeshName: string
 Zone: *"default-zone" | string
 MeshPort: *10808 | int32
 
-#HttpFilters: {
+#EnabledHttpFilters: {
   "gm.metrics": true
 }
 
-#NetworkFilters: {
+#EnabledNetworkFilters: {
   "envoy.tcp_proxy": *false | bool
 }
 
@@ -21,8 +21,8 @@ MeshPort: *10808 | int32
 }
 
 ServiceName: string
-HttpFilters: #HttpFilters
-NetworkFilters: #NetworkFilters
+HttpFilters: #EnabledHttpFilters
+NetworkFilters: #EnabledNetworkFilters
 Ingresses: [string]: int32
 HTTPEgresses: [...#EgressArgs]
 TCPEgresses: [...#EgressArgs]
@@ -128,10 +128,10 @@ service: {
         prometheus_system_metrics_interval_seconds: 15
         metrics_key_function: "depth"
         if ServiceName == "edge" {
-          metrics_key_depth: 1
+          metrics_key_depth: "1"
         }
         if ServiceName != "edge" {
-          metrics_key_depth: 3
+          metrics_key_depth: "3"
         }
       }
     }
@@ -144,7 +144,7 @@ service: {
       if NetworkFilters["envoy.tcp_proxy"] && len(Ingresses) == 1 {
         envoy_tcp_proxy: {
           for k, v in Ingresses {
-            let key = "\(ServiceName)-\(k)"
+            let key = "\(ServiceName)-\(v)"
             cluster: key
             stat_prefix: key
           }
@@ -218,79 +218,79 @@ service: {
   ]
 
   ingresses: {
-    for k, v in Ingresses if len(Ingresses) > 0 {
-      let key = "\(ServiceName)-\(k)"
-      "\(key)": {
-        clusters: [...#Cluster] & [
+    clusters: [...#Cluster] & [
+      for _, v in Ingresses if len(Ingresses) > 0 {
+        {
+          name: "\(ServiceName)-\(v)"
+          zone_key: Zone
+          instances: [
+            {
+              host: "127.0.0.1"
+              port: v
+            }
+          ]
+        }
+      }
+    ]
+    routes: [...#Route] & [
+      for k, v in Ingresses if len(Ingresses) > 0 {
+        let key = "\(ServiceName)-\(v)"
+        if len(Ingresses) == 1 {
           {
-            name: key
+            route_key: key
+            domain_key: ServiceName
             zone_key: Zone
-            instances: [
+            route_match: {
+              path: "/"
+              match_type: "prefix"
+            }
+            rules: [
               {
-                host: "127.0.0.1"
-                port: v
+                constraints: {
+                  light: [
+                    {
+                      cluster_key: key
+                      weight: 1
+                    }
+                  ]
+                }
               }
             ]
           }
-        ]
-        routes: [...#Route] & [
-          if len(Ingresses) == 1 {
-            {
-              route_key: clusters[0].name
-              domain_key: ServiceName
-              zone_key: Zone
-              route_match: {
-                path: "/"
-                match_type: "prefix"
-              }
-              rules: [
-                {
-                  constraints: {
-                    light: [
-                      {
-                        cluster_key: clusters[0].name
-                        weight: 1
-                      }
-                    ]
-                  }
-                }
-              ]
+        }
+        if len(Ingresses) > 1 {
+          {
+            route_key: key
+            domain_key: ServiceName
+            zone_key: Zone
+            route_match: {
+              path: "/\(k)/"
+              match_type: "prefix"
             }
-          }
-          if len(Ingresses) > 1 {
-            {
-              route_key: clusters[0].name
-              domain_key: ServiceName
-              zone_key: Zone
-              route_match: {
-                path: "/\(k)/"
-                match_type: "prefix"
+            redirects: [
+              {
+                from: "^/\(k)$"
+                to: route_match.path
+                redirect_type: "permanent"
               }
-              redirects: [
-                {
-                  from: "^/\(k)$"
-                  to: route_match.path
-                  redirect_type: "permanent"
+            ]
+            prefix_rewrite: "/"
+            rules: [
+              {
+                constraints: {
+                  light: [
+                    {
+                      cluster_key: key
+                      weight: 1
+                    }
+                  ]
                 }
-              ]
-              prefix_rewrite: "/"
-              rules: [
-                {
-                  constraints: {
-                    light: [
-                      {
-                        cluster_key: clusters[0].name
-                        weight: 1
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
+              }
+            ]
           }
-        ]
+        }
       }
-    }
+    ]
   }
 
   httpEgresses: {

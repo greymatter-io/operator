@@ -317,9 +317,9 @@
 	protocol:			"http_auto"
 	domain_keys:	[...string]
 	active_http_filters?: [...string]
-	http_filters?: {...}
+	http_filters?: #HTTPFilters
 	active_network_filters?: [...string]
-	network_filters?: {...}
+	network_filters?: #NetworkFilters
 	stream_idle_timeout?:    string
 	request_timeout?:        string
 	drain_timeout?:          string
@@ -332,6 +332,26 @@
 	secret?:                 #Secret
 	http_protocol_options?:  #HTTPProtocolOptions
 	http2_protocol_options?: #HTTP2ProtocolOptions
+}
+
+#HTTPFilters: {
+	gm_metrics: {
+		metrics_host: string
+		metrics_port: int
+    metrics_dashboard_uri_path: string
+    metrics_prometheus_uri_path: string
+    metrics_ring_buffer_size: int
+    prometheus_system_metrics_interval_seconds: int
+    metrics_key_function: string
+		metrics_key_depth: string
+	}
+}
+
+#NetworkFilters: {
+	envoy_tcp_proxy?: {
+		cluster: string
+		stat_prefix: string
+	}
 }
 
 #TracingConfig: {

@@ -44,15 +44,15 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 			// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
 			args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
 			retry: retry{
-				dur:  time.Second * 5,
-				done: ctx.Done,
+				dur: time.Second * 5,
+				ctx: ctx,
 			},
 			and: cmdOpt{cmd: &cmd{
 				args:   fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
 				reader: values("zone_key", "checksum"),
 				retry: retry{
-					dur:  time.Second * 5,
-					done: ctx.Done,
+					dur: time.Second * 10,
+					ctx: ctx,
 				},
 			}},
 		}).run(cl.flags).err != nil {
@@ -84,8 +84,8 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 			args:   fmt.Sprintf("get catalog-mesh %s", mesh.Name),
 			reader: values("mesh_id", "session_statuses.default"),
 			retry: retry{
-				dur:  time.Second * 5,
-				done: ctx.Done,
+				dur: time.Second * 10,
+				ctx: ctx,
 			},
 		}).run(cl.flags).err != nil {
 			return
@@ -107,25 +107,17 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 	return cl
 }
 
-// temp while CLI 4 is being worked on
 func mkApply(kind string, data json.RawMessage) cmd {
-	var kindKey string
-	if kind == "catalog-service" {
-		// if kind == "catalogservice" {
-		kindKey = "service_id"
-	} else {
-		kindKey = fmt.Sprintf("%s_key", kind)
-	}
-	key := values(kindKey)(string(data)).kvs[1]
+	kk := kindKey(kind)
 	return cmd{
 		args:   fmt.Sprintf("create %s", kind),
 		stdin:  data,
-		reader: values(kindKey, "checksum"),
+		reader: values(kk, "checksum"),
 		or: cmdOpt{
 			cmd: &cmd{
-				args:   fmt.Sprintf("edit %s %s", kind, key),
+				args:   fmt.Sprintf("edit %s %s", kind, objKey(kind, data)),
 				stdin:  data,
-				reader: values(kindKey, "checksum"),
+				reader: values(kk, "checksum"),
 			},
 			when: func(out string) bool {
 				return strings.Contains(out, "duplicate") || strings.Contains(out, "exists")
@@ -134,12 +126,9 @@ func mkApply(kind string, data json.RawMessage) cmd {
 	}
 }
 
-func mkDelete(kind, key string) cmd {
-	kindKey := fmt.Sprintf("%s_key", kind)
-	return cmd{
-		args:   fmt.Sprintf("delete %s %s", kind, key),
-		reader: values(kindKey, "checksum"),
-	}
+func mkDelete(kind string, data json.RawMessage) cmd {
+	key := objKey(kind, data)
+	return cmd{args: fmt.Sprintf("delete %s %s", kind, key)}
 }
 
 func values(keys ...string) func(string) result {
@@ -148,6 +137,7 @@ func values(keys ...string) func(string) result {
 		for _, key := range keys {
 			value := gjson.Get(out, key)
 			if value.Exists() {
+				// Add the gjson.Result without parsing its type.
 				kvs = append(kvs, key, value)
 			}
 		}
@@ -157,4 +147,20 @@ func values(keys ...string) func(string) result {
 		}
 		return r
 	}
+}
+
+func objKey(kind string, data json.RawMessage) string {
+	result := values(kindKey(kind))(string(data))
+	if len(result.kvs) != 2 {
+		return ""
+	}
+	// The key value is a gjson.Result, so just format into a string.
+	return fmt.Sprintf("%v", result.kvs[1])
+}
+
+func kindKey(kind string) string {
+	if kind == "catalog-service" {
+		return "service_id"
+	}
+	return fmt.Sprintf("%s_key", kind)
 }

@@ -112,7 +112,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			go wd.ConfigureService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
 		} else {
 			wd.DecodeRaw(req.OldObject, deployment)
-			go wd.RemoveService(mesh, req.Name, deployment.Spec.Template.Spec.Containers)
+			go wd.RemoveService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
 			return admission.ValidationResponse(true, "allowed")
 		}
 
@@ -130,7 +130,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			go wd.ConfigureService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
 		} else {
 			wd.DecodeRaw(req.OldObject, statefulset)
-			go wd.RemoveService(mesh, req.Name, statefulset.Spec.Template.Spec.Containers)
+			go wd.RemoveService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
 			return admission.ValidationResponse(true, "allowed")
 		}
 	}

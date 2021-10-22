@@ -108,7 +108,7 @@ func (c *CLI) RemoveMeshClient(name string) {
 	delete(c.clients, name)
 }
 
-// Configures mesh objects given a mesh name, an appsv1.Deployment/StatefulSet name, and a list of corev1.Containers.
+// Configures mesh objects given a mesh name, an appsv1.Deployment/StatefulSet name, annotations, and a list of corev1.Containers.
 // TODO: Remove ingresses if container ports are modified.
 // This may require passing a changelog vs containers.
 func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]string, containers []corev1.Container) {
@@ -136,7 +136,9 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 		return
 	}
 
-	cl.controlCmds <- mkApply("domain", objects.Domain)
+	if workload != "edge" {
+		cl.controlCmds <- mkApply("domain", objects.Domain)
+	}
 	cl.controlCmds <- mkApply("listener", objects.Listener)
 	for _, cluster := range objects.Clusters {
 		cl.controlCmds <- mkApply("cluster", cluster)
@@ -144,15 +146,17 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 	for _, route := range objects.Routes {
 		cl.controlCmds <- mkApply("route", route)
 	}
-	for _, ingress := range objects.Ingresses {
-		for _, cluster := range ingress.Clusters {
+	if objects.Ingresses != nil && len(objects.Ingresses.Routes) > 0 {
+		logger.Info("configuring ingresses", "workload", workload)
+		for _, cluster := range objects.Ingresses.Clusters {
 			cl.controlCmds <- mkApply("cluster", cluster)
 		}
-		for _, route := range ingress.Routes {
+		for _, route := range objects.Ingresses.Routes {
 			cl.controlCmds <- mkApply("route", route)
 		}
 	}
 	if objects.HTTPEgresses != nil && len(objects.HTTPEgresses.Routes) > 0 {
+		logger.Info("configuring HTTP egresses", "workload", workload)
 		cl.controlCmds <- mkApply("domain", objects.HTTPEgresses.Domain)
 		cl.controlCmds <- mkApply("listener", objects.HTTPEgresses.Listener)
 		for _, cluster := range objects.HTTPEgresses.Clusters {
@@ -161,6 +165,9 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 		for _, route := range objects.HTTPEgresses.Routes {
 			cl.controlCmds <- mkApply("route", route)
 		}
+	}
+	if len(objects.TCPEgresses) > 0 {
+		logger.Info("configuring TCP egresses", "workload", workload)
 	}
 	for _, egress := range objects.TCPEgresses {
 		cl.controlCmds <- mkApply("domain", egress.Domain)
@@ -177,8 +184,8 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 	// cl.catalogCmds <- mkApply("catalogservice", objects.CatalogService)
 }
 
-// Removes mesh objects given a mesh name, an appsv1.Deployment/StatefulSet name, and a list of corev1.Containers.
-func (c *CLI) RemoveService(mesh, workload string, containers []corev1.Container) {
+// Removes mesh objects given a mesh name, an appsv1.Deployment/StatefulSet name, annotations, and a list of corev1.Containers.
+func (c *CLI) RemoveService(mesh, workload string, annotations map[string]string, containers []corev1.Container) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -187,25 +194,63 @@ func (c *CLI) RemoveService(mesh, workload string, containers []corev1.Container
 		logger.Error(fmt.Errorf("unknown mesh"), "failed to remove fabric objects for workload", "Mesh", mesh, "Workload", workload)
 	}
 
-	ingresses := make(map[int32]struct{})
+	ingresses := make(map[string]int32)
 	for _, container := range containers {
 		for _, port := range container.Ports {
 			if port.Name != "" {
-				ingresses[port.ContainerPort] = struct{}{}
+				ingresses[port.Name] = port.ContainerPort
 			}
 		}
 	}
 
-	cl.controlCmds <- mkDelete("domain", workload)
-	cl.controlCmds <- mkDelete("listener", workload)
-	cl.controlCmds <- mkDelete("proxy", workload)
-	cl.controlCmds <- mkDelete("cluster", workload)
-	cl.controlCmds <- mkDelete("route", workload)
-	for port := range ingresses {
-		key := fmt.Sprintf("%s-%d", workload, port)
-		cl.controlCmds <- mkDelete("cluster", key)
-		cl.controlCmds <- mkDelete("route", key)
+	objects, err := cl.f.Service(workload, annotations, ingresses)
+	if err != nil {
+		logger.Error(err, "failed to configure fabric objects for workload", "Mesh", mesh, "Workload", workload)
+		return
 	}
-	cl.catalogCmds <- mkDelete("catalog-service", workload)
-	// cl.catalogCmds <- mkDelete("catalogservice", workload)
+
+	cl.controlCmds <- mkDelete("domain", objects.Domain)
+	cl.controlCmds <- mkDelete("listener", objects.Listener)
+	for _, cluster := range objects.Clusters {
+		cl.controlCmds <- mkDelete("cluster", cluster)
+	}
+	for _, route := range objects.Routes {
+		cl.controlCmds <- mkDelete("route", route)
+	}
+	if objects.Ingresses != nil && len(objects.Ingresses.Routes) > 0 {
+		logger.Info("removing ingresses", "workload", workload)
+		for _, cluster := range objects.Ingresses.Clusters {
+			cl.controlCmds <- mkDelete("cluster", cluster)
+		}
+		for _, route := range objects.Ingresses.Routes {
+			cl.controlCmds <- mkDelete("route", route)
+		}
+	}
+	if objects.HTTPEgresses != nil && len(objects.HTTPEgresses.Routes) > 0 {
+		logger.Info("removing HTTP egresses", "workload", workload)
+		cl.controlCmds <- mkDelete("domain", objects.HTTPEgresses.Domain)
+		cl.controlCmds <- mkDelete("listener", objects.HTTPEgresses.Listener)
+		for _, cluster := range objects.HTTPEgresses.Clusters {
+			cl.controlCmds <- mkDelete("cluster", cluster)
+		}
+		for _, route := range objects.HTTPEgresses.Routes {
+			cl.controlCmds <- mkDelete("route", route)
+		}
+	}
+	if len(objects.TCPEgresses) > 0 {
+		logger.Info("removing TCP egresses", "workload", workload)
+	}
+	for _, egress := range objects.TCPEgresses {
+		cl.controlCmds <- mkDelete("domain", egress.Domain)
+		cl.controlCmds <- mkDelete("listener", egress.Listener)
+		for _, cluster := range egress.Clusters {
+			cl.controlCmds <- mkDelete("cluster", cluster)
+		}
+		for _, route := range egress.Routes {
+			cl.controlCmds <- mkDelete("route", route)
+		}
+	}
+	cl.controlCmds <- mkDelete("proxy", objects.Proxy)
+	cl.catalogCmds <- mkDelete("catalog-service", objects.CatalogService)
+	// cl.catalogCmds <- mkDelete("catalogservice", objects.CatalogService)
 }
