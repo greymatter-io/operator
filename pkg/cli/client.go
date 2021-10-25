@@ -71,7 +71,10 @@ func newClient(mesh *v1alpha1.Mesh, v version.Version, flags ...string) *client 
 			case <-ctx.Done():
 				return
 			case c := <-controlCmds:
-				c.run(cl.flags)
+				// Requeue failed commands, since there are likely object dependencies (TODO: check)
+				if r := c.run(cl.flags); r.err != nil {
+					controlCmds <- c
+				}
 			}
 		}
 	}(cl.ctx, cl.controlCmds)
@@ -100,7 +103,10 @@ func newClient(mesh *v1alpha1.Mesh, v version.Version, flags ...string) *client 
 			case <-ctx.Done():
 				return
 			case c := <-catalogCmds:
-				c.run(cl.flags)
+				// Requeue failed commands, since there are likely object dependencies (TODO: check)
+				if r := c.run(cl.flags); r.err != nil {
+					catalogCmds <- c
+				}
 			}
 		}
 	}(cl.ctx, cl.catalogCmds)
@@ -153,6 +159,7 @@ func values(keys ...string) func(string) result {
 func objKey(kind string, data json.RawMessage) string {
 	result := values(kindKey(kind))(string(data))
 	if len(result.kvs) != 2 {
+		logger.Error(fmt.Errorf(kind), "no object key", "data", string(data))
 		return ""
 	}
 	// The key value is a gjson.Result, so just format into a string.

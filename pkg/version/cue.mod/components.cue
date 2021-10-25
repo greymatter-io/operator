@@ -103,7 +103,7 @@ catalog: #Component & {
     REDIS_MAX_RETRIES: "50"
     REDIS_RETRY_DELAY: "5s"
     // The TCP egress route is configured internally in fabric.go.
-    // Otherwise, it would be configured via annotation: i.e. `greymatter.io/tcp-local-egress: gm-redis`
+    // Otherwise, it would be configured via annotation: i.e. `greymatter.io/egress-tcp-local: gm-redis`
     // All sidecars have TCP egress routes to Redis on 10910 and (eventually) NATS on 10911 by default.
     REDIS_HOST: "127.0.0.1"
     REDIS_PORT: "10910"
@@ -225,6 +225,10 @@ redis: #Component & {
   name: "gm-redis"
   annotations: {
     "greymatter.io/network-filters": "envoy.tcp_proxy"
+    if ReleaseVersion != "1.6" {
+      // http listener needed to launch metrics receiver
+      "greymatter.io/egress-http-local": "edge"
+    }
   }
   isStatefulset: true
   image: =~"redis:"

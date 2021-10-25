@@ -6,15 +6,11 @@ import (
 )
 
 MeshName: string
-
-// Where to install components
-InstallNamespace: string
-
+ReleaseVersion: string
 Zone: *"default-zone" | string
-
 IngressSubDomain: *"localhost" | string
 
-// The scope of the mesh network
+InstallNamespace: string
 WatchNamespaces: [...string]
 
 // Add the install namespace to watch namespaces, and then use list comprehension to identify unique values

@@ -57,7 +57,7 @@ spec:
                 - url
                 type: object
               release_version:
-                default: "1.6"
+                default: "1.7"
                 description: The version of Grey Matter to install for this mesh.
                 enum:
                 - "1.6"

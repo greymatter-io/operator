@@ -25,11 +25,7 @@ type Fabric struct {
 }
 
 func New(mesh *v1alpha1.Mesh, v version.Version) *Fabric {
-	return &Fabric{cue: value.Unify(v.Cue()).Unify(
-		cueutils.FromStrings(fmt.Sprintf(`
-			MeshVersion: "%s"
-		`, mesh.Spec.ReleaseVersion)),
-	)}
+	return &Fabric{cue: value.Unify(v.Cue())}
 }
 
 type Objects struct {
@@ -101,12 +97,12 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 
 	// All HTTP egress routes use 10909. They can be local (in-mesh) or external.
 	httpEgresses := []EgressArgs{}
-	if locals, ok := annotations["greymatter.io/http-local-egress"]; ok {
+	if locals, ok := annotations["greymatter.io/egress-http-local"]; ok {
 		for _, cluster := range strings.Split(locals, ",") {
 			httpEgresses = append(httpEgresses, EgressArgs{Cluster: strings.TrimSpace(cluster)})
 		}
 	}
-	if externals, ok := annotations["greymatter.io/http-external-egress"]; ok {
+	if externals, ok := annotations["greymatter.io/egress-http-external"]; ok {
 		for _, e := range strings.Split(externals, ",") {
 			split := strings.Split(strings.TrimSpace(e), ";")
 			if len(split) != 2 {
@@ -142,7 +138,7 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	// 	tcpEgresses = append(tcpEgresses, EgressArgs{Cluster: "gm-nats", TCPPort: 10911})
 	// }
 	tcpPort := int32(10912)
-	if locals, ok := annotations["greymatter.io/tcp-local-egress"]; ok {
+	if locals, ok := annotations["greymatter.io/egress-tcp-local"]; ok {
 		for _, cluster := range strings.Split(locals, ",") {
 			tcpEgresses = append(tcpEgresses, EgressArgs{
 				Cluster: strings.TrimSpace(cluster),
@@ -151,7 +147,7 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 			tcpPort++
 		}
 	}
-	if externals, ok := annotations["greymatter.io/tcp-external-egress"]; ok {
+	if externals, ok := annotations["greymatter.io/egress-tcp-external"]; ok {
 		for _, e := range strings.Split(externals, ",") {
 			split := strings.Split(strings.TrimSpace(e), ";")
 			if len(split) != 2 {

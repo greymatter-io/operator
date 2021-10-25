@@ -335,7 +335,7 @@
 }
 
 #HTTPFilters: {
-	gm_metrics: {
+	gm_metrics?: {
 		metrics_host: string
 		metrics_port: int
     metrics_dashboard_uri_path: string

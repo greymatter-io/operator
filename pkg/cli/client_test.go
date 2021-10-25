@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -73,22 +72,4 @@ func TestCLIVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(v)
-}
-
-func TestObjKey(t *testing.T) {
-	for _, tc := range []struct {
-		kind string
-		obj  json.RawMessage
-	}{
-		{
-			kind: "cluster",
-			obj:  json.RawMessage(`{"cluster_key":"key"}`),
-		},
-	} {
-		t.Run(tc.kind, func(t *testing.T) {
-			if objKey(tc.kind, tc.obj) != "key" {
-				t.Errorf("%s key was not found", tc.kind)
-			}
-		})
-	}
 }

@@ -31,7 +31,7 @@ type MeshSpec struct {
 
 	// The version of Grey Matter to install for this mesh.
 	// +kubebuilder:validation:Enum="1.6";"1.7"
-	// +kubebuilder:default="1.6"
+	// +kubebuilder:default="1.7"
 	ReleaseVersion string `json:"release_version"`
 
 	// Label this mesh as belonging to a particular zone.

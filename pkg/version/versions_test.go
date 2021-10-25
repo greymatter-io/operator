@@ -69,6 +69,7 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 			options: []InstallOption{
 				Strings(map[string]string{
 					"MeshName":         "mymesh",
+					"ReleaseVersion":   name,
 					"InstallNamespace": "ns",
 					"Zone":             "myzone",
 				}),
@@ -76,7 +77,6 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 			},
 
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-
 				t.Run("MeshName", func(t *testing.T) {
 					catalogConfigMaps := manifests[4].ConfigMaps
 					if len(catalogConfigMaps) == 0 {
@@ -93,6 +93,8 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 						t.Fatalf("seed file does not start with 'mymesh', got %s", seedFile)
 					}
 				})
+
+				// TODO: ReleaseVersion
 
 				t.Run("InstallNamespace", func(t *testing.T) {
 
@@ -168,6 +170,9 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 
 			checkSidecar: func(t *testing.T, sidecar Sidecar) {
 
+				y, _ := yaml.Marshal(sidecar.Container)
+				fmt.Println(string(y))
+
 				t.Run("InstallNamespace", func(t *testing.T) {
 					xdsHost, ok := getEnvValue(sidecar.Container, "XDS_HOST")
 					if !ok {
@@ -228,8 +233,6 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 				t.Run("SPIRE", func(t *testing.T) {})
 			},
 			checkSidecar: func(t *testing.T, sidecar Sidecar) {
-				y, _ := yaml.Marshal(sidecar.Container)
-				fmt.Println(string(y))
 				t.Run("SPIRE", func(t *testing.T) {
 					if _, ok := getEnvValue(sidecar.Container, "SPIRE_PATH"); !ok {
 						t.Fatal("did not find 'SPIRE_PATH' env in edge container")

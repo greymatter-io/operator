@@ -16,6 +16,7 @@ func (m Mesh) InstallOptions() []version.InstallOption {
 	opts := []version.InstallOption{
 		version.Strings(map[string]string{
 			"MeshName":         m.Name,
+			"ReleaseVersion":   m.Spec.ReleaseVersion,
 			"InstallNamespace": m.Spec.InstallNamespace,
 			"Zone":             m.Spec.Zone,
 			// TODO: figure out how to get the domain dynamically

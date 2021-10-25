@@ -141,7 +141,6 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 		return
 	}
 
-	logger.Info("configuring fabric objects", "Mesh", mesh, "Workload", workload)
 	if workload != "edge" {
 		cl.controlCmds <- mkApply("domain", objects.Domain)
 	}

@@ -70,10 +70,6 @@ func TestService(t *testing.T) {
 		`"redirects":[{"from":"^/services/example$","to":"/services/example/"`,
 	))
 
-	if service.HTTPEgresses == nil {
-		t.Fatal("HTTPEgresses is nil")
-	}
-
 	// 1 TCP egress is expected since `-egress-tcp-to-gm-redis` is added by default.
 	if count := len(service.TCPEgresses); count != 1 {
 		t.Fatalf("Expected 1 TCP egress but got %d", count)
@@ -106,6 +102,47 @@ func TestService(t *testing.T) {
 		`"service_id":"example"`,
 		`"name":"example"`,
 	))
+}
+
+func TestServiceGMRedis(t *testing.T) {
+	f := loadMock(t)
+
+	service, err := f.Service("gm-redis", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("Listener", testContains(service.Listener,
+		`"listener_key":"gm-redis"`,
+		`"zone_key":"myzone"`,
+		`"domain_keys":["gm-redis"]`,
+		`"port":10808`,
+		`"active_http_filters":[]`,
+	))
+	t.Run("Proxy", testContains(service.Proxy,
+		`"name":"gm-redis"`,
+		`"proxy_key":"gm-redis"`,
+		`"zone_key":"myzone"`,
+		`"domain_keys":["gm-redis"]`,
+		`"listener_keys":["gm-redis"]`,
+	))
+	t.Run("Route", testContains(service.Routes[0],
+		`"route_key":"gm-redis"`,
+		`"domain_key":"edge"`,
+		`"zone_key":"myzone"`,
+		`"cluster_key":"gm-redis"`,
+		`"route_match":{"path":"/services/gm-redis/"`,
+		`"redirects":[{"from":"^/services/gm-redis$","to":"/services/gm-redis/"`,
+	))
+
+	if service.HTTPEgresses == nil {
+		t.Fatal("HTTPEgresses is nil")
+	}
+
+	// No TCP egress is expected since none is needed to connect to gm-redis.
+	if count := len(service.TCPEgresses); count != 0 {
+		t.Errorf("Expected 0 TCP egress but got %d", count)
+	}
 }
 
 func TestServiceNoIngress(t *testing.T) {
@@ -219,7 +256,7 @@ func TestServiceOneHTTPLocalEgress(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/http-local-egress": "othercluster",
+			"greymatter.io/egress-http-local": "othercluster",
 		}, nil,
 	)
 	if err != nil {
@@ -256,12 +293,45 @@ func TestServiceOneHTTPLocalEgress(t *testing.T) {
 	))
 }
 
+func TestServiceOneHTTPLocalEgressFromGMRedis(t *testing.T) {
+	f := loadMock(t)
+
+	service, err := f.Service("gm-redis",
+		map[string]string{
+			"greymatter.io/egress-http-local": "othercluster",
+		}, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// gm-redis has an egress HTTP listener just so it can configure a metrics receiver.
+	// This is because the metrics receiver capability was only added to the HTTP metrics filter.
+	t.Run("Proxy", testContains(service.Proxy,
+		`"domain_keys":["gm-redis","gm-redis-egress-http"]`,
+		`"listener_keys":["gm-redis","gm-redis-egress-http"]`,
+	))
+
+	// The HTTP gm.metrics filter is only configured on egress for gm-redis.
+	t.Run("Listener", testContains(service.HTTPEgresses.Listener,
+		`"listener_key":"gm-redis-egress-http"`,
+		`"zone_key":"myzone"`,
+		`"domain_keys":["gm-redis-egress-http"]`,
+		`"port":10909`,
+		`"active_http_filters":["gm.metrics"]`,
+		`"http_filters":{"gm_metrics":{`,
+		`"metrics_key_depth":"3"`,
+		`"redis_connection_string":"redis://:`,
+		`127.0.0.1:10808","push_interval_seconds`,
+	))
+}
+
 func TestServiceMultipleHTTPLocalEgresses(t *testing.T) {
 	f := loadMock(t)
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/http-local-egress": "othercluster1,othercluster2",
+			"greymatter.io/egress-http-local": "othercluster1,othercluster2",
 		}, nil,
 	)
 	if err != nil {
@@ -288,7 +358,7 @@ func TestServiceOneHTTPExternalEgress(t *testing.T) {
 	f := loadMock(t)
 
 	service, err := f.Service("example", map[string]string{
-		"greymatter.io/http-external-egress": "google;google.com:80",
+		"greymatter.io/egress-http-external": "google;google.com:80",
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -333,7 +403,7 @@ func TestServiceMultipleHTTPExternalEgresses(t *testing.T) {
 	f := loadMock(t)
 
 	service, err := f.Service("example", map[string]string{
-		"greymatter.io/http-external-egress": "google;google.com:80,amazon;amazon.com:80",
+		"greymatter.io/egress-http-external": "google;google.com:80,amazon;amazon.com:80",
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -365,7 +435,7 @@ func TestServiceOneTCPLocalEgress(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/tcp-local-egress": "othercluster",
+			"greymatter.io/egress-tcp-local": "othercluster",
 		}, nil,
 	)
 	if err != nil {
@@ -410,7 +480,7 @@ func TestServiceMultipleTCPLocalEgresses(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/tcp-local-egress": "c1,c2",
+			"greymatter.io/egress-tcp-local": "c1,c2",
 		}, nil,
 	)
 	if err != nil {
@@ -463,7 +533,7 @@ func TestServiceOneTCPExternalEgress(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/tcp-external-egress": "redis;1.2.3.4:6379",
+			"greymatter.io/egress-tcp-external": "redis;1.2.3.4:6379",
 		}, nil,
 	)
 	if err != nil {
@@ -513,7 +583,7 @@ func TestServiceMultipleTCPExternalEgresses(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/tcp-external-egress": "s1;1.1.1.1:1111,s2;2.2.2.2:2222",
+			"greymatter.io/egress-tcp-external": "s1;1.1.1.1:1111,s2;2.2.2.2:2222",
 		}, nil,
 	)
 	if err != nil {
