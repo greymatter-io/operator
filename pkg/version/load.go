@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -18,16 +19,16 @@ var (
 	filesystem embed.FS
 )
 
-func Load(dirPath string) (map[string]Version, error) {
-	versions, err := loadBaseWithVersions(dirPath)
+func Load(pathElems ...string) (map[string]Version, error) {
+	versions, err := loadBaseWithVersions(pathElems)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load versioned install configurations: %w", err)
 	}
 	return versions, nil
 }
 
-func loadBaseWithVersions(dirPath string) (map[string]Version, error) {
-	base, err := loadBase(dirPath)
+func loadBaseWithVersions(pathElems []string) (map[string]Version, error) {
+	base, err := loadBase(pathElems)
 	if err != nil {
 		return nil, err
 	}
@@ -40,13 +41,16 @@ func loadBaseWithVersions(dirPath string) (map[string]Version, error) {
 	return versions, nil
 }
 
-func loadBase(dirPath string) (cue.Value, error) {
-	if dirPath == "" {
+func loadBase(pathElems []string) (cue.Value, error) {
+	var dirPath string
+	if len(pathElems) == 0 {
 		wd, err := os.Getwd()
 		if err != nil {
 			return cue.Value{}, fmt.Errorf("failed to determine working directory")
 		}
 		dirPath = wd
+	} else {
+		dirPath = path.Join(pathElems...)
 	}
 	instances := load.Instances([]string{"greymatter.io/operator/version/cue.mod:base"}, &load.Config{
 		Package:    "base",

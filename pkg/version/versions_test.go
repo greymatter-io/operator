@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"cuelang.org/go/cue"
 	"github.com/ghodss/yaml"
 	"github.com/greymatter-io/operator/pkg/cueutils"
 
@@ -15,7 +16,7 @@ import (
 
 type testOptions struct {
 	name           string
-	options        []InstallOption
+	options        []cue.Value
 	checkManifests func(*testing.T, []ManifestGroup)
 	checkSidecar   func(*testing.T, Sidecar)
 }
@@ -31,7 +32,7 @@ func TestVersion_1_6(t *testing.T) {
 func testVersion(t *testing.T, name string, to ...testOptions) {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	versions, err := loadBaseWithVersions("")
+	versions, err := loadBaseWithVersions(nil)
 	if err != nil {
 		cueutils.LogError(logger, err)
 		t.FailNow()
@@ -66,8 +67,8 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 	for _, tc := range append([]testOptions{
 		{
 			name: "Strings",
-			options: []InstallOption{
-				Strings(map[string]string{
+			options: []cue.Value{
+				cueutils.Strings(map[string]string{
 					"MeshName":         "mymesh",
 					"ReleaseVersion":   name,
 					"InstallNamespace": "ns",
@@ -197,9 +198,9 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 		},
 		{
 			name: "StringSlices:WatchNamespaces",
-			options: []InstallOption{
-				Strings(map[string]string{"InstallNamespace": "install"}),
-				StringSlices(map[string][]string{"WatchNamespaces": {"apples", "oranges", "apples"}}),
+			options: []cue.Value{
+				cueutils.Strings(map[string]string{"InstallNamespace": "install"}),
+				cueutils.StringSlices(map[string][]string{"WatchNamespaces": {"apples", "oranges", "apples"}}),
 			},
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 				control := manifests[3].Deployment.Spec.Template.Spec.Containers[0]
@@ -224,8 +225,8 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 		},
 		{
 			name: "Interfaces",
-			options: []InstallOption{
-				Interfaces(map[string]interface{}{
+			options: []cue.Value{
+				cueutils.Interfaces(map[string]interface{}{
 					"Spire": true,
 				}),
 			},
@@ -242,7 +243,7 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 		},
 		{
 			name:    "Redis internal",
-			options: []InstallOption{Strings(map[string]string{"InstallNamespace": "ns"}), Redis("")},
+			options: []cue.Value{cueutils.Strings(map[string]string{"InstallNamespace": "ns"}), Redis("")},
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 				// unimplemented
 				// check for expected values
@@ -250,7 +251,7 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 		},
 		{
 			name:    "Redis external",
-			options: []InstallOption{Redis("redis://:pass@extserver:6379/2")},
+			options: []cue.Value{Redis("redis://:pass@extserver:6379/2")},
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 				// unimplemented
 				// check for expected values
@@ -258,7 +259,7 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 		},
 		{
 			name: "UserTokens",
-			options: []InstallOption{UserTokens(`[
+			options: []cue.Value{UserTokens(`[
 					{
 						"label": "CN=engineer,OU=engineering,O=Decipher,=Alexandria,=Virginia,C=US",
 						"values": {
@@ -275,7 +276,7 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 		},
 		{
 			name:    "JWTSecrets",
-			options: []InstallOption{JWTSecrets},
+			options: []cue.Value{JWTSecrets()},
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 				// unimplemented
 				// check for expected secret and references to secret
@@ -283,8 +284,8 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 		},
 		{
 			name: "Ingress",
-			options: []InstallOption{
-				Strings(map[string]string{
+			options: []cue.Value{
+				cueutils.Strings(map[string]string{
 					"InstallNamespace": "ns",
 					"IngressSubDomain": "myaddress.com",
 				}),

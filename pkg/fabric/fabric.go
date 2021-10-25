@@ -8,7 +8,6 @@ import (
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cueutils"
-	"github.com/greymatter-io/operator/pkg/version"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"cuelang.org/go/cue"
@@ -24,8 +23,12 @@ type Fabric struct {
 	cue cue.Value
 }
 
-func New(mesh *v1alpha1.Mesh, v version.Version) *Fabric {
-	return &Fabric{cue: value.Unify(v.Cue())}
+func New(mesh *v1alpha1.Mesh, options []cue.Value) *Fabric {
+	v := *value
+	for _, o := range options {
+		v = v.Unify(o)
+	}
+	return &Fabric{cue: v}
 }
 
 type Objects struct {

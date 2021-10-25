@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"sync"
 
+	"cuelang.org/go/cue"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
-	"github.com/greymatter-io/operator/pkg/version"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -60,7 +60,7 @@ func New(ctx context.Context) (*CLI, error) {
 }
 
 // Initializes or updates a client with flags pointing to Control and Catalog for the given mesh.
-func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, v version.Version) {
+func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value) {
 
 	// for CLI 4
 	// conf := fmt.Sprintf(`
@@ -79,11 +79,11 @@ func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, v version.Version) {
 		fmt.Sprintf("--catalog.mesh %s", mesh.Name),
 	}
 
-	c.configureMeshClient(mesh, v, flags...)
+	c.configureMeshClient(mesh, options, flags...)
 }
 
 // Initializes or updates a client.
-func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, v version.Version, flags ...string) {
+func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -94,7 +94,7 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, v version.Version, flags 
 
 	logger.Info("Initializing fabric objects", "Mesh", mesh.Name)
 
-	c.clients[mesh.Name] = newClient(mesh, v, flags...)
+	c.clients[mesh.Name] = newClient(mesh, options, flags...)
 }
 
 // Closes a client's cmds channels before deleting the client.

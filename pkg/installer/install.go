@@ -35,21 +35,10 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	i.RUnlock()
 
 	// Apply options for mutating the version copy's internal Cue value.
-	v.Apply(mesh.InstallOptions()...)
+	options := mesh.Options()
+	v.Apply(options...)
 
-	// var rpStr string
-	// redisPass := v.Lookup("Redis.password")
-	// if err := redisPass.Err(); err != nil {
-	// 	logger.Error(err, "unable to obtain Redis password for fabric object configuration")
-	// } else {
-	// 	var err error
-	// 	rpStr, err = redisPass.String()
-	// 	if err != nil {
-	// 		logger.Error(err, "unable to obtain Redis password for fabric object configuration")
-	// 	}
-	// }
-
-	go i.ConfigureMeshClient(mesh, v)
+	go i.ConfigureMeshClient(mesh, options)
 
 	// Create a Docker image pull secret and service account in this namespace if this Mesh is new.
 	if prev == nil {

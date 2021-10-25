@@ -16,6 +16,38 @@ func FromStrings(ss ...string) cue.Value {
 	return cuecontext.New().CompileString(strings.Join(ss, "\n"))
 }
 
+func Strings(kvs map[string]string) cue.Value {
+	var s string
+	for k, v := range kvs {
+		if v != "" {
+			s += fmt.Sprintf(`%s: "%s"`, k, v) + "\n"
+		}
+	}
+	return FromStrings(s)
+}
+
+func StringSlices(kvs map[string][]string) cue.Value {
+	var s string
+	for k, v := range kvs {
+		if len(v) > 0 {
+			var quoted []string
+			for _, vv := range v {
+				quoted = append(quoted, fmt.Sprintf(`"%s"`, vv))
+			}
+			s += fmt.Sprintf(`%s: [%s]`, k, strings.Join(quoted, ",")) + "\n"
+		}
+	}
+	return FromStrings(s)
+}
+
+func Interfaces(kvs map[string]interface{}) cue.Value {
+	var s string
+	for k, v := range kvs {
+		s += fmt.Sprintf(`%s: %v`, k, v) + "\n"
+	}
+	return FromStrings(s)
+}
+
 func LogError(logger logr.Logger, err error) {
 	switch v := err.(type) {
 	case errors.Error:

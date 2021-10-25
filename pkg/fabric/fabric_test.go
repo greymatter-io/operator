@@ -4,13 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
-	"strings"
 	"testing"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cueutils"
-	"github.com/greymatter-io/operator/pkg/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -639,11 +636,6 @@ func loadMock(t *testing.T) *Fabric {
 		t.FailNow()
 	}
 
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("failed to determine working directory")
-	}
-
 	mesh := &v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mymesh"},
 		Spec: v1alpha1.MeshSpec{
@@ -652,15 +644,7 @@ func loadMock(t *testing.T) *Fabric {
 		},
 	}
 
-	versions, err := version.Load(strings.Replace(wd, "/fabric", "/version", 1))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	v := versions["1.7"]
-	v.Apply(mesh.InstallOptions()...)
-
-	return New(mesh, v)
+	return New(mesh, mesh.Options())
 }
 
 func testContains(obj json.RawMessage, subs ...string) func(t *testing.T) {

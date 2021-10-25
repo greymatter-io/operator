@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/greymatter-io/operator/pkg/cueutils"
 	"github.com/greymatter-io/operator/pkg/version"
+
+	"cuelang.org/go/cue"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -12,9 +15,9 @@ var (
 	logger = ctrl.Log.WithName("v1alpha1")
 )
 
-func (m Mesh) InstallOptions() []version.InstallOption {
-	opts := []version.InstallOption{
-		version.Strings(map[string]string{
+func (m Mesh) Options() []cue.Value {
+	opts := []cue.Value{
+		cueutils.Strings(map[string]string{
 			"MeshName":         m.Name,
 			"ReleaseVersion":   m.Spec.ReleaseVersion,
 			"InstallNamespace": m.Spec.InstallNamespace,
@@ -22,10 +25,10 @@ func (m Mesh) InstallOptions() []version.InstallOption {
 			// TODO: figure out how to get the domain dynamically
 			"IngressSubDomain": fmt.Sprintf("%s.%s.%s", m.Name, m.Spec.InstallNamespace, m.Spec.ClusterUrl),
 		}),
-		version.StringSlices(map[string][]string{
+		cueutils.StringSlices(map[string][]string{
 			"WatchNamespaces": append(m.Spec.WatchNamespaces, m.Spec.InstallNamespace),
 		}),
-		version.JWTSecrets,
+		version.JWTSecrets(),
 	}
 
 	if m.Spec.ExternalRedis != nil {
