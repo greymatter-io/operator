@@ -666,6 +666,9 @@ func loadMock(t *testing.T) *Fabric {
 func testContains(obj json.RawMessage, subs ...string) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
+		if len(obj) == 0 {
+			t.Fatal("json is empty")
+		}
 		for _, sub := range subs {
 			if !bytes.Contains(obj, json.RawMessage(sub)) {
 				t.Errorf("did not contain substring '%s'", sub)

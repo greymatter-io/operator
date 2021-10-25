@@ -44,6 +44,7 @@ kubernetes_logs() {
 
 openshift_sample() {
   oc apply -f config/samples/_v1alpha1_mesh.yaml
+  openshift_logs
 }
 
 kubernetes_sample() {

@@ -54,16 +54,19 @@ service: {
       name: "Grey Matter JWT Security"
       description: "A JWT token generation and retrieval service."
       api_endpoint: "/services/jwt-security/"
+      api_spec_endpoint: "/services/jwt-security/"
     }
     if ServiceName == "control" {
       name: "Grey Matter Control"
       description: "Manages the configuration of the Grey Matter data plane."
-      api_endpoint: "/services/control/api/"
+      api_endpoint: "/services/control/api/v1.0"
+      api_spec_endpoint: "/services/control/api/"
     }
     if ServiceName == "catalog" {
       name: "Grey Matter Catalog"
       description: "Interfaces with the control plane to expose the current state of the mesh."
       api_endpoint: "/services/catalog/"
+      api_spec_endpoint: "/services/catalog/"
     }
     if ServiceName == "dashboard" {
       name: "Grey Matter Dashboard"

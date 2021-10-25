@@ -5,7 +5,10 @@
   service_id: string
 	name: *ServiceName | string
 	api_endpoint?: string
+	api_spec_endpoint?: string
 	description?: string
+	enable_instance_metrics: true
+	enable_historical_metrics: *false | bool
 }
 
 // Cluster

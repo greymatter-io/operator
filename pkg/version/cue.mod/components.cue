@@ -131,6 +131,8 @@ catalog: #Component & {
         default:
           url: control.\(InstallNamespace).svc:50000
           zone: \(Zone)
+      labels:
+        zone_key: \(Zone)
       extensions:
         metrics:
           sessions:
@@ -145,9 +147,9 @@ dashboard: #Component & {
   image: =~"^docker.greymatter.io/(release|development)/gm-dashboard:" & !~"latest$"
   ports: app: 1337
   env: {
-    BASE_URL: =~"^/services/dashboard/" & =~"/$"
-    FABRIC_SERVER: =~"/services/catalog/" & =~"/$"
-    CONFIG_SERVER: =~"/services/control/api/" & =~"/v1.0$"
+    BASE_URL: "/services/dashboard/"
+    FABRIC_SERVER: "/services/catalog/"
+    CONFIG_SERVER: =~"^/services/control/api/"
     PROMETHEUS_SERVER: "/services/prometheus/api/v1/"
     REQUEST_TIMEOUT: "15000"
     USE_PROMETHEUS: "false"
@@ -239,7 +241,9 @@ redis: #Component & {
     "--requirepass",
     "$(REDIS_PASSWORD)",
     "--dir",
-    "/data"
+    "/data",
+    "--logLevel",
+    "verbose"
   ]
   ports: redis: 6379
   envFrom: REDIS_PASSWORD: {
