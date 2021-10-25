@@ -12,42 +12,49 @@ import (
 	"github.com/kylelemons/godebug/diff"
 )
 
-func FromStrings(ss ...string) cue.Value {
-	return cuecontext.New().CompileString(strings.Join(ss, "\n"))
-}
-
+// Strings creates a cue.Value from fields defined in a map[string]string.
 func Strings(kvs map[string]string) cue.Value {
-	var s string
+	var ss []string
 	for k, v := range kvs {
 		if v != "" {
-			s += fmt.Sprintf(`%s: "%s"`, k, v) + "\n"
+			ss = append(ss, fmt.Sprintf(`%s: "%s"`, k, v))
 		}
 	}
-	return FromStrings(s)
+	return FromStrings(ss...)
 }
 
+// StringSlices creates a cue.Value from fields defined in a map[string][]string.
 func StringSlices(kvs map[string][]string) cue.Value {
-	var s string
+	var ss []string
 	for k, v := range kvs {
 		if len(v) > 0 {
 			var quoted []string
 			for _, vv := range v {
 				quoted = append(quoted, fmt.Sprintf(`"%s"`, vv))
 			}
-			s += fmt.Sprintf(`%s: [%s]`, k, strings.Join(quoted, ",")) + "\n"
+			ss = append(ss, fmt.Sprintf(`%s: [%s]`, k, strings.Join(quoted, ",")))
 		}
 	}
-	return FromStrings(s)
+	return FromStrings(ss...)
 }
 
+// StringSlices creates a cue.Value from fields defined in a map[string]interface{}.
+// Supported Cue builtin types are bool, number, and struct.
 func Interfaces(kvs map[string]interface{}) cue.Value {
-	var s string
+	var ss []string
 	for k, v := range kvs {
-		s += fmt.Sprintf(`%s: %v`, k, v) + "\n"
+		ss = append(ss, fmt.Sprintf(`%s: %v`, k, v))
 	}
-	return FromStrings(s)
+	return FromStrings(ss...)
 }
 
+// FromStrings creates a cue.Value from string arguments.
+func FromStrings(ss ...string) cue.Value {
+	return cuecontext.New().CompileString(strings.Join(ss, "\n"))
+}
+
+// LogError logs errors that may or may not contain a list of cue/errors.Error.
+// If the error provided is not a cue/errors.Error, a plain error is logged.
 func LogError(logger logr.Logger, err error) {
 	switch v := err.(type) {
 	case errors.Error:
@@ -59,6 +66,7 @@ func LogError(logger logr.Logger, err error) {
 	}
 }
 
+// Diff prints a line-by-line diff between two Cue values.
 func Diff(a, b cue.Value) {
 	aStr := fmt.Sprintf("%v", a)
 	bStr := fmt.Sprintf("%v", b)

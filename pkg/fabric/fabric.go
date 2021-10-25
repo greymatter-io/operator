@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cueutils"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -19,11 +18,15 @@ var (
 	logger = ctrl.Log.WithName("fabric")
 )
 
+// Fabric contains a cue.Value that holds fabric object templates for a single mesh,
+// defined by options passed into its factory function.
 type Fabric struct {
 	cue cue.Value
 }
 
-func New(mesh *v1alpha1.Mesh, options []cue.Value) *Fabric {
+// New returns a new *Fabric instance. It receives mesh options
+// which are unified with base fabric object templates defined in cue/fabric.cue.
+func New(options []cue.Value) *Fabric {
 	v := *value
 	for _, o := range options {
 		v = v.Unify(o)
@@ -31,6 +34,9 @@ func New(mesh *v1alpha1.Mesh, options []cue.Value) *Fabric {
 	return &Fabric{cue: v}
 }
 
+// Objects contains all fabric objects to apply for adding a workload to a mesh.
+// It is a recursive type, enabling references from nested fabric objects to parent Objects.
+// Objects should not be defined using Go structs, but parsed from Cue using *Fabric.Service.
 type Objects struct {
 	Proxy    json.RawMessage   `json:"proxy"`
 	Domain   json.RawMessage   `json:"domain"`
@@ -38,7 +44,7 @@ type Objects struct {
 	Clusters []json.RawMessage `json:"clusters"`
 	Routes   []json.RawMessage `json:"routes"`
 	// Ingresses are in the same pod as a sidecar, reached via 10808.
-	// The key takes the form of '{sidecar-cluster}-{containerPort.name}'.
+	// The key takes the form of '{sidecar-cluster-name}-{port}'.
 	Ingresses *Objects `json:"ingresses"`
 	// HTTP egresses are reached via the same listener on port 10909.
 	// They can be local (in the same mesh) or external.
@@ -50,8 +56,8 @@ type Objects struct {
 	CatalogService json.RawMessage `json:"catalogservice"`
 }
 
-// Extracts the edge domain from a Fabric's cue.Value.
-// The edge domain is needed separately since it is referenced by sidecar routes.
+// EdgeDomain extracts the edge domain fabric object from a *Fabric's cue.Value.
+// The edge domain is parsed individually since it is created as the root mesh domain.
 func (f *Fabric) EdgeDomain() json.RawMessage {
 	//lint:ignore SA1019 will update to Context in next Cue version
 	codec := gocodec.New(&cue.Runtime{}, nil)
@@ -62,15 +68,20 @@ func (f *Fabric) EdgeDomain() json.RawMessage {
 	return e.EdgeDomain
 }
 
+// EgressArgs contains fabric object values for egress cluster routes.
+// It is a struct for passing values to be parsed in cue/fabric.cue.
 type EgressArgs struct {
-	IsExternal bool   `json:"isExternal"`
-	Cluster    string `json:"cluster"` // name of a cluster; if external, cluster is created
-	Host       string `json:"host"`
-	Port       int32  `json:"port"`
-	TCPPort    int32  `json:"tcpPort"`
+	IsExternal bool `json:"isExternal"`
+	// A reference to either another cluster in a mesh,
+	// or a cluster that should be created with the provided host:port.
+	Cluster string `json:"cluster"`
+	Host    string `json:"host"`
+	Port    int32  `json:"port"`
+	TCPPort int32  `json:"tcpPort"`
 }
 
-// Extracts service configs from a Fabric's cue.Value.
+// Service creates fabric objects for adding a workload to a mesh,
+// given the workload's annotations and a map of its parsed container ports.
 func (f *Fabric) Service(name string, annotations map[string]string, ingresses map[string]int32) (Objects, error) {
 
 	// All ingress routes use 10808. They are defined from named container ports.

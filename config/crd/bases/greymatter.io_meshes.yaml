@@ -19,8 +19,8 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: The schema used to define a Grey Matter mesh's desired state
-          and describe its observed state.
+        description: Mesh defines a Grey Matter mesh's desired state and describes
+          its observed state.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -35,7 +35,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: Defines the desired state of a Grey Matter mesh.
+            description: MeshSpec defines the desired state of a Grey Matter mesh.
             properties:
               cluster_url:
                 description: 'The base url of the openshift cluster (ex: console-openshift-console.apps.coffee.greymatter.services
@@ -96,7 +96,8 @@ spec:
             - zone
             type: object
           status:
-            description: Describes the observed state of a Grey Matter mesh.
+            description: MeshStatus describes the observed state of a Grey Matter
+              mesh.
             type: object
         type: object
     served: true

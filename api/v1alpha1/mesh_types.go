@@ -22,7 +22,7 @@ import (
 
 // Reference: https://book.kubebuilder.io/reference/markers/crd.html
 
-// Defines the desired state of a Grey Matter mesh.
+// MeshSpec defines the desired state of a Grey Matter mesh.
 type MeshSpec struct {
 
 	// The base url of the openshift cluster
@@ -54,7 +54,7 @@ type MeshSpec struct {
 	ExternalRedis *ExternalRedisConfig `json:"redis,omitempty"`
 }
 
-// Describes the observed state of a Grey Matter mesh.
+// MeshStatus describes the observed state of a Grey Matter mesh.
 type MeshStatus struct {
 }
 
@@ -67,7 +67,7 @@ type MeshStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 
-// The schema used to define a Grey Matter mesh's desired state and describe its observed state.
+// Mesh defines a Grey Matter mesh's desired state and describes its observed state.
 type Mesh struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -78,7 +78,7 @@ type Mesh struct {
 
 // +kubebuilder:object:root=true
 
-// Contains a list of Mesh custom resources managed by the Grey Matter Operator.
+// MeshList contains a list of Mesh custom resources managed by the Grey Matter Operator.
 type MeshList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

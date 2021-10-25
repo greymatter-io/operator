@@ -33,7 +33,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 		catalogCmds: make(chan cmd),
 		ctx:         ctxt,
 		cancel:      cancel,
-		f:           fabric.New(mesh, options),
+		f:           fabric.New(options),
 	}
 
 	// Consume commands to send to Control

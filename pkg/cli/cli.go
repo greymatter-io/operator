@@ -19,13 +19,14 @@ var (
 	logger = ctrl.Log.WithName("cli")
 )
 
+// CLI exposes methods for configuring clients that execute greymatter CLI commands.
 type CLI struct {
 	*sync.RWMutex
 	clients map[string]*client
-	ctx     context.Context
 }
 
-// Returns *CLI for storing clients used to execute greymatter CLI commands.
+// New returns a new *CLI instance.
+// It receives a context for cleaning up goroutines started by the *CLI.
 func New(ctx context.Context) (*CLI, error) {
 	v, err := cliversion()
 	if err != nil {
@@ -43,7 +44,6 @@ func New(ctx context.Context) (*CLI, error) {
 	gmcli := &CLI{
 		RWMutex: &sync.RWMutex{},
 		clients: make(map[string]*client),
-		ctx:     ctx,
 	}
 
 	// Cancel all client goroutines if package context is done.
@@ -59,7 +59,8 @@ func New(ctx context.Context) (*CLI, error) {
 	return gmcli, nil
 }
 
-// Initializes or updates a client with flags pointing to Control and Catalog for the given mesh.
+// ConfigureMeshClient initializes or updates a client with flags specifying connection options
+// for reaching Control and Catalog for the given mesh and its configuration options.
 func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value) {
 
 	// for CLI 4
@@ -82,7 +83,6 @@ func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value) {
 	c.configureMeshClient(mesh, options, flags...)
 }
 
-// Initializes or updates a client.
 func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) {
 	c.Lock()
 	defer c.Unlock()
@@ -97,7 +97,7 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value, flag
 	c.clients[mesh.Name] = newClient(mesh, options, flags...)
 }
 
-// Closes a client's cmds channels before deleting the client.
+// RemoveMeshClient cleans up a client's goroutines before removing it from the *CLI.
 func (c *CLI) RemoveMeshClient(name string) {
 	c.Lock()
 	defer c.Unlock()
@@ -113,9 +113,8 @@ func (c *CLI) RemoveMeshClient(name string) {
 	delete(c.clients, name)
 }
 
-// Configures mesh objects given a mesh name, an appsv1.Deployment/StatefulSet name, annotations, and a list of corev1.Containers.
-// TODO: Remove ingresses if container ports are modified.
-// This may require passing a changelog vs containers.
+// ConfigureService applies fabric objects that add a workload to the mesh specified
+// given the workload's annotations and a list of its corev1.Containers.
 func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]string, containers []corev1.Container) {
 	c.RLock()
 	defer c.RUnlock()
@@ -125,6 +124,9 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 		logger.Error(fmt.Errorf("unknown mesh"), "failed to configure fabric objects for workload", "Mesh", mesh, "Workload", workload)
 		return
 	}
+
+	// TODO: Handle removals of containers and annotations.
+	// We'll need to be able to pass previous annotations and containers, or even a diff with actions for what to add/edit/remove.
 
 	ingresses := make(map[string]int32)
 	for _, container := range containers {
@@ -187,7 +189,8 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 	// cl.catalogCmds <- mkApply("catalogservice", objects.CatalogService)
 }
 
-// Removes mesh objects given a mesh name, an appsv1.Deployment/StatefulSet name, annotations, and a list of corev1.Containers.
+// RemoveService removes fabric objects, disconnecting the workload from the mesh specified,
+// along with all ingress and egress cluster routes derived from the given annotations and containers.
 func (c *CLI) RemoveService(mesh, workload string, annotations map[string]string, containers []corev1.Container) {
 	c.RLock()
 	defer c.RUnlock()

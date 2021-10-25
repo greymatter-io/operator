@@ -19,15 +19,16 @@ type meshDefaulter struct {
 	*admission.Decoder
 }
 
-// Implements admission.DecoderInjector.
-// A decoder will be automatically injected.
+// InjectDecoder implements admission.DecoderInjector.
+// A decoder will be automatically injected for decoding meshes.
 func (md *meshDefaulter) InjectDecoder(d *admission.Decoder) error {
 	md.Decoder = d
 	return nil
 }
 
+// Handle implements admission.Handler.
+// It will be invoked for defaulting values prior to creating or updating a Mesh.
 func (md *meshDefaulter) Handle(ctx context.Context, req admission.Request) admission.Response {
-
 	return admission.ValidationResponse(true, "allowed")
 	// mesh := &v1alpha1.Mesh{}
 	// md.decoder.Decode(req, mesh)
@@ -45,13 +46,15 @@ type meshValidator struct {
 	ctrlclient.Client
 }
 
-// Implements admission.DecoderInjector.
-// A decoder will be automatically injected.
+// InjectDecoder implements admission.DecoderInjector.
+// A decoder will be automatically injected for decoding meshes.
 func (mv *meshValidator) InjectDecoder(d *admission.Decoder) error {
 	mv.Decoder = d
 	return nil
 }
 
+// Handle implements admission.Handler.
+// It will be invoked for validating values prior to creating or updating a Mesh.
 func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	if req.Operation == admissionv1.Delete {
 		prev := &v1alpha1.Mesh{}

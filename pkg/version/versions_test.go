@@ -300,7 +300,7 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 	}, to...) {
 		t.Run(tc.name, func(t *testing.T) {
 			vc := v.Copy()
-			vc.Apply(tc.options...)
+			vc.Unify(tc.options...)
 			if err := vc.cue.Err(); err != nil {
 				cueutils.LogError(logger, err)
 				t.FailNow()

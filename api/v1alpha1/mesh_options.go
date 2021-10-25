@@ -15,6 +15,7 @@ var (
 	logger = ctrl.Log.WithName("v1alpha1")
 )
 
+// Options returns a slice of cue.Value derived from configured Mesh values.
 func (m Mesh) Options() []cue.Value {
 	opts := []cue.Value{
 		cueutils.Strings(map[string]string{

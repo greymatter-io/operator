@@ -20,7 +20,7 @@ var (
 	logger = ctrl.Log.WithName("installer")
 )
 
-// Stores a map of version.Version and a distinct version.Sidecar for each mesh.
+// Installer stores a map of version.Version and a distinct version.Sidecar for each mesh.
 type Installer struct {
 	*sync.RWMutex
 	*cli.CLI
@@ -36,7 +36,7 @@ type Installer struct {
 	sidecars map[string]func(string) version.Sidecar
 }
 
-// Returns *Installer for tracking which Grey Matter version is installed for each mesh
+// New returns a new *Installer instance for installing Grey Matter components and dependencies.
 func New(c client.Client, gmcli *cli.CLI, imagePullSecretName string) (*Installer, error) {
 	versions, err := version.Load()
 	if err != nil {

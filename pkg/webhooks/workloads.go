@@ -20,13 +20,16 @@ type workloadDefaulter struct {
 	*admission.Decoder
 }
 
-// Implements admission.DecoderInjector.
-// A decoder will be automatically injected.
+// InjectDecoder implements admission.DecoderInjector.
+// A decoder will be automatically injected for decoding deployments, statefulsets, and pods.
 func (wd *workloadDefaulter) InjectDecoder(d *admission.Decoder) error {
 	wd.Decoder = d
 	return nil
 }
 
+// Handle implements admission.Handler.
+// It will be invoked when creating, updating, or deleting deployments and statefulsets,
+// or when creating or updating pods.
 func (wd *workloadDefaulter) Handle(ctx context.Context, req admission.Request) admission.Response {
 	if req.Kind.Kind == "Pod" {
 		return wd.handlePod(req)

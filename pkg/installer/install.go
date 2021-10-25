@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-// Installs and updates Grey Matter core components and dependencies.
+// ApplyMesh installs and updates Grey Matter core components and dependencies for a single mesh.
 func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	if prev == nil {
 		logger.Info("Installing Mesh", "Name", mesh.Name)
@@ -36,7 +36,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 
 	// Apply options for mutating the version copy's internal Cue value.
 	options := mesh.Options()
-	v.Apply(options...)
+	v.Unify(options...)
 
 	go i.ConfigureMeshClient(mesh, options)
 
@@ -262,7 +262,9 @@ func applyServiceAccount(c client.Client, mesh *v1alpha1.Mesh, scheme *runtime.S
 	apply(c, crb, nil, scheme)
 }
 
-// Cleanup if a Mesh CR is deleted.
+// RemoveMesh removes all references to a deleted Mesh custom resource.
+// It does not uninstall core components and dependencies, since that is handled
+// by the apiserver when the Mesh custom resource is deleted.
 func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 	logger.Info("Uninstalling Mesh", "Name", mesh.Name)
 
@@ -315,6 +317,7 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 	}
 }
 
+// WatchedBy returns the name of the mesh a namespace is a member of, or an empty string.
 func (i *Installer) WatchedBy(namespace string) string {
 	i.RLock()
 	defer i.RUnlock()
@@ -322,6 +325,8 @@ func (i *Installer) WatchedBy(namespace string) string {
 	return i.namespaces[namespace]
 }
 
+// Sidecar returns sidecar manifests for the mesh that a namespace is a membeer of.
+// It is used by the webhook package for automatic sidecar injection.
 func (i *Installer) Sidecar(namespace, xdsCluster string) (version.Sidecar, bool) {
 	i.RLock()
 	defer i.RUnlock()

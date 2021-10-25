@@ -18,24 +18,25 @@ var (
 	logger = ctrl.Log.WithName("version")
 )
 
-// A container for a cue.Value that holds all installation configs
-// for a release version of Grey Matter, as well as options applied from a Mesh CR.
+// Version contains a cue.Value that holds all installation templates for a
+// version of Grey Matter, plus options applied from a Mesh custom resource.
 type Version struct {
 	cue cue.Value
 }
 
-// Deeply copies the Version's cue.Value into a new Version.
+// Copy deep copies a Version's cue.Value into a new Version.
 func (v Version) Copy() Version {
 	return Version{v.cue}
 }
 
-func (v *Version) Apply(ws ...cue.Value) {
+// Unify gets the lower bound cue.Value of Version.cue and all argument values.
+func (v *Version) Unify(ws ...cue.Value) {
 	for _, w := range ws {
 		v.cue = v.cue.Unify(w)
 	}
 }
 
-// Returns a cue.Value with Redis configuration for either an external Redis server
+// Redis returns a cue.Value with Redis configuration for either an external Redis server
 // (if the string is not empty) or otherwise an internal Redis deployment.
 func Redis(externalURL string) cue.Value {
 	// NOTE: Generation happens each time as this option is applied, which will cause a service restart to update envs.
@@ -66,7 +67,7 @@ func Redis(externalURL string) cue.Value {
 	)
 }
 
-// Returns a cue.Value for injecting user tokens to be added to JWT Security.
+// UserTokens returns a cue.Value for injecting user tokens to be added to JWT Security.
 // Also injects an API key and private key used by the service.
 func UserTokens(users string) cue.Value {
 	// Assume users is a valid JSON string, since it's been validated in the call to Mesh.CueValues().
@@ -80,7 +81,7 @@ func UserTokens(users string) cue.Value {
 	)
 }
 
-// Returns a cue.Value for injecting generated secret values to be used by JWT Security.
+// JWTSecrets returns a cue.Value for injecting generated secret values to be used by JWT Security.
 // This may not be needed later on if we can use custom template functions in cueutils.FromStrings (i.e. from Sprig).
 // NOTE: Generation happens each time as this option is applied, which will cause a service restart to update envs.
 func JWTSecrets() cue.Value {
