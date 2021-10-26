@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
@@ -625,6 +626,213 @@ func TestServiceMultipleTCPExternalEgresses(t *testing.T) {
 			fmt.Sprintf(`"cluster_key":"example-to-external-%s"`, e.cluster),
 			`"route_match":{"path":"/"`,
 		))
+	}
+}
+
+func TestParseFilters(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	for _, tc := range []struct {
+		input    string
+		expected map[string]bool
+	}{
+		{
+			input:    "",
+			expected: map[string]bool{},
+		},
+		{
+			input:    "one",
+			expected: map[string]bool{"one": true},
+		},
+		{
+			input:    "one,two",
+			expected: map[string]bool{"one": true, "two": true},
+		},
+		{
+			input:    " one , two",
+			expected: map[string]bool{"one": true, "two": true},
+		},
+		{
+			input:    "one,,two",
+			expected: map[string]bool{"one": true, "two": true},
+		},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			output := parseFilters(tc.input)
+			if !reflect.DeepEqual(output, tc.expected) {
+				t.Errorf("expected %v but got %v", tc.expected, output)
+			}
+		})
+	}
+}
+
+func TestParseLocalEgressArgs(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	for _, tc := range []struct {
+		name         string
+		args         []EgressArgs
+		annotation   string
+		tcpPort      int32
+		expectedArgs []EgressArgs
+		expectedPort int32
+	}{
+		{
+			name:         "nil and empty",
+			args:         nil,
+			annotation:   "",
+			expectedArgs: []EgressArgs{},
+		},
+		{
+			name:         "nil",
+			args:         nil,
+			annotation:   "one",
+			expectedArgs: []EgressArgs{{Cluster: "one"}},
+		},
+		{
+			name:         "non-nil",
+			args:         []EgressArgs{},
+			annotation:   "one",
+			expectedArgs: []EgressArgs{{Cluster: "one"}},
+		},
+		{
+			name:         "multiple",
+			args:         []EgressArgs{},
+			annotation:   "one,two",
+			expectedArgs: []EgressArgs{{Cluster: "one"}, {Cluster: "two"}},
+		},
+		{
+			name:         "trim",
+			args:         []EgressArgs{},
+			annotation:   " one , two",
+			expectedArgs: []EgressArgs{{Cluster: "one"}, {Cluster: "two"}},
+		},
+		{
+			name:         "adjacent commas",
+			args:         []EgressArgs{},
+			annotation:   "one,,two",
+			expectedArgs: []EgressArgs{{Cluster: "one"}, {Cluster: "two"}},
+		},
+		{
+			name:       "tcp",
+			args:       []EgressArgs{{Cluster: "gm-redis", TCPPort: 10910}},
+			annotation: "one",
+			tcpPort:    10912,
+			expectedArgs: []EgressArgs{
+				{Cluster: "gm-redis", TCPPort: 10910},
+				{Cluster: "one", TCPPort: 10912},
+			},
+			expectedPort: 10913,
+		},
+		{
+			name:       "tcp multiple",
+			args:       []EgressArgs{{Cluster: "gm-redis", TCPPort: 10910}},
+			annotation: "one,two",
+			tcpPort:    10912,
+			expectedArgs: []EgressArgs{
+				{Cluster: "gm-redis", TCPPort: 10910},
+				{Cluster: "one", TCPPort: 10912},
+				{Cluster: "two", TCPPort: 10913},
+			},
+			expectedPort: 10914,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			output, port := parseLocalEgressArgs(tc.args, tc.annotation, tc.tcpPort)
+			if !reflect.DeepEqual(output, tc.expectedArgs) {
+				t.Errorf("args: expected %v but got %v", tc.expectedArgs, output)
+			}
+			if port != tc.expectedPort {
+				t.Errorf("port: expected %d but got %d", tc.expectedPort, port)
+			}
+		})
+	}
+}
+
+func TestParseExternalEgressArgs(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	for _, tc := range []struct {
+		name         string
+		args         []EgressArgs
+		annotation   string
+		tcpPort      int32
+		expectedArgs []EgressArgs
+		expectedPort int32
+	}{
+		{
+			name:         "nil and empty",
+			args:         nil,
+			annotation:   "",
+			expectedArgs: []EgressArgs{},
+		},
+		{
+			name:       "nil",
+			args:       nil,
+			annotation: "cluster;host:8080",
+			expectedArgs: []EgressArgs{
+				{IsExternal: true, Cluster: "cluster", Host: "host", Port: 8080},
+			},
+		},
+		{
+			name:       "one",
+			args:       []EgressArgs{},
+			annotation: "cluster;host:8080",
+			expectedArgs: []EgressArgs{
+				{IsExternal: true, Cluster: "cluster", Host: "host", Port: 8080},
+			},
+		},
+		{
+			name:       "multiple",
+			args:       []EgressArgs{},
+			annotation: "c1;h1:8080,c2;h2:3000",
+			expectedArgs: []EgressArgs{
+				{IsExternal: true, Cluster: "c1", Host: "h1", Port: 8080},
+				{IsExternal: true, Cluster: "c2", Host: "h2", Port: 3000},
+			},
+		},
+		{
+			name:       "malformed",
+			args:       []EgressArgs{},
+			annotation: "c1;h1:8080,c2|h2:3000,c3;h3 :5555,c4;h4: 1337",
+			expectedArgs: []EgressArgs{
+				{IsExternal: true, Cluster: "c1", Host: "h1", Port: 8080},
+			},
+		},
+		{
+			name: "tcp",
+			args: []EgressArgs{
+				{IsExternal: true, Cluster: "gm-redis", Host: "redis://extserver", Port: 6379, TCPPort: 10910},
+			},
+			annotation: "c1;h1:8080",
+			tcpPort:    10912,
+			expectedArgs: []EgressArgs{
+				{IsExternal: true, Cluster: "gm-redis", Host: "redis://extserver", Port: 6379, TCPPort: 10910},
+				{IsExternal: true, Cluster: "c1", Host: "h1", Port: 8080, TCPPort: 10912},
+			},
+			expectedPort: 10913,
+		},
+		{
+			name: "tcp multiple",
+			args: []EgressArgs{
+				{IsExternal: true, Cluster: "gm-redis", Host: "redis://extserver", Port: 6379, TCPPort: 10910},
+			},
+			annotation: "c1;h1:8080,c2;h2:3000",
+			tcpPort:    10912,
+			expectedArgs: []EgressArgs{
+				{IsExternal: true, Cluster: "gm-redis", Host: "redis://extserver", Port: 6379, TCPPort: 10910},
+				{IsExternal: true, Cluster: "c1", Host: "h1", Port: 8080, TCPPort: 10912},
+				{IsExternal: true, Cluster: "c2", Host: "h2", Port: 3000, TCPPort: 10913},
+			},
+			expectedPort: 10914,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			output, port := parseExternalEgressArgs(tc.args, tc.annotation, tc.tcpPort)
+			if !reflect.DeepEqual(output, tc.expectedArgs) {
+				t.Errorf("args: expected %v but got %v", tc.expectedArgs, output)
+			}
+			if port != tc.expectedPort {
+				t.Errorf("port: expected %d but got %d", tc.expectedPort, port)
+			}
+		})
 	}
 }
 

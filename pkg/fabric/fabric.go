@@ -96,51 +96,13 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	}
 
 	// Filter names are passed as comma-delimited strings, but transformed into lookup tables for Cue.
-	httpFilters := make(map[string]bool)
-	if hf, ok := annotations["greymatter.io/http-filters"]; ok {
-		for _, f := range strings.Split(hf, ",") {
-			httpFilters[f] = true
-		}
-	}
-	networkFilters := make(map[string]bool)
-	if nf, ok := annotations["greymatter.io/network-filters"]; ok {
-		for _, f := range strings.Split(nf, ",") {
-			networkFilters[f] = true
-		}
-	}
+	httpFilters := parseFilters(annotations["greymatter.io/http-filters"])
+	networkFilters := parseFilters(annotations["greymatter.io/network-filters"])
 
 	// All HTTP egress routes use 10909. They can be local (in-mesh) or external.
-	httpEgresses := []EgressArgs{}
-	if locals, ok := annotations["greymatter.io/egress-http-local"]; ok {
-		for _, cluster := range strings.Split(locals, ",") {
-			httpEgresses = append(httpEgresses, EgressArgs{Cluster: strings.TrimSpace(cluster)})
-		}
-	}
-	if externals, ok := annotations["greymatter.io/egress-http-external"]; ok {
-		for _, e := range strings.Split(externals, ",") {
-			split := strings.Split(strings.TrimSpace(e), ";")
-			if len(split) != 2 {
-				logger.Error(fmt.Errorf("unable to parse"), "HTTP external egress", "value", e)
-			} else {
-				addr := strings.Split(split[1], ":")
-				if len(addr) != 2 {
-					logger.Error(fmt.Errorf("unable to parse"), "HTTP external egress", "value", e)
-				} else {
-					port, err := strconv.ParseInt(addr[1], 0, 32)
-					if err != nil {
-						logger.Error(fmt.Errorf("unable to parse"), "HTTP external egress", "value", e)
-					} else {
-						httpEgresses = append(httpEgresses, EgressArgs{
-							IsExternal: true,
-							Cluster:    split[0],
-							Host:       addr[0],
-							Port:       int32(port),
-						})
-					}
-				}
-			}
-		}
-	}
+	// Array literals are used here so that they are parsed as non-nil arrays in Cue.
+	httpEgresses, _ := parseLocalEgressArgs([]EgressArgs{}, annotations["greymatter.io/egress-http-local"], 0)
+	httpEgresses, _ = parseExternalEgressArgs(httpEgresses, annotations["greymatter.io/egress-http-external"], 0)
 
 	// TCP egresses are served at 10910 and up (one listener each).
 	// Redis and (eventually) NATS TCP egresses are prepended by default for all services.
@@ -151,43 +113,10 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	// if name != "gm-nats" {
 	// 	tcpEgresses = append(tcpEgresses, EgressArgs{Cluster: "gm-nats", TCPPort: 10911})
 	// }
+
 	tcpPort := int32(10912)
-	if locals, ok := annotations["greymatter.io/egress-tcp-local"]; ok {
-		for _, cluster := range strings.Split(locals, ",") {
-			tcpEgresses = append(tcpEgresses, EgressArgs{
-				Cluster: strings.TrimSpace(cluster),
-				TCPPort: tcpPort,
-			})
-			tcpPort++
-		}
-	}
-	if externals, ok := annotations["greymatter.io/egress-tcp-external"]; ok {
-		for _, e := range strings.Split(externals, ",") {
-			split := strings.Split(strings.TrimSpace(e), ";")
-			if len(split) != 2 {
-				logger.Error(fmt.Errorf("unable to parse"), "TCP external egress", "value", e)
-			} else {
-				addr := strings.Split(split[1], ":")
-				if len(addr) != 2 {
-					logger.Error(fmt.Errorf("unable to parse"), "TCP external egress", "value", e)
-				} else {
-					port, err := strconv.ParseInt(addr[1], 0, 32)
-					if err != nil {
-						logger.Error(fmt.Errorf("unable to parse"), "TCP external egress", "value", e)
-					} else {
-						tcpEgresses = append(tcpEgresses, EgressArgs{
-							IsExternal: true,
-							Cluster:    split[0],
-							Host:       addr[0],
-							Port:       int32(port),
-							TCPPort:    tcpPort,
-						})
-						tcpPort++
-					}
-				}
-			}
-		}
-	}
+	tcpEgresses, tcpPort = parseLocalEgressArgs(tcpEgresses, annotations["greymatter.io/egress-tcp-local"], tcpPort)
+	tcpEgresses, _ = parseExternalEgressArgs(tcpEgresses, annotations["greymatter.io/egress-tcp-external"], tcpPort)
 
 	value := f.cue.Unify(
 		cueutils.FromStrings(fmt.Sprintf(`
@@ -218,6 +147,92 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	}
 	codec.Encode(value, &s)
 	return s.Service, nil
+}
+
+func parseFilters(s string) map[string]bool {
+	filters := make(map[string]bool)
+	if len(s) == 0 {
+		return filters
+	}
+	for _, filter := range strings.Split(s, ",") {
+		trimmed := strings.TrimSpace(filter)
+		if trimmed != "" {
+			filters[trimmed] = true
+		}
+	}
+	return filters
+}
+
+func parseLocalEgressArgs(args []EgressArgs, s string, tcpPort int32) ([]EgressArgs, int32) {
+	if len(s) == 0 {
+		if args == nil {
+			return []EgressArgs{}, tcpPort
+		}
+		return args, tcpPort
+	}
+
+	for _, cluster := range strings.Split(s, ",") {
+		trimmed := strings.TrimSpace(cluster)
+		if trimmed == "" {
+			continue
+		}
+		args = append(args, EgressArgs{
+			Cluster: strings.TrimSpace(cluster),
+			TCPPort: tcpPort,
+		})
+		if tcpPort >= 10912 {
+			tcpPort++
+		}
+	}
+
+	return args, tcpPort
+}
+
+func parseExternalEgressArgs(args []EgressArgs, s string, tcpPort int32) ([]EgressArgs, int32) {
+	if len(s) == 0 {
+		if args == nil {
+			return []EgressArgs{}, tcpPort
+		}
+		return args, tcpPort
+	}
+
+	for _, e := range strings.Split(s, ",") {
+		split := strings.Split(strings.TrimSpace(e), ";")
+		if len(split) != 2 {
+			logger.Error(fmt.Errorf("unable to parse"), "expected form {cluster};{address}", "value", e)
+			continue
+		}
+
+		if strings.Contains(split[1], " ") {
+			logger.Error(fmt.Errorf("unable to parse"), "expected form {host};{port}", "value", split[1])
+			continue
+		}
+
+		addr := strings.Split(split[1], ":")
+		if len(addr) != 2 {
+			logger.Error(fmt.Errorf("unable to parse"), "expected form {host};{port}", "value", split[1])
+			continue
+		}
+
+		port, err := strconv.ParseInt(addr[1], 0, 32)
+		if err != nil {
+			logger.Error(fmt.Errorf("unable to parse"), "expected int32", "value", addr[1])
+			continue
+		}
+
+		args = append(args, EgressArgs{
+			IsExternal: true,
+			Cluster:    split[0],
+			Host:       addr[0],
+			Port:       int32(port),
+			TCPPort:    tcpPort,
+		})
+		if tcpPort >= 10912 {
+			tcpPort++
+		}
+	}
+
+	return args, tcpPort
 }
 
 func mustMarshal(i interface{}, fallback string) string {
