@@ -254,7 +254,7 @@ func TestServiceOneHTTPLocalEgress(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/egress-http-local": "othercluster",
+			"greymatter.io/egress-http-local": `["othercluster"]`,
 		}, nil,
 	)
 	if err != nil {
@@ -296,7 +296,7 @@ func TestServiceOneHTTPLocalEgressFromGMRedis(t *testing.T) {
 
 	service, err := f.Service("gm-redis",
 		map[string]string{
-			"greymatter.io/egress-http-local": "othercluster",
+			"greymatter.io/egress-http-local": `["othercluster"]`,
 		}, nil,
 	)
 	if err != nil {
@@ -329,7 +329,7 @@ func TestServiceMultipleHTTPLocalEgresses(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/egress-http-local": "othercluster1,othercluster2",
+			"greymatter.io/egress-http-local": `["othercluster1","othercluster2"]`,
 		}, nil,
 	)
 	if err != nil {
@@ -356,7 +356,7 @@ func TestServiceOneHTTPExternalEgress(t *testing.T) {
 	f := loadMock(t)
 
 	service, err := f.Service("example", map[string]string{
-		"greymatter.io/egress-http-external": "google;google.com:80",
+		"greymatter.io/egress-http-external": `[{"name":"google","host":"google.com","port":80}]`,
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -401,7 +401,10 @@ func TestServiceMultipleHTTPExternalEgresses(t *testing.T) {
 	f := loadMock(t)
 
 	service, err := f.Service("example", map[string]string{
-		"greymatter.io/egress-http-external": "google;google.com:80,amazon;amazon.com:80",
+		"greymatter.io/egress-http-external": `[
+			{"name":"google","host":"google.com","port":80},
+			{"name":"amazon","host":"amazon.com","port":80}
+		]`,
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -433,7 +436,7 @@ func TestServiceOneTCPLocalEgress(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/egress-tcp-local": "othercluster",
+			"greymatter.io/egress-tcp-local": `["othercluster"]`,
 		}, nil,
 	)
 	if err != nil {
@@ -478,7 +481,7 @@ func TestServiceMultipleTCPLocalEgresses(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/egress-tcp-local": "c1,c2",
+			"greymatter.io/egress-tcp-local": `["c1","c2"]`,
 		}, nil,
 	)
 	if err != nil {
@@ -531,7 +534,7 @@ func TestServiceOneTCPExternalEgress(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/egress-tcp-external": "redis;1.2.3.4:6379",
+			"greymatter.io/egress-tcp-external": `[{"name":"redis","host":"1.2.3.4","port":6379}]`,
 		}, nil,
 	)
 	if err != nil {
@@ -581,7 +584,10 @@ func TestServiceMultipleTCPExternalEgresses(t *testing.T) {
 
 	service, err := f.Service("example",
 		map[string]string{
-			"greymatter.io/egress-tcp-external": "s1;1.1.1.1:1111,s2;2.2.2.2:2222",
+			"greymatter.io/egress-tcp-external": `[
+				{"name":"s1","host":"1.1.1.1","port":1111},
+				{"name":"s2","host":"2.2.2.2","port":2222}
+			]`,
 		}, nil,
 	)
 	if err != nil {
@@ -640,19 +646,19 @@ func TestParseFilters(t *testing.T) {
 			expected: map[string]bool{},
 		},
 		{
-			input:    "one",
+			input:    `["one"]`,
 			expected: map[string]bool{"one": true},
 		},
 		{
-			input:    "one,two",
+			input:    `["one","two"]`,
 			expected: map[string]bool{"one": true, "two": true},
 		},
 		{
-			input:    " one , two",
+			input:    `[" one"," two"]`,
 			expected: map[string]bool{"one": true, "two": true},
 		},
 		{
-			input:    "one,,two",
+			input:    `["one","","two"]`,
 			expected: map[string]bool{"one": true, "two": true},
 		},
 	} {
@@ -684,37 +690,37 @@ func TestParseLocalEgressArgs(t *testing.T) {
 		{
 			name:         "nil",
 			args:         nil,
-			annotation:   "one",
+			annotation:   `["one"]`,
 			expectedArgs: []EgressArgs{{Cluster: "one"}},
 		},
 		{
 			name:         "non-nil",
 			args:         []EgressArgs{},
-			annotation:   "one",
+			annotation:   `["one"]`,
 			expectedArgs: []EgressArgs{{Cluster: "one"}},
 		},
 		{
 			name:         "multiple",
 			args:         []EgressArgs{},
-			annotation:   "one,two",
+			annotation:   `["one","two"]`,
 			expectedArgs: []EgressArgs{{Cluster: "one"}, {Cluster: "two"}},
 		},
 		{
 			name:         "trim",
 			args:         []EgressArgs{},
-			annotation:   " one , two",
+			annotation:   `[" one"," two"]`,
 			expectedArgs: []EgressArgs{{Cluster: "one"}, {Cluster: "two"}},
 		},
 		{
 			name:         "adjacent commas",
 			args:         []EgressArgs{},
-			annotation:   "one,,two",
+			annotation:   `["one","","two"]`,
 			expectedArgs: []EgressArgs{{Cluster: "one"}, {Cluster: "two"}},
 		},
 		{
 			name:       "tcp",
 			args:       []EgressArgs{{Cluster: "gm-redis", TCPPort: 10910}},
-			annotation: "one",
+			annotation: `["one"]`,
 			tcpPort:    10912,
 			expectedArgs: []EgressArgs{
 				{Cluster: "gm-redis", TCPPort: 10910},
@@ -725,7 +731,7 @@ func TestParseLocalEgressArgs(t *testing.T) {
 		{
 			name:       "tcp multiple",
 			args:       []EgressArgs{{Cluster: "gm-redis", TCPPort: 10910}},
-			annotation: "one,two",
+			annotation: `["one","two"]`,
 			tcpPort:    10912,
 			expectedArgs: []EgressArgs{
 				{Cluster: "gm-redis", TCPPort: 10910},
@@ -764,36 +770,51 @@ func TestParseExternalEgressArgs(t *testing.T) {
 			expectedArgs: []EgressArgs{},
 		},
 		{
-			name:       "nil",
-			args:       nil,
-			annotation: "cluster;host:8080",
+			name: "nil",
+			args: nil,
+			annotation: `[
+				{
+					"name": "cluster",
+					"host": "host",
+					"port": 8080
+				}
+			]`,
 			expectedArgs: []EgressArgs{
 				{IsExternal: true, Cluster: "cluster", Host: "host", Port: 8080},
 			},
 		},
 		{
-			name:       "one",
-			args:       []EgressArgs{},
-			annotation: "cluster;host:8080",
+			name: "one",
+			args: []EgressArgs{},
+			annotation: `[
+				{
+					"name": "cluster",
+					"host": "host",
+					"port": 8080
+				}
+			]`,
 			expectedArgs: []EgressArgs{
 				{IsExternal: true, Cluster: "cluster", Host: "host", Port: 8080},
 			},
 		},
 		{
-			name:       "multiple",
-			args:       []EgressArgs{},
-			annotation: "c1;h1:8080,c2;h2:3000",
+			name: "multiple",
+			args: []EgressArgs{},
+			annotation: `[
+				{
+					"name": "c1",
+					"host": "h1",
+					"port": 8080
+				},
+				{
+					"name": "c2",
+					"host": "h2",
+					"port": 3000
+				}
+			]`,
 			expectedArgs: []EgressArgs{
 				{IsExternal: true, Cluster: "c1", Host: "h1", Port: 8080},
 				{IsExternal: true, Cluster: "c2", Host: "h2", Port: 3000},
-			},
-		},
-		{
-			name:       "malformed",
-			args:       []EgressArgs{},
-			annotation: "c1;h1:8080,c2|h2:3000,c3;h3 :5555,c4;h4: 1337",
-			expectedArgs: []EgressArgs{
-				{IsExternal: true, Cluster: "c1", Host: "h1", Port: 8080},
 			},
 		},
 		{
@@ -801,8 +822,14 @@ func TestParseExternalEgressArgs(t *testing.T) {
 			args: []EgressArgs{
 				{IsExternal: true, Cluster: "gm-redis", Host: "redis://extserver", Port: 6379, TCPPort: 10910},
 			},
-			annotation: "c1;h1:8080",
-			tcpPort:    10912,
+			annotation: `[
+				{
+					"name": "c1",
+					"host": "h1",
+					"port": 8080
+				}
+			]`,
+			tcpPort: 10912,
 			expectedArgs: []EgressArgs{
 				{IsExternal: true, Cluster: "gm-redis", Host: "redis://extserver", Port: 6379, TCPPort: 10910},
 				{IsExternal: true, Cluster: "c1", Host: "h1", Port: 8080, TCPPort: 10912},
@@ -814,8 +841,19 @@ func TestParseExternalEgressArgs(t *testing.T) {
 			args: []EgressArgs{
 				{IsExternal: true, Cluster: "gm-redis", Host: "redis://extserver", Port: 6379, TCPPort: 10910},
 			},
-			annotation: "c1;h1:8080,c2;h2:3000",
-			tcpPort:    10912,
+			annotation: `[
+				{
+					"name": "c1",
+					"host": "h1",
+					"port": 8080
+				},
+				{
+					"name": "c2",
+					"host": "h2",
+					"port": 3000
+				}
+			]`,
+			tcpPort: 10912,
 			expectedArgs: []EgressArgs{
 				{IsExternal: true, Cluster: "gm-redis", Host: "redis://extserver", Port: 6379, TCPPort: 10910},
 				{IsExternal: true, Cluster: "c1", Host: "h1", Port: 8080, TCPPort: 10912},

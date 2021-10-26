@@ -226,10 +226,14 @@ jwt_security: #Component & {
 redis: #Component & {
   name: "gm-redis"
   annotations: {
-    "greymatter.io/network-filters": "envoy.tcp_proxy"
+    "greymatter.io/network-filters": """
+      ["envoy.tcp_proxy"]
+    """
     if ReleaseVersion != "1.6" {
       // http listener needed to launch metrics receiver
-      "greymatter.io/egress-http-local": "edge"
+      "greymatter.io/egress-http-local": """
+        ["edge"]
+      """
     }
   }
   isStatefulset: true

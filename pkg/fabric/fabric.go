@@ -11,7 +11,6 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/encoding/gocode/gocodec"
-	"cuelang.org/go/pkg/strconv"
 )
 
 var (
@@ -154,7 +153,12 @@ func parseFilters(s string) map[string]bool {
 	if len(s) == 0 {
 		return filters
 	}
-	for _, filter := range strings.Split(s, ",") {
+	var slice []string
+	if err := json.Unmarshal([]byte(s), &slice); err != nil {
+		logger.Error(err, "failed to unmarshal", "filters", s)
+		return filters
+	}
+	for _, filter := range slice {
 		trimmed := strings.TrimSpace(filter)
 		if trimmed != "" {
 			filters[trimmed] = true
@@ -171,7 +175,13 @@ func parseLocalEgressArgs(args []EgressArgs, s string, tcpPort int32) ([]EgressA
 		return args, tcpPort
 	}
 
-	for _, cluster := range strings.Split(s, ",") {
+	var slice []string
+	if err := json.Unmarshal([]byte(s), &slice); err != nil {
+		logger.Error(err, "failed to unmarshal", "egress-local", s)
+		return args, tcpPort
+	}
+
+	for _, cluster := range slice {
 		trimmed := strings.TrimSpace(cluster)
 		if trimmed == "" {
 			continue
@@ -188,6 +198,12 @@ func parseLocalEgressArgs(args []EgressArgs, s string, tcpPort int32) ([]EgressA
 	return args, tcpPort
 }
 
+type ExtEgressAnnotation struct {
+	Name string `json:"name"`
+	Host string `json:"host"`
+	Port int32  `json:"port"`
+}
+
 func parseExternalEgressArgs(args []EgressArgs, s string, tcpPort int32) ([]EgressArgs, int32) {
 	if len(s) == 0 {
 		if args == nil {
@@ -196,35 +212,26 @@ func parseExternalEgressArgs(args []EgressArgs, s string, tcpPort int32) ([]Egre
 		return args, tcpPort
 	}
 
-	for _, e := range strings.Split(s, ",") {
-		split := strings.Split(strings.TrimSpace(e), ";")
-		if len(split) != 2 {
-			logger.Error(fmt.Errorf("unable to parse"), "expected form {name};{address}", "value", e)
-			continue
-		}
+	var slice []struct {
+		Name string `json:"name"`
+		Host string `json:"host"`
+		Port int32  `json:"port"`
+	}
+	if err := json.Unmarshal([]byte(s), &slice); err != nil {
+		logger.Error(err, "failed to unmarshal", "egress-local", s)
+		return args, tcpPort
+	}
 
-		if strings.Contains(split[1], " ") {
-			logger.Error(fmt.Errorf("unable to parse"), "expected form {host}:{port}", "value", split[1])
-			continue
-		}
-
-		addr := strings.Split(split[1], ":")
-		if len(addr) != 2 {
-			logger.Error(fmt.Errorf("unable to parse"), "expected form {host}:{port}", "value", split[1])
-			continue
-		}
-
-		port, err := strconv.ParseInt(addr[1], 0, 32)
-		if err != nil {
-			logger.Error(fmt.Errorf("unable to parse"), "expected int32", "value", addr[1])
-			continue
+	for _, e := range slice {
+		if e.Name == "" || e.Host == "" || e.Port == 0 {
+			logger.Error(fmt.Errorf("unable to parse"), "required: name, host, port", "value", e)
 		}
 
 		args = append(args, EgressArgs{
 			IsExternal: true,
-			Cluster:    split[0],
-			Host:       addr[0],
-			Port:       int32(port),
+			Cluster:    strings.TrimSpace(e.Name),
+			Host:       strings.TrimSpace(e.Host),
+			Port:       e.Port,
 			TCPPort:    tcpPort,
 		})
 		if tcpPort >= 10912 {
