@@ -6,7 +6,7 @@ metadata:
   labels:
     app: egress-demo
   annotations:
-    # greymatter.io/egress-http-local: '["httpbin"]'
+    greymatter.io/egress-http-local: '["fibonacci"]'
     # greymatter.io/egress-tcp-local: '["tcpbin"]'
     greymatter.io/egress-http-external: |-
       [
@@ -36,9 +36,33 @@ spec:
       containers:
       - image: docker.greymatter.io/internal/responder:egress-demo
         imagePullPolicy: Always
-        name: service
+        name: egress-demo
         ports:
-        - name: api
-          containerPort: 8080
+        - containerPort: 8080
+          protocol: TCP
+        resources: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fibonacci
+  namespace: gm-operator-test3
+  labels:
+    app: fibonacci
+spec:
+  selector:
+    matchLabels:
+      app: fibonacci
+  template:
+    metadata:
+      labels:
+        app: fibonacci
+    spec:
+      containers:
+      - image: docker.greymatter.io/internal/fibonacci:latest
+        imagePullPolicy: Always
+        name: fibonacci
+        ports:
+        - containerPort: 8080
           protocol: TCP
         resources: {}

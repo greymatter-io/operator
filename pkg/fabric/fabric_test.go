@@ -102,6 +102,29 @@ func TestService(t *testing.T) {
 	))
 }
 
+func TestServiceEdge(t *testing.T) {
+	f := loadMock(t)
+
+	service, err := f.Service("edge", nil, map[string]int32{
+		"proxy": 10808,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if count := len(service.Routes); count != 0 {
+		t.Errorf("expected 0 routes but got %d", count)
+	}
+
+	if count := len(service.Ingresses.Clusters); count == 1 {
+		t.Errorf("expected len(service.Ingresses.Clusters) to be 0 but got %d", count)
+	}
+
+	if count := len(service.Ingresses.Routes); count == 1 {
+		t.Errorf("expected len(service.Ingresses.Routes) to be 0 but got %d", count)
+	}
+}
+
 func TestServiceGMRedis(t *testing.T) {
 	f := loadMock(t)
 

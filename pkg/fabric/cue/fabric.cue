@@ -180,7 +180,7 @@ service: {
   ]
 
   routes: [...#Route] & [
-    if ServiceName != "dashboard" {
+    if ServiceName != "dashboard" && ServiceName != "edge" {
       {
         route_key: ServiceName
         domain_key: "edge"
@@ -238,7 +238,7 @@ service: {
 
   ingresses: {
     clusters: [...#Cluster] & [
-      for _, v in Ingresses if len(Ingresses) > 0 {
+      for _, v in Ingresses if len(Ingresses) > 0 && ServiceName != "edge" {
         let key = "\(ServiceName):\(v)"
         {
           name: key
@@ -253,7 +253,7 @@ service: {
       }
     ]
     routes: [...#Route] & [
-      for k, v in Ingresses if len(Ingresses) > 0 {
+      for k, v in Ingresses if len(Ingresses) > 0 && ServiceName != "edge" {
         let key = "\(ServiceName):\(v)"
         if len(Ingresses) == 1 {
           {
