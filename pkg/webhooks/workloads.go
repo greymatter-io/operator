@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"
@@ -105,6 +106,10 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 		deployment := &appsv1.Deployment{}
 		if req.Operation != admissionv1.Delete {
 			wd.Decode(req, deployment)
+			if deployment.Annotations == nil {
+				deployment.Annotations = make(map[string]string)
+			}
+			deployment.Annotations["greymatter.io/last-applied"] = time.Now().String()
 			deployment.Spec.Template = addClusterLabel(deployment.Spec.Template, req.Name)
 			rawUpdate, err = json.Marshal(deployment)
 			if err != nil {
@@ -123,6 +128,10 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 		statefulset := &appsv1.StatefulSet{}
 		if req.Operation != admissionv1.Delete {
 			wd.Decode(req, statefulset)
+			if statefulset.Annotations == nil {
+				statefulset.Annotations = make(map[string]string)
+			}
+			statefulset.Annotations["greymatter.io/last-applied"] = time.Now().String()
 			statefulset.Spec.Template = addClusterLabel(statefulset.Spec.Template, req.Name)
 			rawUpdate, err = json.Marshal(statefulset)
 			if err != nil {

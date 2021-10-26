@@ -71,9 +71,13 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 	}
 
 	installNS := mesh.Spec.InstallNamespace
-	watchNS := strings.Join(mesh.Spec.WatchNamespaces, ",")
 	if installNS == "gm-operator" {
 		return admission.ValidationResponse(false, "blocked attempt to install Mesh in 'gm-operator' namespace")
+	}
+
+	watchNS := strings.Join(mesh.Spec.WatchNamespaces, ",")
+	if strings.Contains(watchNS, installNS) {
+		return admission.ValidationResponse(false, "install namespace should not be included in watch namespaces")
 	}
 
 	meshList := &v1alpha1.MeshList{}
@@ -82,8 +86,11 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 		return admission.ValidationResponse(false, "Internal server error; check logs with valid cluster permissions")
 	}
 	for _, m := range meshList.Items {
+		if m.Name == mesh.Name {
+			continue
+		}
 		// Ensure install namespace isn't occupied by another Mesh
-		if m.Name != mesh.Name && m.Spec.InstallNamespace == installNS {
+		if m.Spec.InstallNamespace == installNS {
 			return admission.ValidationResponse(false, fmt.Sprintf("blocked attempt to install second Mesh in namespace %s (occupied by Mesh %s)", installNS, m.Name))
 		}
 		// Ensure watch namespaces don't include another Mesh's install namespace

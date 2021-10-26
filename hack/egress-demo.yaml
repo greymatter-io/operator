@@ -6,24 +6,24 @@ metadata:
   labels:
     app: egress-demo
   annotations:
-    greymatter.io/egress-http-local: '["httpbin"]'
-    greymatter.io/egress-tcp-local: '["tcpbin"]'
+    # greymatter.io/egress-http-local: '["httpbin"]'
+    # greymatter.io/egress-tcp-local: '["tcpbin"]'
     greymatter.io/egress-http-external: |-
       [
         {
-          "name": "httpbin-external",
+          "name": "httpbin",
           "host": "httpbin.org",
           "port": 80
         }
       ]
-    greymatter.io/egress-tcp-external: |-
-      [
-        {
-          "name": "tcpbin-external",
-          "host": "tcpb.in",
-          "port": 80
-        }
-      ]
+    # greymatter.io/egress-tcp-external: |-
+    #   [
+    #     {
+    #       "name": "tcpbin",
+    #       "host": "tcpb.in",
+    #       "port": 80
+    #     }
+    #   ]
 spec:
   selector:
     matchLabels:
@@ -38,5 +38,7 @@ spec:
         imagePullPolicy: Always
         name: service
         ports:
-        - containerPort: 8080
+        - name: api
+          containerPort: 8080
           protocol: TCP
+        resources: {}

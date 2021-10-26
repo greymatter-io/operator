@@ -2,6 +2,7 @@ package installer
 
 import (
 	"context"
+	"time"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/version"
@@ -22,7 +23,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	if prev == nil {
 		logger.Info("Installing Mesh", "Name", mesh.Name)
 	} else {
-		logger.Info("Re-installing Mesh", "Name", mesh.Name)
+		logger.Info("Upgrading Mesh", "Name", mesh.Name)
 	}
 
 	// Obtain the scheme used by our client
@@ -74,7 +75,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 				apply(i.client, secret, mesh, scheme)
 			}
 		}
-		// If the Mesh is being updated, note any removed watch namespaces.
+		// If the Mesh is being updated, clean up any removed watch namespaces.
 		if prev != nil {
 			for _, namespace := range prev.Spec.WatchNamespaces {
 				if _, ok := watch[namespace]; !ok {
@@ -91,32 +92,22 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	i.client.List(context.TODO(), deployments)
 	for _, deployment := range deployments.Items {
 		if _, ok := watch[deployment.Namespace]; ok || deployment.Namespace == mesh.Spec.InstallNamespace {
-			if deployment.Spec.Template.Labels == nil {
-				deployment.Spec.Template.Labels = make(map[string]string)
+			if deployment.Annotations == nil {
+				deployment.Annotations = make(map[string]string)
 			}
-			if _, ok := deployment.Spec.Template.Labels["greymatter.io/cluster"]; !ok {
-				deployment.Spec.Template.Labels["greymatter.io/cluster"] = deployment.Name
-				apply(i.client, &deployment, nil, scheme)
-			}
-			// kludge; this should only trigger from webhook
-			// TODO: add a timestamp annotation to the deployment so that apply() is always called.
-			go i.ConfigureService(mesh.Name, deployment.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
+			deployment.Annotations["greymatter.io/last-applied"] = time.Now().String()
+			apply(i.client, &deployment, nil, scheme)
 		}
 	}
 	statefulsets := &appsv1.StatefulSetList{}
 	i.client.List(context.TODO(), statefulsets)
 	for _, statefulset := range statefulsets.Items {
 		if _, ok := watch[statefulset.Namespace]; ok || statefulset.Namespace == mesh.Spec.InstallNamespace {
-			if statefulset.Spec.Template.Labels == nil {
-				statefulset.Spec.Template.Labels = make(map[string]string)
+			if statefulset.Annotations == nil {
+				statefulset.Annotations = make(map[string]string)
 			}
-			if _, ok := statefulset.Spec.Template.Labels["greymatter.io/cluster"]; !ok {
-				statefulset.Spec.Template.Labels["greymatter.io/cluster"] = statefulset.Name
-				apply(i.client, &statefulset, nil, scheme)
-			}
-			// kludge; this should only trigger from webhook
-			// TODO: add a timestamp annotation to the sts so that apply() is always called.
-			go i.ConfigureService(mesh.Name, statefulset.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
+			statefulset.Annotations["greymatter.io/last-applied"] = time.Now().String()
+			apply(i.client, &statefulset, nil, scheme)
 		}
 	}
 
