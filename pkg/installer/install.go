@@ -91,26 +91,32 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	i.client.List(context.TODO(), deployments)
 	for _, deployment := range deployments.Items {
 		if _, ok := watch[deployment.Namespace]; ok || deployment.Namespace == mesh.Spec.InstallNamespace {
+			if deployment.Spec.Template.Labels == nil {
+				deployment.Spec.Template.Labels = make(map[string]string)
+			}
 			if _, ok := deployment.Spec.Template.Labels["greymatter.io/cluster"]; !ok {
-				if deployment.Spec.Template.Labels == nil {
-					deployment.Spec.Template.Labels = make(map[string]string)
-				}
 				deployment.Spec.Template.Labels["greymatter.io/cluster"] = deployment.Name
 				apply(i.client, &deployment, nil, scheme)
 			}
+			// kludge; this should only trigger from webhook
+			// TODO: add a timestamp annotation to the deployment so that apply() is always called.
+			go i.ConfigureService(mesh.Name, deployment.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
 		}
 	}
 	statefulsets := &appsv1.StatefulSetList{}
 	i.client.List(context.TODO(), statefulsets)
 	for _, statefulset := range statefulsets.Items {
 		if _, ok := watch[statefulset.Namespace]; ok || statefulset.Namespace == mesh.Spec.InstallNamespace {
+			if statefulset.Spec.Template.Labels == nil {
+				statefulset.Spec.Template.Labels = make(map[string]string)
+			}
 			if _, ok := statefulset.Spec.Template.Labels["greymatter.io/cluster"]; !ok {
-				if statefulset.Spec.Template.Labels == nil {
-					statefulset.Spec.Template.Labels = make(map[string]string)
-				}
 				statefulset.Spec.Template.Labels["greymatter.io/cluster"] = statefulset.Name
 				apply(i.client, &statefulset, nil, scheme)
 			}
+			// kludge; this should only trigger from webhook
+			// TODO: add a timestamp annotation to the sts so that apply() is always called.
+			go i.ConfigureService(mesh.Name, statefulset.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
 		}
 	}
 

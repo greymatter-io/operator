@@ -83,7 +83,7 @@ func (mv *meshValidator) Handle(ctx context.Context, req admission.Request) admi
 	}
 	for _, m := range meshList.Items {
 		// Ensure install namespace isn't occupied by another Mesh
-		if m.Spec.InstallNamespace == installNS {
+		if m.Name != mesh.Name && m.Spec.InstallNamespace == installNS {
 			return admission.ValidationResponse(false, fmt.Sprintf("blocked attempt to install second Mesh in namespace %s (occupied by Mesh %s)", installNS, m.Name))
 		}
 		// Ensure watch namespaces don't include another Mesh's install namespace

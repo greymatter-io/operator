@@ -11,8 +11,9 @@ import (
 )
 
 type cmd struct {
-	args  string
-	stdin json.RawMessage
+	args    string
+	stdin   json.RawMessage
+	requeue bool
 
 	// Attempts to parse cmdout into loggable key-value pairs with maybe an error.
 	// If not specified, cmd.run returns a result with kvs == ["output", cmdout].

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: egress-demo
+  namespace: gm-operator-test3
+  labels:
+    app: egress-demo
+  annotations:
+    greymatter.io/egress-http-local: '["httpbin"]'
+    greymatter.io/egress-tcp-local: '["tcpbin"]'
+    greymatter.io/egress-http-external: |-
+      [
+        {
+          "name": "httpbin-external",
+          "host": "httpbin.org",
+          "port": 80
+        }
+      ]
+    greymatter.io/egress-tcp-external: |-
+      [
+        {
+          "name": "tcpbin-external",
+          "host": "tcpb.in",
+          "port": 80
+        }
+      ]
+spec:
+  selector:
+    matchLabels:
+      app: egress-demo
+  template:
+    metadata:
+      labels:
+        app: egress-demo
+    spec:
+      containers:
+      - image: docker.greymatter.io/internal/responder:egress-demo
+        imagePullPolicy: Always
+        name: service
+        ports:
+        - containerPort: 8080
+          protocol: TCP

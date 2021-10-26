@@ -72,7 +72,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 				return
 			case c := <-controlCmds:
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
-				if r := c.run(cl.flags); r.err != nil {
+				if r := c.run(cl.flags); r.err != nil && c.requeue {
 					controlCmds <- c
 				}
 			}
@@ -104,7 +104,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 				return
 			case c := <-catalogCmds:
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
-				if r := c.run(cl.flags); r.err != nil {
+				if r := c.run(cl.flags); r.err != nil && c.requeue {
 					catalogCmds <- c
 				}
 			}
@@ -117,14 +117,16 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 func mkApply(kind string, data json.RawMessage) cmd {
 	kk := kindKey(kind)
 	return cmd{
-		args:   fmt.Sprintf("create %s", kind),
-		stdin:  data,
-		reader: values(kk),
+		args:    fmt.Sprintf("create %s", kind),
+		requeue: true,
+		stdin:   data,
+		reader:  values(kk),
 		or: cmdOpt{
 			cmd: &cmd{
-				args:   fmt.Sprintf("edit %s %s", kind, objKey(kind, data)),
-				stdin:  data,
-				reader: values(kk),
+				args:    fmt.Sprintf("edit %s %s", kind, objKey(kind, data)),
+				requeue: true,
+				stdin:   data,
+				reader:  values(kk),
 			},
 			when: func(out string) bool {
 				return strings.Contains(out, "duplicate") || strings.Contains(out, "exists")

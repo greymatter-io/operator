@@ -18,7 +18,7 @@ kubernetes_deploy() {
 openshift_cleanup() {
   operator-sdk cleanup -n gm-operator gm-operator
   oc delete clusterrole gm-control
-  oc delete pvc gm-redis-append-dir-gm-redis-0
+  oc delete pvc gm-redis-append-dir-gm-redis-0 -n gm-operator-test2
 }
 
 kubernetes_cleanup() {
@@ -43,7 +43,7 @@ kubernetes_logs() {
 }
 
 openshift_sample() {
-  oc apply -f config/samples/_v1alpha1_mesh.yaml
+  oc apply -f hack/sample.yaml
   openshift_logs
 }
 
