@@ -24,31 +24,6 @@ func TestEdgeDomain(t *testing.T) {
 	)(t)
 }
 
-func TestCatalogService(t *testing.T) {
-	f := loadMock(t)
-
-	t.Run("with one port named API", func(t *testing.T) {
-		service, err := f.Service("example", nil, map[string]int32{
-			"api": 8080,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		testContains(service.CatalogService, `"api_endpoint":"/services/example/"`)(t)
-	})
-
-	t.Run("with one port named API", func(t *testing.T) {
-		service, err := f.Service("example", nil, map[string]int32{
-			"api":   8080,
-			"other": 1337,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		testContains(service.CatalogService, `"api_endpoint":"/services/example/api/"`)(t)
-	})
-}
-
 func TestService(t *testing.T) {
 	f := loadMock(t)
 
