@@ -163,7 +163,7 @@ service: {
       if NetworkFilters["envoy.tcp_proxy"] && len(Ingresses) == 1 {
         envoy_tcp_proxy: {
           for k, v in Ingresses {
-            let key = "\(ServiceName)-\(v)"
+            let key = "\(ServiceName):\(v)"
             cluster: key
             stat_prefix: key
           }
@@ -239,8 +239,9 @@ service: {
   ingresses: {
     clusters: [...#Cluster] & [
       for _, v in Ingresses if len(Ingresses) > 0 {
+        let key = "\(ServiceName):\(v)"
         {
-          name: "\(ServiceName)-\(v)"
+          name: key
           zone_key: Zone
           instances: [
             {
@@ -253,7 +254,7 @@ service: {
     ]
     routes: [...#Route] & [
       for k, v in Ingresses if len(Ingresses) > 0 {
-        let key = "\(ServiceName)-\(v)"
+        let key = "\(ServiceName):\(v)"
         if len(Ingresses) == 1 {
           {
             route_key: key

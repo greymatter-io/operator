@@ -183,7 +183,7 @@ func TestServiceOneIngress(t *testing.T) {
 	}
 
 	t.Run("Cluster", testContains(service.Ingresses.Clusters[0],
-		`"cluster_key":"example-5555"`,
+		`"cluster_key":"example:5555"`,
 		`"zone_key":"myzone"`,
 		`"instances":[{"host":"127.0.0.1","port":5555}]`,
 	))
@@ -193,10 +193,10 @@ func TestServiceOneIngress(t *testing.T) {
 	}
 
 	t.Run("Route", testContains(service.Ingresses.Routes[0],
-		`"route_key":"example-5555"`,
+		`"route_key":"example:5555"`,
 		`"domain_key":"example"`,
 		`"zone_key":"myzone"`,
-		`"cluster_key":"example-5555"`,
+		`"cluster_key":"example:5555"`,
 		`"route_match":{"path":"/"`,
 		`"redirects":[]`,
 	))
@@ -232,7 +232,7 @@ func TestServiceMultipleIngresses(t *testing.T) {
 		{"api", 5555},
 		{"api2", 8080},
 	} {
-		key := fmt.Sprintf("example-%d", e.port)
+		key := fmt.Sprintf("example:%d", e.port)
 		t.Run("Cluster", testContains(service.Ingresses.Clusters[i],
 			fmt.Sprintf(`"cluster_key":"%s"`, key),
 			`"zone_key":"myzone"`,

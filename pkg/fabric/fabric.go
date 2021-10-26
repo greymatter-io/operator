@@ -199,18 +199,18 @@ func parseExternalEgressArgs(args []EgressArgs, s string, tcpPort int32) ([]Egre
 	for _, e := range strings.Split(s, ",") {
 		split := strings.Split(strings.TrimSpace(e), ";")
 		if len(split) != 2 {
-			logger.Error(fmt.Errorf("unable to parse"), "expected form {cluster};{address}", "value", e)
+			logger.Error(fmt.Errorf("unable to parse"), "expected form {name};{address}", "value", e)
 			continue
 		}
 
 		if strings.Contains(split[1], " ") {
-			logger.Error(fmt.Errorf("unable to parse"), "expected form {host};{port}", "value", split[1])
+			logger.Error(fmt.Errorf("unable to parse"), "expected form {host}:{port}", "value", split[1])
 			continue
 		}
 
 		addr := strings.Split(split[1], ":")
 		if len(addr) != 2 {
-			logger.Error(fmt.Errorf("unable to parse"), "expected form {host};{port}", "value", split[1])
+			logger.Error(fmt.Errorf("unable to parse"), "expected form {host}:{port}", "value", split[1])
 			continue
 		}
 
