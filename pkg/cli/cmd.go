@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -10,8 +11,9 @@ import (
 )
 
 type cmd struct {
-	args  string
-	stdin json.RawMessage
+	args    string
+	stdin   json.RawMessage
+	requeue bool
 
 	// Attempts to parse cmdout into loggable key-value pairs with maybe an error.
 	// If not specified, cmd.run returns a result with kvs == ["output", cmdout].
@@ -38,8 +40,8 @@ type cmdOpt struct {
 }
 
 type retry struct {
-	dur  time.Duration
-	done func() <-chan struct{}
+	dur time.Duration
+	ctx context.Context
 }
 
 // describes the previous cmd in a cmd chain
@@ -72,7 +74,7 @@ func (c cmd) run(flags []string, from ...src) result {
 		if c.and.cmd != nil {
 			// If c.and is specified, pipe cmdout into it and run it next.
 			c.and.stdin = out
-			from = append(from, src{c.args, "|"})
+			from = append(from, src{strings.Split(c.args, " ")[0], ">"})
 			return c.and.run(flags, from...)
 		} else if c.reader != nil {
 			// Otherwise, if reader is specified, attempt to read cmdout.
@@ -85,14 +87,15 @@ func (c cmd) run(flags []string, from ...src) result {
 	if r.err != nil {
 		// Run c.or if specified and if it passes or.when (if specified).
 		if c.or.cmd != nil && (c.or.when == nil || c.or.when(cmdout)) {
-			from = append(from, src{c.args, "||"})
+			from = append(from, src{strings.Split(c.args, " ")[0], "||"})
 			return c.or.run(flags, from...)
 		}
 		// Otherwise, if c.retry.dur > 0, run again after waiting.
 		if c.retry.dur > 0 {
 			select {
-			case <-c.retry.done():
+			case <-c.retry.ctx.Done():
 			default:
+				logger.Info(fmt.Sprintf("%s: retrying", c.args), "count", len(from))
 				time.Sleep(c.retry.dur)
 				from = append(from, src{c.args, "retry"})
 				return c.run(flags, from...)

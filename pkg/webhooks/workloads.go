@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"
@@ -20,13 +21,16 @@ type workloadDefaulter struct {
 	*admission.Decoder
 }
 
-// Implements admission.DecoderInjector.
-// A decoder will be automatically injected.
+// InjectDecoder implements admission.DecoderInjector.
+// A decoder will be automatically injected for decoding deployments, statefulsets, and pods.
 func (wd *workloadDefaulter) InjectDecoder(d *admission.Decoder) error {
 	wd.Decoder = d
 	return nil
 }
 
+// Handle implements admission.Handler.
+// It will be invoked when creating, updating, or deleting deployments and statefulsets,
+// or when creating or updating pods.
 func (wd *workloadDefaulter) Handle(ctx context.Context, req admission.Request) admission.Response {
 	if req.Kind.Kind == "Pod" {
 		return wd.handlePod(req)
@@ -102,6 +106,10 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 		deployment := &appsv1.Deployment{}
 		if req.Operation != admissionv1.Delete {
 			wd.Decode(req, deployment)
+			if deployment.Annotations == nil {
+				deployment.Annotations = make(map[string]string)
+			}
+			deployment.Annotations["greymatter.io/last-applied"] = time.Now().String()
 			deployment.Spec.Template = addClusterLabel(deployment.Spec.Template, req.Name)
 			rawUpdate, err = json.Marshal(deployment)
 			if err != nil {
@@ -109,10 +117,10 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-			go wd.ConfigureService(mesh, req.Name, deployment.Spec.Template.Spec.Containers)
+			go wd.ConfigureService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
 		} else {
 			wd.DecodeRaw(req.OldObject, deployment)
-			go wd.RemoveService(mesh, req.Name, deployment.Spec.Template.Spec.Containers)
+			go wd.RemoveService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
 			return admission.ValidationResponse(true, "allowed")
 		}
 
@@ -120,6 +128,10 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 		statefulset := &appsv1.StatefulSet{}
 		if req.Operation != admissionv1.Delete {
 			wd.Decode(req, statefulset)
+			if statefulset.Annotations == nil {
+				statefulset.Annotations = make(map[string]string)
+			}
+			statefulset.Annotations["greymatter.io/last-applied"] = time.Now().String()
 			statefulset.Spec.Template = addClusterLabel(statefulset.Spec.Template, req.Name)
 			rawUpdate, err = json.Marshal(statefulset)
 			if err != nil {
@@ -127,10 +139,10 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-			go wd.ConfigureService(mesh, req.Name, statefulset.Spec.Template.Spec.Containers)
+			go wd.ConfigureService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
 		} else {
 			wd.DecodeRaw(req.OldObject, statefulset)
-			go wd.RemoveService(mesh, req.Name, statefulset.Spec.Template.Spec.Containers)
+			go wd.RemoveService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
 			return admission.ValidationResponse(true, "allowed")
 		}
 	}

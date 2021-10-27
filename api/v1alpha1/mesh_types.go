@@ -22,31 +22,26 @@ import (
 
 // Reference: https://book.kubebuilder.io/reference/markers/crd.html
 
-// Defines the desired state of a Grey Matter mesh.
+// MeshSpec defines the desired state of a Grey Matter mesh.
 type MeshSpec struct {
+
 	// The base url of the openshift cluster
 	// (ex: console-openshift-console.apps.coffee.greymatter.services would be apps.coffee.greymatter.services)
 	ClusterUrl string `json:"cluster_url"`
-	// Specify to use tls for edge ingress or not
-	// +kubebuilder:default=true
-	EdgeTlsIngress bool `json:"edge_tls_ingress"`
+
 	// The version of Grey Matter to install for this mesh.
 	// +kubebuilder:validation:Enum="1.6";"1.7"
-	// +kubebuilder:default="1.6"
+	// +kubebuilder:default="1.7"
 	ReleaseVersion string `json:"release_version"`
-
-	// Defines the port for ingress traffic into the mesh.
-	// +kubebuilder:default=10808
-	MeshPort int32 `json:"mesh_port"`
 
 	// Label this mesh as belonging to a particular zone.
 	// +kubebuilder:default=default-zone
 	Zone string `json:"zone"`
 
-	// Install Namespace
+	// Namespace where mesh core components and dependencies should be installed.
 	InstallNamespace string `json:"install_namespace"`
 
-	// Namespaces included in the mesh network.
+	// Namespaces to include in the mesh network.
 	// +optional
 	WatchNamespaces []string `json:"watch_namespaces,omitempty"`
 
@@ -59,7 +54,7 @@ type MeshSpec struct {
 	ExternalRedis *ExternalRedisConfig `json:"redis,omitempty"`
 }
 
-// Describes the observed state of a Grey Matter mesh.
+// MeshStatus describes the observed state of a Grey Matter mesh.
 type MeshStatus struct {
 }
 
@@ -72,7 +67,7 @@ type MeshStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 
-// The schema used to define a Grey Matter mesh's desired state and describe its observed state.
+// Mesh defines a Grey Matter mesh's desired state and describes its observed state.
 type Mesh struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -83,7 +78,7 @@ type Mesh struct {
 
 // +kubebuilder:object:root=true
 
-// Contains a list of Mesh custom resources managed by the Grey Matter Operator.
+// MeshList contains a list of Mesh custom resources managed by the Grey Matter Operator.
 type MeshList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

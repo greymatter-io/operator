@@ -18,7 +18,7 @@ kubernetes_deploy() {
 openshift_cleanup() {
   operator-sdk cleanup -n gm-operator gm-operator
   oc delete clusterrole gm-control
-  oc delete pvc gm-redis-append-dir-gm-redis-0
+  oc delete pvc gm-redis-append-dir-gm-redis-0 -n gm-operator-test2
 }
 
 kubernetes_cleanup() {
@@ -42,6 +42,15 @@ kubernetes_logs() {
   echo "unimplemented"
 }
 
+openshift_sample() {
+  oc apply -f hack/sample.yaml
+  openshift_logs
+}
+
+kubernetes_sample() {
+  echo "unimplemented"
+}
+
 choose() {
   case $1 in
     k*) kubernetes_$2 ;;
@@ -60,6 +69,7 @@ case $1 in
   cleanup)  if [ $# == 2 ]; then choose $2 cleanup; else choose o cleanup;  fi ;;
   upgrade)  if [ $# == 2 ]; then choose $2 upgrade; else choose o upgrade;  fi ;;
   logs)     if [ $# == 2 ]; then choose $2 logs;    else choose o logs;     fi ;;
+  sample)   if [ $# == 2 ]; then choose $2 sample;  else choose o sample;   fi ;;
 
   push)
     make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest

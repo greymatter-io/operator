@@ -1,0 +1,11 @@
+apiVersion: greymatter.io/v1alpha1
+kind: Mesh
+metadata:
+  name: mesh-sample
+spec:
+  cluster_url: apps.coffee.greymatter.services
+  release_version: '1.7'
+  zone: default-zone
+  install_namespace: gm-operator-test2
+  watch_namespaces:
+    - gm-operator-test3

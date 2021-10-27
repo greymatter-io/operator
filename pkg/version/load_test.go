@@ -9,12 +9,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-var expectedVersions = []string{"1.6"}
+var expectedVersions = []string{"1.6", "1.7"}
 
 func TestLoad(t *testing.T) {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	versions, err := loadBaseWithVersions()
+	versions, err := loadBaseWithVersions(nil)
 	if err != nil {
 		cueutils.LogError(logger, err)
 		t.Fatal("failed to load versions")
@@ -40,7 +40,7 @@ func TestLoad(t *testing.T) {
 
 func TestLoadBase(t *testing.T) {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-	if _, err := loadBase(); err != nil {
+	if _, err := loadBase(nil); err != nil {
 		cueutils.LogError(logger, err)
 		t.FailNow()
 	}

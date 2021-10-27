@@ -24,6 +24,11 @@ manifests: [...#ManifestGroup] & [
     metadata: {
       name: _c[0].name
       namespace: InstallNamespace
+      annotations: {
+        for k, v in _c[0].annotations if len(_c[0].annotations) > 0 {
+          "\(k)": v
+        }
+      }
       labels: {
         "app.kubernetes.io/name": _c[0].name
         "app.kubernetes.io/part-of": "greymatter"
@@ -186,42 +191,34 @@ manifests: [...#ManifestGroup] & [
     }
   ]
   if _c[0].name == "edge" {
-      ingress: netv1.#Ingress & {
-        {
-          apiVersion: "networking.k8s.io/v1"
-          kind: "Ingress"
-          metadata: {
-            name: "greymatter-ingress"
-            namespace: InstallNamespace
-            if EdgeTlsIngress {
-              annotations: {
-                "nginx.ingress.kubernetes.io/ssl-passthrough": "true"
-                "nginx.ingress.kubernetes.io/force-ssl-redirect": "true"
-                "nginx.ingress.kubernetes.io/backend-protocol": "https"
-              }
-            }
-          }
-          spec: {
-            rules: [
-              {
-                host: IngressSubDomain
-                http: paths: [
-                    {
-                      pathType: "ImplementationSpecific"
-                      backend: {
-                        service: {
-                          name: "edge"
-                          port: number: MeshPort
-                        }
+    ingress: netv1.#Ingress & {
+      {
+        apiVersion: "networking.k8s.io/v1"
+        kind: "Ingress"
+        metadata: {
+          name: "greymatter-ingress"
+          namespace: InstallNamespace
+        }
+        spec: {
+          rules: [
+            {
+              host: IngressSubDomain
+              http: paths: [
+                  {
+                    pathType: "ImplementationSpecific"
+                    backend: {
+                      service: {
+                        name: "edge"
+                        port: number: 10808
                       }
-                    },
-                  ]
-                
-              }
-            ]
-          }
+                    }
+                  },
+                ]
+            }
+          ]
         }
       }
+    }
   }
 }
 

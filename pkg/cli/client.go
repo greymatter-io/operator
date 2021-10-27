@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"cuelang.org/go/cue"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
 	"github.com/tidwall/gjson"
@@ -22,7 +23,7 @@ type client struct {
 	f           *fabric.Fabric
 }
 
-func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
+func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *client {
 	ctxt, cancel := context.WithCancel(context.Background())
 
 	cl := &client{
@@ -32,7 +33,7 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 		catalogCmds: make(chan cmd),
 		ctx:         ctxt,
 		cancel:      cancel,
-		f:           fabric.New(mesh),
+		f:           fabric.New(options),
 	}
 
 	// Consume commands to send to Control
@@ -44,15 +45,15 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 			// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
 			args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
 			retry: retry{
-				dur:  time.Second * 5,
-				done: ctx.Done,
+				dur: time.Second * 5,
+				ctx: ctx,
 			},
 			and: cmdOpt{cmd: &cmd{
 				args:   fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
-				reader: values("zone_key", "checksum"),
+				reader: values("zone_key"),
 				retry: retry{
-					dur:  time.Second * 5,
-					done: ctx.Done,
+					dur: time.Second * 10,
+					ctx: ctx,
 				},
 			}},
 		}).run(cl.flags).err != nil {
@@ -70,7 +71,10 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 			case <-ctx.Done():
 				return
 			case c := <-controlCmds:
-				c.run(cl.flags)
+				// Requeue failed commands, since there are likely object dependencies (TODO: check)
+				if r := c.run(cl.flags); r.err != nil && c.requeue {
+					controlCmds <- c
+				}
 			}
 		}
 	}(cl.ctx, cl.controlCmds)
@@ -84,8 +88,8 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 			args:   fmt.Sprintf("get catalog-mesh %s", mesh.Name),
 			reader: values("mesh_id", "session_statuses.default"),
 			retry: retry{
-				dur:  time.Second * 5,
-				done: ctx.Done,
+				dur: time.Second * 10,
+				ctx: ctx,
 			},
 		}).run(cl.flags).err != nil {
 			return
@@ -99,7 +103,10 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 			case <-ctx.Done():
 				return
 			case c := <-catalogCmds:
-				c.run(cl.flags)
+				// Requeue failed commands, since there are likely object dependencies (TODO: check)
+				if r := c.run(cl.flags); r.err != nil && c.requeue {
+					catalogCmds <- c
+				}
 			}
 		}
 	}(cl.ctx, cl.catalogCmds)
@@ -107,25 +114,19 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 	return cl
 }
 
-// temp while CLI 4 is being worked on
 func mkApply(kind string, data json.RawMessage) cmd {
-	var kindKey string
-	if kind == "catalog-service" {
-		// if kind == "catalogservice" {
-		kindKey = "service_id"
-	} else {
-		kindKey = fmt.Sprintf("%s_key", kind)
-	}
-	key := values(kindKey)(string(data)).kvs[1]
+	kk := kindKey(kind)
 	return cmd{
-		args:   fmt.Sprintf("create %s", kind),
-		stdin:  data,
-		reader: values(kindKey, "checksum"),
+		args:    fmt.Sprintf("create %s", kind),
+		requeue: true,
+		stdin:   data,
+		reader:  values(kk),
 		or: cmdOpt{
 			cmd: &cmd{
-				args:   fmt.Sprintf("edit %s %s", kind, key),
-				stdin:  data,
-				reader: values(kindKey, "checksum"),
+				args:    fmt.Sprintf("edit %s %s", kind, objKey(kind, data)),
+				requeue: true,
+				stdin:   data,
+				reader:  values(kk),
 			},
 			when: func(out string) bool {
 				return strings.Contains(out, "duplicate") || strings.Contains(out, "exists")
@@ -134,12 +135,9 @@ func mkApply(kind string, data json.RawMessage) cmd {
 	}
 }
 
-func mkDelete(kind, key string) cmd {
-	kindKey := fmt.Sprintf("%s_key", kind)
-	return cmd{
-		args:   fmt.Sprintf("delete %s %s", kind, key),
-		reader: values(kindKey, "checksum"),
-	}
+func mkDelete(kind string, data json.RawMessage) cmd {
+	key := objKey(kind, data)
+	return cmd{args: fmt.Sprintf("delete %s %s", kind, key)}
 }
 
 func values(keys ...string) func(string) result {
@@ -148,6 +146,7 @@ func values(keys ...string) func(string) result {
 		for _, key := range keys {
 			value := gjson.Get(out, key)
 			if value.Exists() {
+				// Add the gjson.Result without parsing its type.
 				kvs = append(kvs, key, value)
 			}
 		}
@@ -157,4 +156,21 @@ func values(keys ...string) func(string) result {
 		}
 		return r
 	}
+}
+
+func objKey(kind string, data json.RawMessage) string {
+	result := values(kindKey(kind))(string(data))
+	if len(result.kvs) != 2 {
+		logger.Error(fmt.Errorf(kind), "no object key", "data", string(data))
+		return ""
+	}
+	// The key value is a gjson.Result, so just format into a string.
+	return fmt.Sprintf("%v", result.kvs[1])
+}
+
+func kindKey(kind string) string {
+	if kind == "catalog-service" {
+		return "service_id"
+	}
+	return fmt.Sprintf("%s_key", kind)
 }

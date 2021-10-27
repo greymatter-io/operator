@@ -14,6 +14,8 @@ var (
 	value      *cue.Value
 )
 
+// Init reads embedded Cue files in order to load fabric object templates.
+// It should be called on startup of the operator.
 func Init() error {
 	var data []string
 
