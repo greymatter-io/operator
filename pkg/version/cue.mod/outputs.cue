@@ -224,6 +224,14 @@ manifests: [...#ManifestGroup] & [
 
 sidecar: {
   xdsCluster: string
+  node: *"" | string
+  controlHost: *"control.\(InstallNamespace).svc" | string
+  if xdsCluster == "control" || xdsCluster == "catalog" {
+    staticConfig: envoyMeshConfigs
+  }
+  if xdsCluster == "gm-redis" {
+    staticConfig: envoyRedis
+  }
   container: corev1.#Container & {
     name: "sidecar"
     image: proxy.image

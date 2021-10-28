@@ -5,77 +5,58 @@ import (
 	"strings"
 	"testing"
 
-	"cuelang.org/go/cue"
-	"github.com/ghodss/yaml"
 	"github.com/greymatter-io/operator/pkg/cueutils"
 
+	"cuelang.org/go/cue"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/yaml"
 )
 
 type testOptions struct {
 	name           string
+	xdsCluster     string
+	printYAML      bool
 	options        []cue.Value
 	checkManifests func(*testing.T, []ManifestGroup)
 	checkSidecar   func(*testing.T, Sidecar)
 }
 
-func TestVersion_1_7(t *testing.T) {
-	testVersion(t, "1.7")
+func TestVersionManifests_1_7(t *testing.T) {
+	testVersionManifests(t, loadVersion(t, "1.7"))
 }
 
-func TestVersion_1_6(t *testing.T) {
-	testVersion(t, "1.6")
+func TestVersionManifests_1_6(t *testing.T) {
+	testVersionManifests(t, loadVersion(t, "1.6"))
 }
 
-func testVersion(t *testing.T, name string, to ...testOptions) {
+func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	versions, err := loadBaseWithVersions(nil)
-	if err != nil {
-		cueutils.LogError(logger, err)
-		t.FailNow()
-	}
-
-	v, ok := versions[name]
-	if !ok {
-		t.Fatalf("did not find version %s", name)
-	}
-
-	if err := v.cue.Err(); err != nil {
-		cueutils.LogError(logger, err)
-		t.FailNow()
-	}
-
 	// Run all general tests for manifests
-	t.Run("manifests", func(t *testing.T) {
+	t.Run("without options", func(t *testing.T) {
 		v.Manifests()
 		// unimplemented
 		// all expected manifests exist
 	})
 
-	// Run all general tests for sidecar
-	t.Run("sidecar", func(t *testing.T) {
-		v.SidecarTemplate()("mock")
-		// unimplemented
-		// all expected sidecar values exist
-	})
+	baseOptions := []cue.Value{
+		cueutils.Strings(map[string]string{
+			"MeshName":         "mymesh",
+			"ReleaseVersion":   v.Name,
+			"InstallNamespace": "myns",
+			"Zone":             "myzone",
+		}),
+		Redis(""),
+	}
 
 	// Run tests with testOptions for settings available in all versions,
 	// plus any additional testOptions specified in 'to'.
 	for _, tc := range append([]testOptions{
 		{
-			name: "Strings",
-			options: []cue.Value{
-				cueutils.Strings(map[string]string{
-					"MeshName":         "mymesh",
-					"ReleaseVersion":   name,
-					"InstallNamespace": "ns",
-					"Zone":             "myzone",
-				}),
-				Redis(""),
-			},
+			name:    "With base options",
+			options: baseOptions,
 
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 				t.Run("MeshName", func(t *testing.T) {
@@ -101,26 +82,26 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 
 					// All resources reference the InstallNamespace
 					for _, group := range manifests {
-						if group.Deployment != nil && group.Deployment.Namespace != "ns" {
+						if group.Deployment != nil && group.Deployment.Namespace != "myns" {
 							t.Errorf("expected Deployment namespace to be 'ns', got %s", group.Deployment.Namespace)
 						}
-						if group.StatefulSet != nil && group.StatefulSet.Namespace != "ns" {
+						if group.StatefulSet != nil && group.StatefulSet.Namespace != "myns" {
 							t.Errorf("expected StatefulSet namespace to be 'ns', got %s", group.StatefulSet.Namespace)
 						}
-						if group.Service != nil && group.Service.Namespace != "ns" {
+						if group.Service != nil && group.Service.Namespace != "myns" {
 							t.Errorf("expected Service namespace to be 'ns', got %s", group.Service.Namespace)
 						}
 						for _, cm := range group.ConfigMaps {
-							if cm.Namespace != "ns" {
+							if cm.Namespace != "myns" {
 								t.Errorf("expected ConfigMap %s's namespace to be 'ns', got %s", cm.Name, cm.Namespace)
 							}
 						}
 						for _, s := range group.Secrets {
-							if s.Namespace != "ns" {
+							if s.Namespace != "myns" {
 								t.Errorf("expected ConfigMap %s's namespace to be 'ns', got %s", s.Name, s.Namespace)
 							}
 						}
-						if group.Ingress != nil && group.Ingress.Namespace != "ns" {
+						if group.Ingress != nil && group.Ingress.Namespace != "myns" {
 							t.Errorf("expected Ingress namespace to be 'ns', got %s", group.Ingress.Namespace)
 						}
 					}
@@ -130,7 +111,7 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 					if !ok {
 						t.Fatal("did not find 'XDS_HOST' env in edge container")
 					}
-					if !strings.Contains(xdsHost, "ns") {
+					if !strings.Contains(xdsHost, "myns") {
 						t.Fatalf("expected to find 'ns' in XDS_HOST env, got '%s'", xdsHost)
 					}
 				})
@@ -164,33 +145,6 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 					}
 					if !strings.Contains(seedFile, "zone: myzone") {
 						t.Fatalf("seed file does not contain with 'zone: myzone', got %s", seedFile)
-					}
-				})
-
-			},
-
-			checkSidecar: func(t *testing.T, sidecar Sidecar) {
-
-				y, _ := yaml.Marshal(sidecar.Container)
-				fmt.Println(string(y))
-
-				t.Run("InstallNamespace", func(t *testing.T) {
-					xdsHost, ok := getEnvValue(sidecar.Container, "XDS_HOST")
-					if !ok {
-						t.Fatal("did not find 'XDS_HOST' env in sidecar container")
-					}
-					if !strings.Contains(xdsHost, "ns") {
-						t.Fatalf("expected to find 'ns' in XDS_HOST env, got '%s'", xdsHost)
-					}
-				})
-
-				t.Run("Zone", func(t *testing.T) {
-					zone, ok := getEnvValue(sidecar.Container, "XDS_ZONE")
-					if !ok {
-						t.Fatal("did not find 'XDS_ZONE' env in sidecar container")
-					}
-					if zone != "myzone" {
-						t.Fatalf("expected 'myzone' to be XDS_ZONE env, got '%s'", zone)
 					}
 				})
 
@@ -231,11 +185,8 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 				}),
 			},
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-				t.Run("SPIRE", func(t *testing.T) {})
-			},
-			checkSidecar: func(t *testing.T, sidecar Sidecar) {
 				t.Run("SPIRE", func(t *testing.T) {
-					if _, ok := getEnvValue(sidecar.Container, "SPIRE_PATH"); !ok {
+					if _, ok := getEnvValue(manifests[0].Deployment.Spec.Template.Spec.Containers[0], "SPIRE_PATH"); !ok {
 						t.Fatal("did not find 'SPIRE_PATH' env in edge container")
 					}
 				})
@@ -243,7 +194,7 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 		},
 		{
 			name:    "Redis internal",
-			options: []cue.Value{cueutils.Strings(map[string]string{"InstallNamespace": "ns"}), Redis("")},
+			options: []cue.Value{cueutils.Strings(map[string]string{"InstallNamespace": "myns"}), Redis("")},
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 				// unimplemented
 				// check for expected values
@@ -286,7 +237,7 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 			name: "Ingress",
 			options: []cue.Value{
 				cueutils.Strings(map[string]string{
-					"InstallNamespace": "ns",
+					"InstallNamespace": "myns",
 					"IngressSubDomain": "myaddress.com",
 				}),
 			},
@@ -305,16 +256,12 @@ func testVersion(t *testing.T, name string, to ...testOptions) {
 				cueutils.LogError(logger, err)
 				t.FailNow()
 			}
-			if tc.checkManifests != nil {
-				t.Run("manifests", func(t *testing.T) {
-					tc.checkManifests(t, vc.Manifests())
-				})
+			manifests := vc.Manifests()
+			if tc.printYAML {
+				y, _ := yaml.Marshal(manifests)
+				fmt.Println(string(y))
 			}
-			if tc.checkSidecar != nil {
-				t.Run("sidecar", func(t *testing.T) {
-					tc.checkSidecar(t, vc.SidecarTemplate()("mock"))
-				})
-			}
+			tc.checkManifests(t, manifests)
 		})
 	}
 }
@@ -327,4 +274,26 @@ func getEnvValue(container corev1.Container, key string) (string, bool) {
 		}
 	}
 	return value, value != ""
+}
+
+func loadVersion(t *testing.T, name string) Version {
+	t.Helper()
+
+	versions, err := loadBaseWithVersions(nil)
+	if err != nil {
+		cueutils.LogError(logger, err)
+		t.FailNow()
+	}
+
+	v, ok := versions[name]
+	if !ok {
+		t.Fatalf("did not find version %s", name)
+	}
+
+	if err := v.cue.Err(); err != nil {
+		cueutils.LogError(logger, err)
+		t.FailNow()
+	}
+
+	return v
 }

@@ -28,7 +28,7 @@ JWT: {
 }
 
 Redis: {
-  host: *"gm-redis.\(InstallNamespace).svc.cluster.local" | string
+  host: *"gm-redis.\(InstallNamespace).svc" | string
   port: *"6379" | string
   password: "" | string
   db: *"0" | string

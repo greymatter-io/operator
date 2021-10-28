@@ -4,7 +4,6 @@ go 1.17
 
 require (
 	cuelang.org/go v0.4.0
-	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.4.0
 	github.com/go-redis/redis/v8 v8.11.3
 	github.com/kylelemons/godebug v1.1.0
@@ -13,6 +12,7 @@ require (
 	k8s.io/apimachinery v0.22.2
 	k8s.io/client-go v0.22.2
 	sigs.k8s.io/controller-runtime v0.10.1
+	sigs.k8s.io/yaml v1.2.0
 )
 
 require (
@@ -79,5 +79,4 @@ require (
 	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e // indirect
 	k8s.io/utils v0.0.0-20210819203725-bdf08cb9a70a // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
-	sigs.k8s.io/yaml v1.2.0 // indirect
 )

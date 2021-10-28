@@ -29,7 +29,7 @@ proxy: #Component & {
     ENVOY_ADMIN_LOG_PATH: "/dev/stdout",
     PROXY_DYNAMIC: "true"
     XDS_ZONE: Zone
-    XDS_HOST: "control.\(InstallNamespace).svc.cluster.local"
+    XDS_HOST: "control.\(InstallNamespace).svc"
     XDS_PORT: "50000"
   }
   if Spire {

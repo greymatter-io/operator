@@ -8,9 +8,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/greymatter-io/operator/pkg/cueutils"
+
 	"cuelang.org/go/cue"
 	"github.com/go-redis/redis/v8"
-	"github.com/greymatter-io/operator/pkg/cueutils"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -21,12 +22,13 @@ var (
 // Version contains a cue.Value that holds all installation templates for a
 // version of Grey Matter, plus options applied from a Mesh custom resource.
 type Version struct {
-	cue cue.Value
+	Name string
+	cue  cue.Value
 }
 
 // Copy deep copies a Version's cue.Value into a new Version.
 func (v Version) Copy() Version {
-	return Version{v.cue}
+	return Version{v.Name, v.cue}
 }
 
 // Unify gets the lower bound cue.Value of Version.cue and all argument values.
@@ -43,7 +45,7 @@ func Redis(externalURL string) cue.Value {
 	if externalURL == "" {
 		b := make([]byte, 10)
 		rand.Read(b)
-		password := base64.URLEncoding.EncodeToString(b)
+		password := strings.TrimSuffix(base64.URLEncoding.EncodeToString(b), "==")
 		return cueutils.FromStrings(fmt.Sprintf(`Redis: password: "%s"`, password))
 	}
 
