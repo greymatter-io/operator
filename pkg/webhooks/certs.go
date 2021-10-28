@@ -2,119 +2,123 @@ package webhooks
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
+	"context"
 	"fmt"
-	"math/big"
+	"html/template"
 	"os"
-	"time"
+	"strings"
+
+	"github.com/Masterminds/sprig"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ref: https://www.velotio.com/engineering-blog/managing-tls-certificate-for-kubernetes-admission-webhook
-func CreateCertBundle(namespace, service, certMountPath string) ([]byte, error) {
-	var caPEM, serverCertPEM, serverPrivKeyPEM bytes.Buffer
-
-	priv, err := rsa.GenerateKey(rand.Reader, 4096)
+// InjectCA parses pre-existing registered webhooks and injects generated self-signed CA bundles
+// so remote vanilla k8s deployments are possible without special CA operator injection.
+func InjectCA(c client.Client) error {
+	caBundle, err := storeAndReturnCertBundle("/tmp/k8s-webhook-server/serving-certs")
 	if err != nil {
-		return nil, err
+		logger.Error(err, "failed to create self-signed ca bundle")
+		return err
 	}
 
-	// CA config
-	ca := &x509.Certificate{
-		SerialNumber:          big.NewInt(2021),
-		Subject:               pkix.Name{Organization: []string{"greymatter.io"}},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(time.Hour * 24 * 180),
-		IsCA:                  true,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
-	}
-
-	// Self signed CA certificate
-	b, err := x509.CreateCertificate(rand.Reader, ca, ca, &priv.PublicKey, priv)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create CA certificate: %w", err)
-	}
-
-	// PEM encode CA cert
-	if err := pem.Encode(&caPEM, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: b,
-	}); err != nil {
-		return nil, fmt.Errorf("failed to encode CA certificate: %w", err)
-	}
-
-	namespacedName := fmt.Sprintf("%s.%s", service, namespace)
-	commonName := fmt.Sprintf("%s.svc", namespacedName)
-	dnsNames := []string{service, namespacedName, commonName}
-
-	// server cert config
-	cert := &x509.Certificate{
-		DNSNames:     dnsNames,
-		SerialNumber: big.NewInt(1658),
-		Subject: pkix.Name{
-			CommonName:   commonName,
-			Organization: []string{"greymatter.io"},
+	mwc := &admissionregistrationv1.MutatingWebhookConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "gm-mutating-webhook-configuration",
+			Namespace: "gm-operator",
 		},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(1, 0, 0),
-		SubjectKeyId: []byte{1, 2, 3, 4, 6},
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}
+	if err = c.Get(context.TODO(), client.ObjectKeyFromObject(mwc), mwc); err != nil {
+		logger.Error(err, "get", "result", "fail", "Namespace", "gm-operator", "MutatingWebhookConfiguration", "gm-mutating-webhook-configuration")
+		return err
+	}
+	for i := range mwc.Webhooks {
+		mwc.Webhooks[i].ClientConfig.CABundle = caBundle
+	}
+	if err := c.Update(context.TODO(), mwc); err != nil {
+		logger.Error(err, "update", "result", "fail", "Namespace", "gm-operator", "MutatingWebhookConfiguration", "gm-mutating-webhook-configuration")
+		return err
+	}
+	logger.Info("update", "result", "success", "Namespace", "gm-operator", "MutatingWebhookConfiguration", "gm-mutating-webhook-configuration")
 
-	// server private key
-	serverPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	vwc := &admissionregistrationv1.ValidatingWebhookConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "gm-validating-webhook-configuration",
+			Namespace: "gm-operator",
+		},
+	}
+	if err = c.Get(context.TODO(), client.ObjectKeyFromObject(vwc), vwc); err != nil {
+		logger.Error(err, "get", "result", "fail", "Namespace", "gm-operator", "ValidatingWebhookConfiguration", "gm-validating-webhook-configuration")
+		return err
+	}
+	for i := range vwc.Webhooks {
+		vwc.Webhooks[i].ClientConfig.CABundle = caBundle
+	}
+	if err := c.Update(context.TODO(), vwc); err != nil {
+		logger.Error(err, "update", "result", "fail", "Namespace", "gm-operator", "MutatingWebhookConfiguration", "gm-validating-webhook-configuration")
+		return err
+	}
+	logger.Info("update", "result", "success", "Namespace", "gm-operator", "ValidatingWebhookConfiguration", "gm-validating-webhook-configuration")
+
+	return nil
+}
+
+func storeAndReturnCertBundle(certMountPath string) ([]byte, error) {
+	certs, err := genCerts(certMountPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create server private key: %w", err)
+		return []byte{}, err
 	}
-
-	// sign the server cert
-	serverCertBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, &serverPrivKey.PublicKey, priv)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign server certificate: %w", err)
-	}
-
-	// PEM encode the  server cert and key
-	_ = pem.Encode(&serverCertPEM, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: serverCertBytes,
-	})
-	_ = pem.Encode(&serverPrivKeyPEM, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(serverPrivKey),
-	})
 
 	err = os.MkdirAll(fmt.Sprintf("%s/", certMountPath), 0666)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cert directory: %w", err)
 	}
-	err = writeFile(fmt.Sprintf("%s/tls.crt", certMountPath), &serverCertPEM)
+	err = writeStringToFile(fmt.Sprintf("%s/tls.crt", certMountPath), certs[1])
 	if err != nil {
 		return nil, fmt.Errorf("failed to write server cert to file: %w", err)
 	}
-	err = writeFile(fmt.Sprintf("%s/tls.key", certMountPath), &serverPrivKeyPEM)
+	err = writeStringToFile(fmt.Sprintf("%s/tls.key", certMountPath), certs[2])
 	if err != nil {
 		return nil, fmt.Errorf("failed to write server key to file: %w", err)
 	}
 
-	return caPEM.Bytes(), nil
+	return []byte(certs[0]), nil
 }
 
-func writeFile(filepath string, data *bytes.Buffer) error {
+func writeStringToFile(filepath string, data string) error {
 	f, err := os.Create(filepath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	_, err = f.Write(data.Bytes())
+	_, err = f.Write([]byte(data))
+	return err
+}
+
+func genCerts(certMountPath string) ([]string, error) {
+	tmpl, err := template.New("certs").Funcs(sprig.FuncMap()).Parse(`
+		{{- $ca := genCA "greymatter.io" 3650 -}}
+		{{- $server := genSignedCert "gm-webhook-service.gm-operator.svc" (list) (list "gm-webhook-service.gm-operator.svc.cluster.local") 3650 $ca -}}
+		{{- $ca.Cert | b64enc -}}~~~
+		{{- $server.Cert -}}~~~
+		{{- $server.Key -}}
+	`)
 	if err != nil {
-		return err
+		return []string{}, err
 	}
-	return nil
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, nil)
+	if err != nil {
+		return []string{}, err
+	}
+
+	var trimmed []string
+	for _, s := range strings.Split(buf.String(), "~~~") {
+		trimmed = append(trimmed, strings.TrimSpace(s))
+	}
+
+	return trimmed, nil
 }
