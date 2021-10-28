@@ -2,10 +2,8 @@ apiVersion: greymatter.io/v1alpha1
 kind: Mesh
 metadata:
   name: mesh-sample
-  namespace: default
 spec:
-  release_version: '1.6'
-  mesh_port: 10808
+  release_version: '1.7'
   zone: default-zone
-  edge_tls_ingress: false
-  cluster_url: "https://localhost"
+  install_namespace: default
+  cluster_url: "localhost"

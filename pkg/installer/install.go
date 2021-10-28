@@ -2,6 +2,7 @@ package installer
 
 import (
 	"context"
+	"time"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/version"
@@ -17,8 +18,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-// Installs and updates Grey Matter core components and dependencies.
+// ApplyMesh installs and updates Grey Matter core components and dependencies for a single mesh.
 func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
+	if prev == nil {
+		logger.Info("Installing Mesh", "Name", mesh.Name)
+	} else {
+		logger.Info("Upgrading Mesh", "Name", mesh.Name)
+	}
 
 	// Obtain the scheme used by our client
 	scheme := i.client.Scheme()
@@ -30,20 +36,16 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	i.RUnlock()
 
 	// Apply options for mutating the version copy's internal Cue value.
-	opts := append(
-		mesh.InstallOptions(),
-		// Note: Each copied ImagePullSecret will always be named "gm-docker-secret"
-		// even if the original secret in the gm-operator namespace has a different name.
-		version.ImagePullSecretName("gm-docker-secret"),
-		version.JWTSecrets,
-	)
-	v.Apply(opts...)
+	options := mesh.Options()
+	v.Unify(options...)
+
+	go i.ConfigureMeshClient(mesh, options)
 
 	// Create a Docker image pull secret and service account in this namespace if this Mesh is new.
 	if prev == nil {
 		secret := i.imagePullSecret.DeepCopy()
 		secret.Name = "gm-docker-secret"
-		secret.Namespace = mesh.Namespace
+		secret.Namespace = mesh.Spec.InstallNamespace
 		apply(i.client, secret, mesh, scheme)
 		// If this is the first mesh, setup RBAC for control plane service accounts to view pods.
 		if len(i.sidecars) == 0 {
@@ -61,19 +63,19 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	watch := make(map[string]struct{})
 	i.Lock()
 	{
-		i.namespaces[mesh.Namespace] = mesh.Name
+		i.namespaces[mesh.Spec.InstallNamespace] = mesh.Name
 		for _, namespace := range mesh.Spec.WatchNamespaces {
 			i.namespaces[namespace] = mesh.Name
 			watch[namespace] = struct{}{}
 			// Also inject the Docker image pull secret where sidecars will be injected.
-			if namespace != mesh.Namespace {
+			if namespace != mesh.Spec.InstallNamespace {
 				secret := i.imagePullSecret.DeepCopy()
 				secret.Name = "gm-docker-secret"
 				secret.Namespace = namespace
 				apply(i.client, secret, mesh, scheme)
 			}
 		}
-		// If the Mesh is being updated, note any removed watch namespaces.
+		// If the Mesh is being updated, clean up any removed watch namespaces.
 		if prev != nil {
 			for _, namespace := range prev.Spec.WatchNamespaces {
 				if _, ok := watch[namespace]; !ok {
@@ -89,27 +91,23 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	deployments := &appsv1.DeploymentList{}
 	i.client.List(context.TODO(), deployments)
 	for _, deployment := range deployments.Items {
-		if _, ok := watch[deployment.Namespace]; ok || deployment.Namespace == mesh.Namespace {
-			if _, ok := deployment.Spec.Template.Labels["greymatter.io/cluster"]; !ok {
-				if deployment.Spec.Template.Labels == nil {
-					deployment.Spec.Template.Labels = make(map[string]string)
-				}
-				deployment.Spec.Template.Labels["greymatter.io/cluster"] = deployment.Name
-				apply(i.client, &deployment, nil, scheme)
+		if _, ok := watch[deployment.Namespace]; ok || deployment.Namespace == mesh.Spec.InstallNamespace {
+			if deployment.Annotations == nil {
+				deployment.Annotations = make(map[string]string)
 			}
+			deployment.Annotations["greymatter.io/last-applied"] = time.Now().String()
+			apply(i.client, &deployment, nil, scheme)
 		}
 	}
 	statefulsets := &appsv1.StatefulSetList{}
 	i.client.List(context.TODO(), statefulsets)
 	for _, statefulset := range statefulsets.Items {
-		if _, ok := watch[statefulset.Namespace]; ok || statefulset.Namespace == mesh.Namespace {
-			if _, ok := statefulset.Spec.Template.Labels["greymatter.io/cluster"]; !ok {
-				if statefulset.Spec.Template.Labels == nil {
-					statefulset.Spec.Template.Labels = make(map[string]string)
-				}
-				statefulset.Spec.Template.Labels["greymatter.io/cluster"] = statefulset.Name
-				apply(i.client, &statefulset, nil, scheme)
+		if _, ok := watch[statefulset.Namespace]; ok || statefulset.Namespace == mesh.Spec.InstallNamespace {
+			if statefulset.Annotations == nil {
+				statefulset.Annotations = make(map[string]string)
 			}
+			statefulset.Annotations["greymatter.io/last-applied"] = time.Now().String()
+			apply(i.client, &statefulset, nil, scheme)
 		}
 	}
 
@@ -229,7 +227,7 @@ func applyServiceAccount(c client.Client, mesh *v1alpha1.Mesh, scheme *runtime.S
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "gm-control",
-			Namespace: mesh.Namespace,
+			Namespace: mesh.Spec.InstallNamespace,
 		},
 		AutomountServiceAccountToken: func() *bool {
 			b := true
@@ -261,13 +259,19 @@ func applyServiceAccount(c client.Client, mesh *v1alpha1.Mesh, scheme *runtime.S
 	apply(c, crb, nil, scheme)
 }
 
-// Cleanup if a Mesh CR is deleted.
+// RemoveMesh removes all references to a deleted Mesh custom resource.
+// It does not uninstall core components and dependencies, since that is handled
+// by the apiserver when the Mesh custom resource is deleted.
 func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
+	logger.Info("Uninstalling Mesh", "Name", mesh.Name)
+
+	go i.RemoveMeshClient(mesh.Name)
+
 	watch := make(map[string]struct{})
-	watch[mesh.Namespace] = struct{}{}
+	watch[mesh.Spec.InstallNamespace] = struct{}{}
 
 	i.Lock()
-	delete(i.namespaces, mesh.Namespace)
+	delete(i.namespaces, mesh.Spec.InstallNamespace)
 	for _, namespace := range mesh.Spec.WatchNamespaces {
 		watch[namespace] = struct{}{}
 		delete(i.namespaces, namespace)
@@ -310,6 +314,7 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 	}
 }
 
+// WatchedBy returns the name of the mesh a namespace is a member of, or an empty string.
 func (i *Installer) WatchedBy(namespace string) string {
 	i.RLock()
 	defer i.RUnlock()
@@ -317,6 +322,8 @@ func (i *Installer) WatchedBy(namespace string) string {
 	return i.namespaces[namespace]
 }
 
+// Sidecar returns sidecar manifests for the mesh that a namespace is a membeer of.
+// It is used by the webhook package for automatic sidecar injection.
 func (i *Installer) Sidecar(namespace, xdsCluster string) (version.Sidecar, bool) {
 	i.RLock()
 	defer i.RUnlock()

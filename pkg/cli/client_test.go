@@ -24,13 +24,16 @@ func TestNewClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c.configureMeshClient(&v1alpha1.Mesh{
+	mesh := &v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mesh"},
 		Spec: v1alpha1.MeshSpec{
-			Zone:     "zone",
-			MeshPort: 10808,
+			Zone: "zone",
 		},
-	},
+	}
+
+	c.configureMeshClient(
+		mesh,
+		mesh.Options(),
 		"--api.host localhost:5555",
 		"--catalog.host localhost:8181",
 		"--catalog.mesh mesh",
@@ -43,8 +46,8 @@ func TestNewClient(t *testing.T) {
 		}},
 	}
 
-	c.ConfigureService("mesh", "mock", containers)
-	c.RemoveService("mesh", "mock", containers)
+	c.ConfigureService("mesh", "mock", nil, containers)
+	c.RemoveService("mesh", "mock", nil, containers)
 
 	c.RemoveMeshClient("mesh")
 

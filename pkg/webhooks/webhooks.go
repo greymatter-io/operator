@@ -19,9 +19,9 @@ var (
 	knownWebhooks = []string{"gm-validating-webhook-configuration", "gm-mutating-webhook-configuration"}
 )
 
-func Register(mgr ctrl.Manager, i *installer.Installer, c *cli.CLI) {
+func Register(mgr ctrl.Manager, i *installer.Installer, c *cli.CLI, cc client.Client) {
 	mgr.GetWebhookServer().Register("/mutate-mesh", &admission.Webhook{Handler: &meshDefaulter{Installer: i}})
-	mgr.GetWebhookServer().Register("/validate-mesh", &admission.Webhook{Handler: &meshValidator{Installer: i, CLI: c}})
+	mgr.GetWebhookServer().Register("/validate-mesh", &admission.Webhook{Handler: &meshValidator{Installer: i, Client: cc}})
 	mgr.GetWebhookServer().Register("/mutate-workload", &admission.Webhook{Handler: &workloadDefaulter{Installer: i, CLI: c}})
 }
 

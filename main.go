@@ -119,6 +119,15 @@ func main() {
 		options.HealthProbeBindAddress = probeAddr
 	}
 
+	// Create context for goroutine cleanup
+	ctx := ctrl.SetupSignalHandler()
+
+	// Initialize interface with greymatter CLI
+	gmcli, err := cli.New(ctx)
+	if err != nil {
+		os.Exit(1)
+	}
+
 	// Create a rest.Config that has settings for communicating with the K8s cluster.
 	restConfig := ctrl.GetConfigOrDie()
 
@@ -134,16 +143,7 @@ func main() {
 	}
 
 	// Initialize installer
-	inst, err := installer.New(c, cfg.ImagePullSecretName)
-	if err != nil {
-		os.Exit(1)
-	}
-
-	// Create context for goroutine cleanup
-	ctx := ctrl.SetupSignalHandler()
-
-	// Initialize interface with greymatter CLI
-	gmcli, err := cli.New(ctx)
+	inst, err := installer.New(c, gmcli, cfg.ImagePullSecretName)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -161,7 +161,7 @@ func main() {
 		logger.Error(err, "unable to initialize CA bundles in pre-existing webhooks")
 		os.Exit(1)
 	}
-	webhooks.Register(mgr, inst, gmcli)
+	webhooks.Register(mgr, inst, gmcli, c)
 
 	//+kubebuilder:scaffold:builder
 

@@ -6,7 +6,8 @@ import (
 
 #Component: {
   name: string
-  isStatefulset: bool
+  annotations: [string]: string
+  isStatefulset: *false | bool
   image: string
   command: [...string]
   args: [...string]
@@ -23,8 +24,7 @@ import (
 
 proxy: #Component & {
   image: =~"^docker.greymatter.io/(release|development)/gm-proxy:" & !~"latest$"
-  isStatefulset: false
-  ports: proxy: MeshPort
+  ports: proxy: 10808
   env: {
     ENVOY_ADMIN_LOG_PATH: "/dev/stdout",
     PROXY_DYNAMIC: "true"
@@ -49,12 +49,11 @@ edge: #Component & proxy & {
 
 control: #Component & {
   name: "control"
-  isStatefulset: false
   image: =~"^docker.greymatter.io/(release|development)/gm-control:" & !~"latest$"
   ports: xds: 50000
   env: {
     GM_CONTROL_CMD: "kubernetes"
-    GM_CONTROL_KUBERNETES_NAMESPACES: WatchNamespaces
+    GM_CONTROL_KUBERNETES_NAMESPACES: controlNamespaces
     GM_CONTROL_KUBERNETES_CLUSTER_LABEL: "greymatter.io/cluster"
     GM_CONTROL_KUBERNETES_PORT_NAME: "proxy"
     GM_CONTROL_XDS_ADS_ENABLED: "true"
@@ -70,7 +69,6 @@ control: #Component & {
 
 control_api: #Component & {
   name: "control-api"
-  isStatefulset: false
   image: =~"^docker.greymatter.io/(release|development)/gm-control-api:" & !~"latest$"
   ports: api: 5555
   env: {
@@ -96,7 +94,6 @@ control_api: #Component & {
 
 catalog: #Component & {
   name: "catalog"
-  isStatefulset: false
   image: =~"^docker.greymatter.io/(release|development)/gm-catalog:" & !~"latest$"
   ports: api: 8080
   env: {
@@ -105,8 +102,11 @@ catalog: #Component & {
     CONFIG_SOURCE: "redis"
     REDIS_MAX_RETRIES: "50"
     REDIS_RETRY_DELAY: "5s"
-    REDIS_HOST: Redis.host
-    REDIS_PORT: Redis.port
+    // The TCP egress route is configured internally in fabric.go.
+    // Otherwise, it would be configured via annotation: i.e. `greymatter.io/egress-tcp-local: gm-redis`
+    // All sidecars have TCP egress routes to Redis on 10910 and (eventually) NATS on 10911 by default.
+    REDIS_HOST: "127.0.0.1"
+    REDIS_PORT: "10910"
     REDIS_DB: Redis.db
   }
   envFrom: REDIS_PASS: {
@@ -131,29 +131,51 @@ catalog: #Component & {
         default:
           url: control.\(InstallNamespace).svc:50000
           zone: \(Zone)
+      labels:
+        zone_key: \(Zone)
+      extensions:
+        metrics:
+          sessions:
+            redis_example:
+              client_type: redis
+              connection_string: redis://:\(Redis.password)@127.0.0.1:10910
     """
 }
 
 dashboard: #Component & {
   name: "dashboard"
-  isStatefulset: false
   image: =~"^docker.greymatter.io/(release|development)/gm-dashboard:" & !~"latest$"
   ports: app: 1337
   env: {
-    BASE_URL: =~"^/services/dashboard/" & =~"/$"
-    FABRIC_SERVER: =~"/services/catalog/" & =~"/$"
-    CONFIG_SERVER: =~"/services/control/api/" & =~"/v1.0$"
+    BASE_URL: "/services/dashboard/"
+    FABRIC_SERVER: "/services/catalog/"
+    CONFIG_SERVER: =~"^/services/control/api/"
     PROMETHEUS_SERVER: "/services/prometheus/api/v1/"
     REQUEST_TIMEOUT: "15000"
-    USE_PROMETHEUS: "true"
-    DISABLE_PROMETHEUS_ROUTES_UI: "false"
+    USE_PROMETHEUS: "false"
+    DISABLE_PROMETHEUS_ROUTES_UI: "true"
     ENABLE_INLINE_DOCS: "true"
   }
+  volumeMounts: "feature-flag-config": {
+    mountPath: "/usr/src/app/config"
+  }
+  volumes: "feature-flag-config": {
+    configMap: {
+      name: "feature-flag-config"
+      defaultMode: 420
+    }
+  }
+  configMaps: "feature-flag-config": "featureFlagConfig.json": """
+  {
+    "health": true,
+    "jwtMetadata": false,
+    "anomalyDetection": false
+  }
+  """
 }
 
 jwt_security: #Component & {
   name: "jwt-security"
-  isStatefulset: false
   image: =~"^docker.greymatter.io/(release|development)/gm-jwt-security:" & !~"latest$"
   ports: api: 3000
   env: {
@@ -203,6 +225,17 @@ jwt_security: #Component & {
 
 redis: #Component & {
   name: "gm-redis"
+  annotations: {
+    "greymatter.io/network-filters": """
+      ["envoy.tcp_proxy"]
+    """
+    if ReleaseVersion != "1.6" {
+      // http listener needed to launch metrics receiver
+      "greymatter.io/egress-http-local": """
+        ["edge"]
+      """
+    }
+  }
   isStatefulset: true
   image: =~"redis:"
   command: ["redis-server"]
@@ -212,7 +245,9 @@ redis: #Component & {
     "--requirepass",
     "$(REDIS_PASSWORD)",
     "--dir",
-    "/data"
+    "/data",
+    "--logLevel",
+    "verbose"
   ]
   ports: redis: 6379
   envFrom: REDIS_PASSWORD: {

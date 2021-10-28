@@ -2,8 +2,12 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 
+	"github.com/greymatter-io/operator/pkg/cueutils"
 	"github.com/greymatter-io/operator/pkg/version"
+
+	"cuelang.org/go/cue"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -11,19 +15,21 @@ var (
 	logger = ctrl.Log.WithName("v1alpha1")
 )
 
-func (m Mesh) InstallOptions() []version.InstallOption {
-	opts := []version.InstallOption{
-		version.MeshName(m.Name),
-		version.MeshPort(m.Spec.MeshPort),
-		version.EdgeTls(m.Spec.EdgeTlsIngress),
-		version.InstallNamespace(m.ObjectMeta.Namespace),
-		// TODO: figure out how to get domain from the clusterUrl without making this a mesh config
-		version.IngressSubDomain(m.Spec.ClusterUrl),
-		version.WatchNamespaces(append(m.Spec.WatchNamespaces, m.ObjectMeta.Namespace)...),
-	}
-
-	if m.Spec.Zone != "" {
-		opts = append(opts, version.Zone(m.Spec.Zone))
+// Options returns a slice of cue.Value derived from configured Mesh values.
+func (m Mesh) Options() []cue.Value {
+	opts := []cue.Value{
+		cueutils.Strings(map[string]string{
+			"MeshName":         m.Name,
+			"ReleaseVersion":   m.Spec.ReleaseVersion,
+			"InstallNamespace": m.Spec.InstallNamespace,
+			"Zone":             m.Spec.Zone,
+			// TODO: figure out how to get the domain dynamically
+			"IngressSubDomain": fmt.Sprintf("%s.%s.%s", m.Name, m.Spec.InstallNamespace, m.Spec.ClusterUrl),
+		}),
+		cueutils.StringSlices(map[string][]string{
+			"WatchNamespaces": append(m.Spec.WatchNamespaces, m.Spec.InstallNamespace),
+		}),
+		version.JWTSecrets(),
 	}
 
 	if m.Spec.ExternalRedis != nil {
@@ -35,7 +41,7 @@ func (m Mesh) InstallOptions() []version.InstallOption {
 	if len(m.Spec.UserTokens) > 0 {
 		users, err := json.Marshal(m.Spec.UserTokens)
 		if err != nil {
-			logger.Error(err, "Failed to unmarshal UserTokens", "Namesapce", m.Namespace, "Mesh", m.Name)
+			logger.Error(err, "Failed to unmarshal UserTokens", "Namesapce", m.Spec.InstallNamespace, "Mesh", m.Name)
 		} else {
 			opts = append(opts, version.UserTokens(string(users)))
 		}
