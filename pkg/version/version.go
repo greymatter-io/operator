@@ -22,13 +22,13 @@ var (
 // Version contains a cue.Value that holds all installation templates for a
 // version of Grey Matter, plus options applied from a Mesh custom resource.
 type Version struct {
-	Name string
+	name string
 	cue  cue.Value
 }
 
 // Copy deep copies a Version's cue.Value into a new Version.
 func (v Version) Copy() Version {
-	return Version{v.Name, v.cue}
+	return Version{v.name, v.cue}
 }
 
 // Unify gets the lower bound cue.Value of Version.cue and all argument values.

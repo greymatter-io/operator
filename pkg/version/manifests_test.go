@@ -44,7 +44,7 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 	baseOptions := []cue.Value{
 		cueutils.Strings(map[string]string{
 			"MeshName":         "mymesh",
-			"ReleaseVersion":   v.Name,
+			"ReleaseVersion":   v.name,
 			"InstallNamespace": "myns",
 			"Zone":             "myzone",
 		}),

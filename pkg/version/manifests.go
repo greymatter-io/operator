@@ -68,12 +68,6 @@ func (v Version) SidecarTemplate() func(string) Sidecar {
 }
 
 func injectXDSCluster(xdsCluster string) cue.Value {
-	if xdsCluster != "control" && xdsCluster != "catalog" && xdsCluster != "gm-redis" {
-		return cueutils.FromStrings(fmt.Sprintf(`sidecar: {
-			xdsCluster: "%s"
-		}`, xdsCluster))
-	}
-
 	b := make([]byte, 10)
 	rand.Read(b)
 	node := strings.TrimSuffix(base64.URLEncoding.EncodeToString(b), "==")
@@ -86,13 +80,7 @@ func injectXDSCluster(xdsCluster string) cue.Value {
 			controlHost: "127.0.0.1"
 		}`, xdsCluster, node))
 
-	case "catalog":
-		return cueutils.FromStrings(fmt.Sprintf(`sidecar: {
-			xdsCluster: "%s"
-			node: "%s"
-		}`, xdsCluster, node))
-
-	case "gm-redis":
+	case "catalog", "gm-redis":
 		return cueutils.FromStrings(fmt.Sprintf(`sidecar: {
 			xdsCluster: "%s"
 			node: "%s"
