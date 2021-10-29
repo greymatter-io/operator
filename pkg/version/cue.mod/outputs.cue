@@ -54,6 +54,11 @@ manifests: [...#ManifestGroup] & [
               { name: "gm-docker-secret" }
             ]
           }
+          if _c[0].name == "gm-redis" || _c[0].name == "gm-prometheus" {
+            securityContext: {
+              fsGroup: 2000
+            }
+          }
           containers: [
             for _, c in _c {
               {
