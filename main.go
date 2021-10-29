@@ -155,13 +155,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize CA bundles for prexisting operator webhooks so we can remote deploy to vanilla k8s
-	// TODO: Only run this block if we're not in Openshift
-	err = webhooks.InjectCA(c)
-	if err != nil {
-		logger.Error(err, "unable to initialize CA bundles in webhooks")
-		os.Exit(1)
-	}
+	// Register the webhook handlers with our server to receive requests
 	webhooks.Register(mgr, inst, gmcli, c)
 
 	//+kubebuilder:scaffold:builder

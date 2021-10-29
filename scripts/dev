@@ -2,79 +2,187 @@
 
 set -euf -o pipefail
 
-openshift_deploy() {
-  ./scripts/dev push
-  make packagemanifests VERSION=0.0.1 CHANNEL=alpha IS_CHANNEL_DEFAULT=1
-	sed -i'.original' -e "s|development/gm-operator:0.0.1|internal/gm-operator:latest|" ./packagemanifests/0.0.1/gm-operator.clusterserviceversion.yaml
-	rm ./packagemanifests/0.0.1/gm-operator.clusterserviceversion.yaml.original
+# Openshift
+
+oc_push() {
+  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
+  make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
+}
+
+oc_deploy() {
+  prompt_push oc
+
+  make packagemanifests VERSION=0.0.1 CHANNEL=alpha IS_CHANNEL_DEFAULT=1 IMG=docker.greymatter.io/internal/gm-operator:latest
   operator-sdk run packagemanifests -n gm-operator --version 0.0.1
   rm -rf ./packagemanifests
+
+  oc create secret docker-registry gm-docker-secret \
+    --docker-server=docker.greymatter.io \
+    --docker-username=$NEXUS_USER \
+    --docker-password=$NEXUS_PASSWORD \
+    --docker-email=$NEXUS_USER \
+    -n gm-operator
 }
 
-kubernetes_deploy() {
-  echo "unimplemented"
-}
-
-openshift_cleanup() {
+oc_cleanup() {
   operator-sdk cleanup -n gm-operator gm-operator
   oc delete clusterrole gm-control
   oc delete pvc gm-redis-append-dir-gm-redis-0 -n gm-operator-test2
 }
 
-kubernetes_cleanup() {
-  echo "unimplemented"
+oc_upgrade() {
+  oc_cleanup
+  oc_deploy
 }
 
-openshift_upgrade() {
-  openshift_cleanup
-  openshift_deploy
-}
-
-kubernetes_upgrade() {
-  echo "unimplemented"
-}
-
-openshift_logs() {
+oc_logs() {
   oc logs -n gm-operator $(oc get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs) -c manager -f
 }
 
-kubernetes_logs() {
-  echo "unimplemented"
+oc_sample() {
+  oc apply -f hack/sample-openshift.yaml
+  oc_logs
 }
 
-openshift_sample() {
-  oc apply -f hack/sample.yaml
-  openshift_logs
+# Kubernetes
+
+k8s_push() {
+  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest-kops
+  make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest-kops
 }
 
-kubernetes_sample() {
-  echo "unimplemented"
+k8s_deploy() {
+  prompt_push k8s
+  k_deploy
+}
+
+k8s_cleanup() {
+  ./bin/kustomize build config/default | kubectl delete -f -
+  kubectl delete secret webhook-server-cert
+}
+
+k8s_upgrade() {
+  ./scripts/dev push k8s
+  kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs)
+}
+
+k8s_logs() {
+  kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs) -c manager -f
+}
+
+k8s_sample() {
+  kubectl apply -f hack/sample-k8s.yaml
+  k8s_logs
+}
+
+# K3D (local development)
+# mostly similar to Kubernetes commamnds, might delete later
+
+k3d_push() {
+  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest-kops
+  k3d image import docker.greymatter.io/internal/gm-operator:latest-kops
+}
+
+k3d_deploy() {
+  prompt_push k3d
+  k_deploy
+}
+
+k3d_cleanup() {
+  ./bin/kustomize build config/default | kubectl delete -f -
+  kubectl delete secret webhook-server-cert
+}
+
+k3d_upgrade() {
+  ./scripts/dev push k3d
+  kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs)
+}
+
+k3d_logs() {
+  kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs) -c manager -f
+}
+
+k3d_sample() {
+  kubectl apply -f hack/sample-k8s.yaml
+  k3d_logs
+}
+
+# Shared
+
+prompt_push() {
+  read -p "Build and push a new Docker image? " -n 1 -r
+  echo ""
+  if [[ $REPLY =~ ^[Yy]$ ]]
+  then
+    ./scripts/dev push $1
+  fi
+}
+
+k_deploy() {
+  local ca_config="../hack/ca-config.json"
+  local ca_req="../hack/ca-csr.json"
+  local cert_req="../hack/cert-csr.json"
+
+  mkdir -p tmpcerts
+  cd tmpcerts
+  cfssl gencert -initca $ca_req | cfssljson -bare ca
+  cfssl gencert \
+    -ca=ca.pem \
+    -ca-key=ca-key.pem \
+    -config=$ca_config \
+    -hostname=gm-webhook-service.gm-operator.svc \
+    -profile=server \
+    $cert_req | cfssljson -bare server
+  cd ..
+
+  local bundle=$(cat ./tmpcerts/ca.pem | base64 - | tr -d '\n')
+
+  ./bin/kustomize build config/default > manifests.yaml
+	sed -i'.original' -e "s|development/gm-operator:0.0.1|internal/gm-operator:latest-kops|" manifests.yaml
+	sed -i'.original' -e "s|caBundle: \"\"|caBundle: $bundle|g" manifests.yaml
+  kubectl apply -f manifests.yaml
+  rm manifests.yaml
+  rm manifests.yaml.original
+
+  kubectl create secret tls webhook-server-cert \
+    --cert=./tmpcerts/server.pem \
+    --key=./tmpcerts/server-key.pem \
+    -n gm-operator
+
+  rm -rf ./tmpcerts
+
+  kubectl create secret docker-registry gm-docker-secret \
+  --docker-server=docker.greymatter.io \
+  --docker-username=$NEXUS_USER \
+  --docker-password=$NEXUS_PASSWORD \
+  --docker-email=$NEXUS_USER \
+  -n gm-operator
 }
 
 choose() {
   case $1 in
-    k*) kubernetes_$2 ;;
-    *)  openshift_$2 ;;
+    k3*) k3d_$2 ;;
+    k8*) k8s_$2 ;;
+    o*)  oc_$2 ;;
+    *)
+      echo "invalid argument $1: expected match with k3*, k8*, or o*."
+      exit 1
+      ;;
   esac
 }
 
-if [ $# -lt 1 ]
-then
-  echo "dev: missing argument"
+if [ $# -lt 2 ]; then
+  echo "dev: expected at least 2 arguments"
   exit 1
 fi
 
 case $1 in
-  deploy)   if [ $# == 2 ]; then choose $2 deploy;  else choose o deploy;   fi ;;
-  cleanup)  if [ $# == 2 ]; then choose $2 cleanup; else choose o cleanup;  fi ;;
-  upgrade)  if [ $# == 2 ]; then choose $2 upgrade; else choose o upgrade;  fi ;;
-  logs)     if [ $# == 2 ]; then choose $2 logs;    else choose o logs;     fi ;;
-  sample)   if [ $# == 2 ]; then choose $2 sample;  else choose o sample;   fi ;;
-
-  push)
-    make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
-    make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
-    ;;
+  push)     choose $2 push;    ;; 
+  deploy)   choose $2 deploy;  ;;
+  cleanup)  choose $2 cleanup; ;;
+  upgrade)  choose $2 upgrade; ;;
+  logs)     choose $2 logs;    ;;
+  sample)   choose $2 sample;  ;;
   *)
     echo "invalid argument $1"
     exit 1
