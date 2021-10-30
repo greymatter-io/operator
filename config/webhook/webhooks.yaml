@@ -1,0 +1,92 @@
+
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    caBundle: ""
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-mesh
+  failurePolicy: Fail
+  name: mutate-mesh.greymatter.io
+  rules:
+  - apiGroups:
+    - greymatter.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - meshes
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    caBundle: ""
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-workload
+  failurePolicy: Fail
+  name: mutate-workload.greymatter.io
+  namespaceSelector:
+    matchExpressions:
+    - key: control-plane
+      operator: NotIn
+      values: ["controller-manager"]
+  rules:
+  - apiGroups:
+    - ""
+    - apps
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - pods
+    - deployments
+    - statefulsets
+  sideEffects: None
+
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    caBundle: ""
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-mesh
+  failurePolicy: Fail
+  name: validate-mesh.greymatter.io
+  rules:
+  - apiGroups:
+    - greymatter.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - meshes
+  sideEffects: None

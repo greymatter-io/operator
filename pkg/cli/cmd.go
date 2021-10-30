@@ -94,6 +94,7 @@ func (c cmd) run(flags []string, from ...src) result {
 		if c.retry.dur > 0 {
 			select {
 			case <-c.retry.ctx.Done():
+				logger.Info(fmt.Sprintf("%s: context canceled", c.args))
 			default:
 				logger.Info(fmt.Sprintf("%s: retrying", c.args), "count", len(from))
 				time.Sleep(c.retry.dur)

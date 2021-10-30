@@ -3,7 +3,14 @@ kind: Mesh
 metadata:
   name: mesh-sample
 spec:
+  cluster_url: localhost
   release_version: '1.7'
   zone: default-zone
   install_namespace: default
-  cluster_url: "localhost"
+  watch_namespaces:
+  - gm-operator-watched
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gm-operator-watched
