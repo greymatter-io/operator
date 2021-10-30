@@ -20,6 +20,7 @@ envoyMeshConfigs: envoy & {
 			envoyTCPListener & {
 				_name: sidecar.xdsCluster
 				_port: 10910
+				_cluster: "gm-redis"
 			}
 		]
 	}
@@ -34,7 +35,7 @@ envoyRedis: envoy & {
 				_port: 50000
 			},
 			envoyCluster & {
-				_name: "gm-redis"
+				_name: "gm-redis:6379"
 				_host: "127.0.0.1"
 				_port: 6379
 			}
@@ -43,6 +44,7 @@ envoyRedis: envoy & {
 			envoyTCPListener & {
 				_name: "gm-redis"
 				_port: 10910
+				_cluster: "gm-redis:6379"
 			}
 		]
 	}
@@ -56,8 +58,8 @@ envoyCluster: {
 	name: _name
 	http2_protocol_options: {}
 	type: "STRICT_DNS"
-	lb_policy: "ROUND_ROBIN"
-	connect_timeout: "5s"
+	connect_timeout: "10s"
+	lb_policy: "LEAST_REQUEST"
 	load_assignment: {
 		cluster_name: _name
 		endpoints: [
@@ -78,10 +80,11 @@ envoyCluster: {
 envoyTCPListener: {
 	_name: string
 	_port: int
+	_cluster: string
 
 	name: "\(_name):\(_port)"
 	address: socket_address: {
-		address:    "127.0.0.1"
+		address:    "0.0.0.0"
 		port_value: _port
 	}
 	filter_chains: [
@@ -91,8 +94,8 @@ envoyTCPListener: {
 					name: "envoy.filters.network.tcp_proxy"
 					typed_config: {
 						"@type":     "type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy"
-						cluster:     _name
-						stat_prefix: _name
+						cluster:     _cluster
+						stat_prefix: _cluster
 					}
 				}
 			]

@@ -29,7 +29,7 @@ proxy: #Component & {
     ENVOY_ADMIN_LOG_PATH: "/dev/stdout",
     PROXY_DYNAMIC: "true"
     XDS_ZONE: Zone
-    XDS_HOST: "control.\(InstallNamespace).svc"
+    XDS_HOST: "control.\(InstallNamespace).svc.cluster.local"
     XDS_PORT: "50000"
   }
   if Spire {
@@ -100,7 +100,7 @@ catalog: #Component & {
     SEED_FILE_PATH: "/app/seed/seed.yaml"
     SEED_FILE_FORMAT: "yaml"
     CONFIG_SOURCE: "redis"
-    REDIS_MAX_RETRIES: "50"
+    REDIS_MAX_RETRIES: "10"
     REDIS_RETRY_DELAY: "5s"
     // The TCP egress route is configured internally in fabric.go.
     // Otherwise, it would be configured via annotation: i.e. `greymatter.io/egress-tcp-local: gm-redis`

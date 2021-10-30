@@ -59,7 +59,7 @@ func (v Version) SidecarTemplate() func(string) Sidecar {
 		if len(string(s.Sidecar.StaticConfig)) > 0 {
 			s.Sidecar.Container.Env = append(s.Sidecar.Container.Env, corev1.EnvVar{
 				Name:  "ENVOY_CONFIG",
-				Value: base64.RawStdEncoding.EncodeToString(s.Sidecar.StaticConfig),
+				Value: base64.StdEncoding.EncodeToString(s.Sidecar.StaticConfig),
 			})
 		}
 

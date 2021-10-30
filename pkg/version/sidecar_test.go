@@ -52,7 +52,7 @@ func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
 				t.Run("Has expected env values",
 					assert.ContainerHasEnvValues(sidecar.Container, map[string]string{
 						"XDS_CLUSTER": "mock",
-						"XDS_HOST":    "control.myns.svc",
+						"XDS_HOST":    "control.myns.svc.cluster.local",
 						"XDS_ZONE":    "myzone",
 					}),
 				)
@@ -87,9 +87,9 @@ func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
 				if len(sidecar.StaticConfig) == 0 {
 					t.Fatal("no StaticConfig was set")
 				}
-				t.Run("StaticConfig discovers from control.<namespace>.svc",
+				t.Run("StaticConfig discovers from control.<namespace>.svc.cluster.local",
 					assert.JSONHasSubstrings(sidecar.StaticConfig,
-						`"address":"control.myns.svc","port_value":50000`,
+						`"address":"control.myns.svc.cluster.local","port_value":50000`,
 					),
 				)
 			},

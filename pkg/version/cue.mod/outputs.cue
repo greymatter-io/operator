@@ -230,7 +230,7 @@ manifests: [...#ManifestGroup] & [
 sidecar: {
   xdsCluster: string
   node: *"" | string
-  controlHost: *"control.\(InstallNamespace).svc" | string
+  controlHost: *"control.\(InstallNamespace).svc.cluster.local" | string
   if xdsCluster == "control" || xdsCluster == "catalog" {
     staticConfig: envoyMeshConfigs
   }
