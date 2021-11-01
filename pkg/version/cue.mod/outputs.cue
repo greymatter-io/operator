@@ -54,7 +54,7 @@ manifests: [...#ManifestGroup] & [
               { name: "gm-docker-secret" }
             ]
           }
-          if _c[0].name == "gm-redis" || _c[0].name == "gm-prometheus" {
+          if Environment != "openshift" && (_c[0].name == "gm-redis" || _c[0].name == "gm-prometheus") {
             securityContext: {
               fsGroup: 2000
             }

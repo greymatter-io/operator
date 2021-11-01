@@ -20,13 +20,16 @@ func (m Mesh) Options(clusterIngressDomain string) []cue.Value {
 
 	// ClusterIngressDomain is defined in OpenShift clusters, but empty otherwise.
 	// If it is defined, we specify the mesh name as a subdomain for OpenShift's router.
+	environment := "kubernetes"
 	var ingressSubDomain string
 	if clusterIngressDomain != "" {
+		environment = "openshift"
 		ingressSubDomain = fmt.Sprintf("%s.%s", m.Name, clusterIngressDomain)
 	}
 
 	opts := []cue.Value{
 		cueutils.Strings(map[string]string{
+			"Environment":      environment,
 			"MeshName":         m.Name,
 			"ReleaseVersion":   m.Spec.ReleaseVersion,
 			"InstallNamespace": m.Spec.InstallNamespace,

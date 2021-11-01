@@ -5,6 +5,7 @@ import (
   "strings"
 )
 
+Environment: *"kubernetes" | string
 MeshName: string
 ReleaseVersion: string
 Zone: *"default-zone" | string
