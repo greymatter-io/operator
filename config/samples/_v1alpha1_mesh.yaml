@@ -6,4 +6,3 @@ spec:
   release_version: '1.7'
   zone: default-zone
   install_namespace: default
-  cluster_url: "localhost"

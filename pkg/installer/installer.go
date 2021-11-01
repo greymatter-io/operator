@@ -4,7 +4,6 @@ package installer
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -15,7 +14,6 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	k8err "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -64,21 +62,14 @@ func New(c client.Client, gmcli *cli.CLI, imagePullSecretName, ingressName strin
 	// This secret will be re-created in each install namespace where our core services are pulled.
 	i.imagePullSecret = getImagePullSecret(c, imagePullSecretName)
 
-	// In openshift clusters set installer clusterIngressDomain
-
+	// Try to get the OpenShift cluster ingress domain if it exists.
+	// TODO: When not in OpenShift, check for other supported ingress class types such as Nginx or Voyager.
+	// If no supported ingress types are found, just assume the user will configure ingress on their own.
 	clusterIngressDomain, err := getOpenshiftClusterIngressDomain(c, ingressName)
 	if err != nil {
-		if k8err.IsNotFound(err) {
-			// we are not in a openshift cluster.  look for kubernetes ingress.
-			// we dont set host for kubernetes ingress but this checks to ensure
-			// suported ingress classes exist in the cluster
-			if err := isSupportedKubernetesIngressClassPresent(c); err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
+		return i, nil
 	}
+
 	i.clusterIngressDomain = clusterIngressDomain
 	return i, nil
 }
@@ -115,7 +106,7 @@ func getOpenshiftClusterIngressDomain(c client.Client, ingressName string) (stri
 	} else {
 		for _, i := range clusterIngressList.Items {
 			if i.Name == ingressName {
-				logger.Info(fmt.Sprintf("The cluster domain is: %s", i.Spec.Domain))
+				logger.Info("Identified OpenShift cluster domain", "Host", i.Spec.Domain)
 				return i.Spec.Domain, nil
 			}
 		}
@@ -123,17 +114,18 @@ func getOpenshiftClusterIngressDomain(c client.Client, ingressName string) (stri
 	return "", fmt.Errorf("found cluster list however specified cluster ingress name [%s] not found", ingressName)
 }
 
-// Check that a suported ingress controller class exists in a kubernetes cluster
-func isSupportedKubernetesIngressClassPresent(c client.Client) error {
+// Check that a suported ingress controller class exists in a kubernetes cluster.
+// This will be expanded later on as we support additional ingress implementations.
+func isSupportedKubernetesIngressClassPresent(c client.Client) bool {
 	ingressClassList := &networkingv1.IngressClassList{}
 	if err := c.List(context.TODO(), ingressClassList); err != nil {
-		return err
+		return false
 	}
 	for _, i := range ingressClassList.Items {
 		switch i.Spec.Controller {
 		case "nginx", "voyager":
-			return nil
+			return true
 		}
 	}
-	return errors.New("no suported ingress class is installed in the cluster")
+	return false
 }

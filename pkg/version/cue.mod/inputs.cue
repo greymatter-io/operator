@@ -8,7 +8,7 @@ import (
 MeshName: string
 ReleaseVersion: string
 Zone: *"default-zone" | string
-IngressSubDomain: *"localhost" | string
+IngressSubDomain: *"" | string
 
 InstallNamespace: string
 WatchNamespaces: [...string]
