@@ -112,7 +112,7 @@ k3d_sample() {
 # Shared
 
 prompt_push() {
-  read -p "Build and push a new Docker image? " -n 1 -r
+  read -p "Build and push a new Docker image? (y/n) " -n 1 -r
   echo ""
   if [[ $REPLY =~ ^[Yy]$ ]]
   then

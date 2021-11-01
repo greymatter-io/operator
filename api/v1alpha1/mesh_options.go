@@ -16,15 +16,25 @@ var (
 )
 
 // Options returns a slice of cue.Value derived from configured Mesh values.
-func (m Mesh) Options() []cue.Value {
+func (m Mesh) Options(clusterIngressDomain string) []cue.Value {
+
+	// ClusterIngressDomain is defined in OpenShift clusters, but empty otherwise.
+	// If it is defined, we specify the mesh name as a subdomain for OpenShift's router.
+	environment := "kubernetes"
+	var ingressSubDomain string
+	if clusterIngressDomain != "" {
+		environment = "openshift"
+		ingressSubDomain = fmt.Sprintf("%s.%s", m.Name, clusterIngressDomain)
+	}
+
 	opts := []cue.Value{
 		cueutils.Strings(map[string]string{
+			"Environment":      environment,
 			"MeshName":         m.Name,
 			"ReleaseVersion":   m.Spec.ReleaseVersion,
 			"InstallNamespace": m.Spec.InstallNamespace,
 			"Zone":             m.Spec.Zone,
-			// TODO: figure out how to get the domain dynamically
-			"IngressSubDomain": fmt.Sprintf("%s.%s.%s", m.Name, m.Spec.InstallNamespace, m.Spec.ClusterUrl),
+			"IngressSubDomain": ingressSubDomain,
 		}),
 		cueutils.StringSlices(map[string][]string{
 			"WatchNamespaces": append(m.Spec.WatchNamespaces, m.Spec.InstallNamespace),

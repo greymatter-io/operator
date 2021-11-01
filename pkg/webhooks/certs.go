@@ -9,6 +9,7 @@ import (
 )
 
 // NOTE: This code does not run, but is retained here for reference and to use later for generating certs.
+//lint:ignore U1000 save for reference
 func genCerts(certMountPath string) ([]string, error) {
 	tmpl, err := template.New("certs").Funcs(sprig.FuncMap()).Parse(`
 		{{- $ca := genCA "greymatter.io" 3650 -}}

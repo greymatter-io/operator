@@ -4,13 +4,16 @@ package installer
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/version"
 
+	configv1 "github.com/openshift/api/config/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,10 +37,12 @@ type Installer struct {
 	namespaces map[string]string
 	// A map of mesh -> function that returns a sidecar (given an xdsCluster name), used for sidecar injection
 	sidecars map[string]func(string) version.Sidecar
+	// The cluster ingress domain
+	clusterIngressDomain string
 }
 
 // New returns a new *Installer instance for installing Grey Matter components and dependencies.
-func New(c client.Client, gmcli *cli.CLI, imagePullSecretName string) (*Installer, error) {
+func New(c client.Client, gmcli *cli.CLI, imagePullSecretName, ingressName string) (*Installer, error) {
 	versions, err := version.Load()
 	if err != nil {
 		logger.Error(err, "Failed to initialize installer")
@@ -57,6 +62,15 @@ func New(c client.Client, gmcli *cli.CLI, imagePullSecretName string) (*Installe
 	// This secret will be re-created in each install namespace where our core services are pulled.
 	i.imagePullSecret = getImagePullSecret(c, imagePullSecretName)
 
+	// Try to get the OpenShift cluster ingress domain if it exists.
+	// TODO: When not in OpenShift, check for other supported ingress class types such as Nginx or Voyager.
+	// If no supported ingress types are found, just assume the user will configure ingress on their own.
+	clusterIngressDomain, err := getOpenshiftClusterIngressDomain(c, ingressName)
+	if err != nil {
+		return i, nil
+	}
+
+	i.clusterIngressDomain = clusterIngressDomain
 	return i, nil
 }
 
@@ -83,4 +97,35 @@ func getImagePullSecret(c client.Client, imagePullSecretName string) *corev1.Sec
 		Type:       operatorSecret.Type,
 		Data:       operatorSecret.Data,
 	}
+}
+
+func getOpenshiftClusterIngressDomain(c client.Client, ingressName string) (string, error) {
+	clusterIngressList := &configv1.IngressList{}
+	if err := c.List(context.TODO(), clusterIngressList); err != nil {
+		return "", err
+	} else {
+		for _, i := range clusterIngressList.Items {
+			if i.Name == ingressName {
+				logger.Info("Identified OpenShift cluster domain", "Host", i.Spec.Domain)
+				return i.Spec.Domain, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("found cluster list however specified cluster ingress name [%s] not found", ingressName)
+}
+
+// Check that a suported ingress controller class exists in a kubernetes cluster.
+// This will be expanded later on as we support additional ingress implementations.
+func isSupportedKubernetesIngressClassPresent(c client.Client) bool {
+	ingressClassList := &networkingv1.IngressClassList{}
+	if err := c.List(context.TODO(), ingressClassList); err != nil {
+		return false
+	}
+	for _, i := range ingressClassList.Items {
+		switch i.Spec.Controller {
+		case "nginx", "voyager":
+			return true
+		}
+	}
+	return false
 }

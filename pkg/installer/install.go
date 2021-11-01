@@ -36,7 +36,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	i.RUnlock()
 
 	// Apply options for mutating the version copy's internal Cue value.
-	options := mesh.Options()
+	options := mesh.Options(i.clusterIngressDomain)
 	v.Unify(options...)
 
 	go i.ConfigureMeshClient(mesh, options)
