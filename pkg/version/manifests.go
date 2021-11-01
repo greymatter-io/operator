@@ -32,8 +32,23 @@ func (v Version) Manifests() []ManifestGroup {
 	codec := gocodec.New(&cue.Runtime{}, nil)
 	var m struct {
 		Manifests []ManifestGroup `json:"manifests"`
+		Sidecar   `json:"sidecar"`
 	}
-	codec.Encode(v.cue, &m)
+
+	injected := v.cue.Unify(injectXDSCluster("edge"))
+	codec.Encode(injected, &m)
+
+	// Inject static config for edge pods
+	if len(string(m.Sidecar.StaticConfig)) > 0 {
+		m.Manifests[0].Deployment.Spec.Template.Spec.Containers[0].Env = append(
+			m.Manifests[0].Deployment.Spec.Template.Spec.Containers[0].Env,
+			corev1.EnvVar{
+				Name:  "ENVOY_CONFIG",
+				Value: base64.StdEncoding.EncodeToString(m.Sidecar.StaticConfig),
+			},
+		)
+	}
+
 	return m.Manifests
 }
 

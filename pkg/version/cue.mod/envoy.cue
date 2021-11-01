@@ -28,13 +28,21 @@ envoyEdge: envoy & {
 				_routes: [
 					{
 						match: prefix: "/services/control/api/"
-						route: cluster: "control"
-						prefix_rewrite: "/"
+						route: {
+							cluster: "control"
+							prefix_rewrite: "/"
+							timeout: "1s"
+							idle_timeout: "1s"
+						}
 					},
 					{
 						match: prefix: "/services/catalog/"
-						route: cluster: "catalog"
-						prefix_rewrite: "/"
+						route: {
+							cluster: "catalog"
+							prefix_rewrite: "/"
+							timeout: "1s"
+							idle_timeout: "1s"
+						}
 					}
 				]
 			}

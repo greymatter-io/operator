@@ -2,12 +2,10 @@ package cli
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
-	"time"
 )
 
 type cmd struct {
@@ -20,28 +18,22 @@ type cmd struct {
 	// If the result has an error (from cmd or reader), kvs will always be nil.
 	reader func(string) result
 
-	// If the cmd succeeds, run this cmd with the previous cmdout piped into stdin.
-	// If specified, this skips the original cmd's reader.
+	// If the cmd succeeds, run this cmd with the cmdout piped into stdin.
+	// If reader is specified, it is called on cmdout prior to piping into stdin.
 	and cmdOpt
 	// If the cmd (or read) fails, run this cmd instead.
 	or cmdOpt
-	// If specified, keep retrying for the given dur until the channel is signaled.
-	retry
 }
 
 type result struct {
-	kvs []interface{}
-	err error
+	cmdout string
+	kvs    []interface{}
+	err    error
 }
 
 type cmdOpt struct {
 	*cmd
 	when func(string) bool
-}
-
-type retry struct {
-	dur time.Duration
-	ctx context.Context
 }
 
 // describes the previous cmd in a cmd chain
@@ -70,47 +62,33 @@ func (c cmd) run(flags []string, from ...src) result {
 	if err != nil {
 		r.err = fmt.Errorf(cmdout)
 	} else {
-		// If there was no error
-		if c.and.cmd != nil {
-			// If c.and is specified, pipe cmdout into it and run it next.
-			c.and.stdin = out
+		// Otherwise, if c.reader is defined, call it on cmdout to parse it.
+		r.cmdout = cmdout
+		if c.reader != nil {
+			r = c.reader(r.cmdout)
+		}
+	}
+
+	if r.err != nil {
+		// If there is an err (as cmdout or from c.reader), run c.or if specified.
+		if c.or.cmd != nil && (c.or.when == nil || c.or.when(r.cmdout)) {
+			from = append(from, src{strings.Split(c.args, " ")[0], "||"})
+			return c.or.run(flags, from...)
+		}
+	} else {
+		// If c.and is specified, pipe cmdout into it and run it next.
+		if c.and.cmd != nil && (c.and.when == nil || c.and.when(r.cmdout)) {
+			c.and.stdin = json.RawMessage(r.cmdout)
 			from = append(from, src{strings.Split(c.args, " ")[0], ">"})
 			return c.and.run(flags, from...)
-		} else if c.reader != nil {
-			// Otherwise, if reader is specified, attempt to read cmdout.
-			r = c.reader(cmdout)
 		} else {
 			r.kvs = []interface{}{"output", cmdout}
 		}
 	}
 
-	if r.err != nil {
-		// Run c.or if specified and if it passes or.when (if specified).
-		if c.or.cmd != nil && (c.or.when == nil || c.or.when(cmdout)) {
-			from = append(from, src{strings.Split(c.args, " ")[0], "||"})
-			return c.or.run(flags, from...)
-		}
-		// Otherwise, if c.retry.dur > 0, run again after waiting.
-		if c.retry.dur > 0 {
-			select {
-			case <-c.retry.ctx.Done():
-				logger.Info(fmt.Sprintf("%s: context canceled", c.args))
-			default:
-				logger.Info(fmt.Sprintf("%s: retrying", c.args), "count", len(from))
-				time.Sleep(c.retry.dur)
-				from = append(from, src{c.args, "retry"})
-				return c.run(flags, from...)
-			}
-		}
-	}
-
 	if len(from) > 0 {
-		if from[0].action == "retry" {
-			r.kvs = append([]interface{}{"retries", len(from)}, r.kvs...)
-		} else {
-			for i := len(from) - 1; i >= 0; i-- {
-				c.args = fmt.Sprintf("%s %s %s", from[i].args, from[i].action, c.args)
-			}
+		for i := len(from) - 1; i >= 0; i-- {
+			c.args = fmt.Sprintf("%s %s %s", from[i].args, from[i].action, c.args)
 		}
 	}
 
@@ -144,11 +122,11 @@ func cliversion() (string, error) {
 			if len(fields) != 2 {
 				return result{err: fmt.Errorf("unexpected output")}
 			}
-			return result{kvs: []interface{}{"output", fields[1]}}
+			return result{cmdout: fields[1]}
 		},
 	}).run(nil)
 	if len(r.kvs) != 2 {
 		return "", r.err
 	}
-	return r.kvs[1].(string), nil
+	return r.cmdout, nil
 }

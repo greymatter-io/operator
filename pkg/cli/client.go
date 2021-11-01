@@ -41,23 +41,24 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 
 		// Ping Control every 5s until responsive by getting and editing the Mesh's zone.
 		// This ensures we can read and write from Control without any errors.
-		if (cmd{
-			// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
-			args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
-			retry: retry{
-				dur: time.Second * 5,
-				ctx: ctx,
-			},
-			and: cmdOpt{cmd: &cmd{
-				args:   fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
-				reader: values("zone_key"),
-				retry: retry{
-					dur: time.Second * 5,
-					ctx: ctx,
-				},
-			}},
-		}).run(cl.flags).err != nil {
-			return
+	PING_CONTROL_LOOP:
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				if r := (cmd{
+					// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
+					args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
+					and: cmdOpt{cmd: &cmd{
+						args:   fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
+						reader: values("zone_key"),
+					}},
+				}).run(cl.flags); r.err == nil {
+					break PING_CONTROL_LOOP
+				}
+				time.Sleep(time.Second * 5)
+			}
 		}
 
 		logger.Info("Connected to Control", "Mesh", mesh.Name)
@@ -83,16 +84,21 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 	go func(ctx context.Context, catalogCmds chan cmd) {
 
 		// Ping Catalog every 5s until responsive (getting the Mesh's session status with Control).
-		if (cmd{
-			// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
-			args:   fmt.Sprintf("get catalog-mesh %s", mesh.Name),
-			reader: values("mesh_id", "session_statuses.default"),
-			retry: retry{
-				dur: time.Second * 5,
-				ctx: ctx,
-			},
-		}).run(cl.flags).err != nil {
-			return
+	PING_CATALOG_LOOP:
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				if r := (cmd{
+					// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
+					args:   fmt.Sprintf("get catalog-mesh %s", mesh.Name),
+					reader: values("mesh_id", "session_statuses.default"),
+				}).run(cl.flags); r.err == nil {
+					break PING_CATALOG_LOOP
+				}
+				time.Sleep(time.Second * 5)
+			}
 		}
 
 		logger.Info("Connected to Catalog", "Mesh", mesh.Name)
@@ -150,7 +156,7 @@ func values(keys ...string) func(string) result {
 				kvs = append(kvs, key, value)
 			}
 		}
-		r := result{kvs, nil}
+		r := result{out, kvs, nil}
 		if len(kvs) == 0 {
 			r.err = fmt.Errorf("failed to get %v", keys)
 		}

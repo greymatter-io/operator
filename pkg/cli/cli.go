@@ -76,7 +76,7 @@ func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value) {
 
 	flags := []string{
 		fmt.Sprintf("--api.host edge.%s.svc.cluster.local:10808", mesh.Spec.InstallNamespace),
-		"--api.prefix /services/control/api/1.0",
+		"--api.prefix /services/control/api",
 		fmt.Sprintf("--catalog.host edge.%s.svc.cluster.local:10808", mesh.Spec.InstallNamespace),
 		"--catalog.prefix /services/catalog",
 		fmt.Sprintf("--catalog.mesh %s", mesh.Name),
