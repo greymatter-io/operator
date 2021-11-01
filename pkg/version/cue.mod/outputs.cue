@@ -231,6 +231,9 @@ sidecar: {
   xdsCluster: string
   node: *"" | string
   controlHost: *"control.\(InstallNamespace).svc.cluster.local" | string
+  if xdsCluster == "edge" {
+    staticConfig: envoyEdge
+  }
   if xdsCluster == "control" || xdsCluster == "catalog" {
     staticConfig: envoyMeshConfigs
   }

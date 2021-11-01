@@ -65,6 +65,21 @@ func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
 			},
 		},
 		{
+			name:       "With xdsCluster edge",
+			xdsCluster: "edge",
+			options:    baseOptions,
+			checkSidecar: func(t *testing.T, sidecar Sidecar) {
+				if len(sidecar.StaticConfig) == 0 {
+					t.Fatal("no StaticConfig was set")
+				}
+				t.Run("StaticConfig discovers from control.<namespace>.svc.cluster.local",
+					assert.JSONHasSubstrings(sidecar.StaticConfig,
+						`"address":"control.myns.svc.cluster.local","port_value":50000`,
+					),
+				)
+			},
+		},
+		{
 			name:       "With xdsCluster control",
 			xdsCluster: "control",
 			options:    baseOptions,

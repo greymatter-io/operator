@@ -81,7 +81,7 @@ k8s_sample() {
 
 k3d_push() {
   make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest-kops
-  k3d image import docker.greymatter.io/internal/gm-operator:latest-kops
+  k3d image import -c gm-operator docker.greymatter.io/internal/gm-operator:latest-kops
 }
 
 k3d_deploy() {

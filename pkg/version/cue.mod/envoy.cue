@@ -2,6 +2,46 @@ package base
 
 import "strconv"
 
+envoyEdge: envoy & {
+	static_resources: {
+		clusters: [
+			envoyCluster & {
+				_name: "xds_cluster"
+				_host: sidecar.controlHost
+				_port: 50000
+			},
+			envoyCluster & {
+				_name: "control"
+				_host: sidecar.controlHost
+				_port: 5555
+			},
+			envoyCluster & {
+				_name: "catalog"
+				_host: "catalog.\(InstallNamespace).svc.cluster.local"
+				_port: 8080
+			}
+		]
+		listeners: [
+			envoyHTTPListener & {
+				_name: "edge"
+				_port: 10808
+				_routes: [
+					{
+						match: prefix: "/services/control/api/"
+						route: cluster: "control"
+						prefix_rewrite: "/"
+					},
+					{
+						match: prefix: "/services/catalog/"
+						route: cluster: "catalog"
+						prefix_rewrite: "/"
+					}
+				]
+			}
+		]
+	}
+}
+
 envoyMeshConfigs: envoy & {
 	static_resources: {
 		clusters: [
@@ -58,7 +98,7 @@ envoyCluster: {
 	name: _name
 	http2_protocol_options: {}
 	type: "STRICT_DNS"
-	connect_timeout: "10s"
+	connect_timeout: "0.250s"
 	lb_policy: "LEAST_REQUEST"
 	load_assignment: {
 		cluster_name: _name
@@ -77,16 +117,39 @@ envoyCluster: {
 	}
 }
 
-envoyTCPListener: {
+envoyHTTPListener: listener & {
 	_name: string
 	_port: int
+	_routes: [...{...}]
+
+	filter_chains: [
+		{
+			filters: [
+				{
+					name: "envoy.filters.network.http_connection_manager"
+					typed_config: {
+						"@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
+						use_remote_address: true
+						skip_xff_append: false
+						codec_type: "auto"
+						stat_prefix: "\(_name)-\(_port)"
+						route_config: virtual_hosts: [
+							{
+								name: "*-\(_port)"
+								domains: ["*", "*:\(_port)"]
+								routes: _routes
+							}
+						]
+					}
+				}
+			]
+		}
+	]
+}
+
+envoyTCPListener: listener & {
 	_cluster: string
 
-	name: "\(_name):\(_port)"
-	address: socket_address: {
-		address:    "0.0.0.0"
-		port_value: _port
-	}
 	filter_chains: [
 		{
 			filters: [
@@ -101,6 +164,17 @@ envoyTCPListener: {
 			]
 		}
 	]
+}
+
+listener: {
+	_name: string
+	_port: int
+
+	name: "\(_name):\(_port)"
+	address: socket_address: {
+		address:    "0.0.0.0"
+		port_value: _port
+	}
 }
 
 envoy: {

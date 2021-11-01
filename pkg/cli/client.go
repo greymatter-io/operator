@@ -52,7 +52,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 				args:   fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
 				reader: values("zone_key"),
 				retry: retry{
-					dur: time.Second * 10,
+					dur: time.Second * 5,
 					ctx: ctx,
 				},
 			}},
@@ -88,7 +88,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 			args:   fmt.Sprintf("get catalog-mesh %s", mesh.Name),
 			reader: values("mesh_id", "session_statuses.default"),
 			retry: retry{
-				dur: time.Second * 10,
+				dur: time.Second * 5,
 				ctx: ctx,
 			},
 		}).run(cl.flags).err != nil {
