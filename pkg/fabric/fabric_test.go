@@ -911,7 +911,7 @@ func loadMock(t *testing.T) *Fabric {
 			Zone:           "myzone",
 			ReleaseVersion: "1.7",
 		},
-	}).Options())
+	}).Options(""))
 }
 
 func testContains(obj json.RawMessage, subs ...string) func(t *testing.T) {

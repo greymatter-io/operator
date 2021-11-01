@@ -37,10 +37,6 @@ spec:
           spec:
             description: MeshSpec defines the desired state of a Grey Matter mesh.
             properties:
-              cluster_url:
-                description: 'The base url of the openshift cluster (ex: console-openshift-console.apps.coffee.greymatter.services
-                  would be apps.coffee.greymatter.services)'
-                type: string
               install_namespace:
                 description: Namespace where mesh core components and dependencies
                   should be installed.
@@ -90,7 +86,6 @@ spec:
                 description: Label this mesh as belonging to a particular zone.
                 type: string
             required:
-            - cluster_url
             - install_namespace
             - release_version
             - zone
