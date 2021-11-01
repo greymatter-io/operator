@@ -60,7 +60,6 @@ k8s_cleanup() {
   ./bin/kustomize build config/default | kubectl delete -f -
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
-  kubectl delete secret webhook-server-cert -n gm-operator
 }
 
 k8s_upgrade() {
@@ -92,7 +91,8 @@ k3d_deploy() {
 
 k3d_cleanup() {
   ./bin/kustomize build config/default | kubectl delete -f -
-  kubectl delete secret webhook-server-cert
+  kubectl delete clusterrole gm-control
+  kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
 
 k3d_upgrade() {
