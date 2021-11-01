@@ -16,15 +16,14 @@ var (
 )
 
 // Options returns a slice of cue.Value derived from configured Mesh values.
-func (m Mesh) Options() []cue.Value {
+func (m Mesh) Options(clusterIngressDomain string) []cue.Value {
 	opts := []cue.Value{
 		cueutils.Strings(map[string]string{
 			"MeshName":         m.Name,
 			"ReleaseVersion":   m.Spec.ReleaseVersion,
 			"InstallNamespace": m.Spec.InstallNamespace,
 			"Zone":             m.Spec.Zone,
-			// TODO: figure out how to get the domain dynamically
-			"IngressSubDomain": fmt.Sprintf("%s.%s.%s", m.Name, m.Spec.InstallNamespace, m.Spec.ClusterUrl),
+			"IngressSubDomain": fmt.Sprintf("%s.%s", m.Name, clusterIngressDomain),
 		}),
 		cueutils.StringSlices(map[string][]string{
 			"WatchNamespaces": append(m.Spec.WatchNamespaces, m.Spec.InstallNamespace),
