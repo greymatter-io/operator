@@ -33,7 +33,7 @@ func TestNewClient(t *testing.T) {
 
 	c.configureMeshClient(
 		mesh,
-		mesh.Options(),
+		mesh.Options(""),
 		"--api.host localhost:5555",
 		"--catalog.host localhost:8181",
 		"--catalog.mesh mesh",

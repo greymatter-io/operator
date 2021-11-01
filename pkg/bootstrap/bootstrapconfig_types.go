@@ -31,4 +31,8 @@ type BootstrapConfig struct {
 	// The name of the secret in the namespace where Grey Matter Operator is deployed.
 	// This secret is re-created in each namespace where Grey Matter Core is installed.
 	ImagePullSecretName string `json:"imagePullSecretName"`
+	// The name of the cluster ingress (configs.openshift.io/v1.Ingress) in an openshift environment.
+	// This is used to determine the domain of the cluster.  Unless specifically changed the default clusterIngressName is "cluster"
+	// When deploying in non openshift environments this will not be used
+	ClusterIngressName string `json:"clusterIngressName"`
 }
