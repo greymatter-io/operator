@@ -51,17 +51,24 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 					// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
 					args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
 					and: cmdOpt{cmd: &cmd{
-						args:   fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
-						reader: values("zone_key"),
+						args: fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
+						log: func(args string, r result) {
+							if r.err != nil {
+								logger.Info("Waiting on Control datastore initialization", "Mesh", mesh.Name)
+							}
+						},
 					}},
+					log: func(args string, r result) {
+						if r.err != nil {
+							logger.Info("Waiting to connect to Control", "Mesh", mesh.Name)
+						}
+					},
 				}).run(cl.flags); r.err == nil {
 					break PING_CONTROL_LOOP
 				}
-				time.Sleep(time.Second * 5)
+				time.Sleep(time.Second * 10)
 			}
 		}
-
-		logger.Info("Connected to Control", "Mesh", mesh.Name)
 
 		// Configure edge domain, since it is a dependency for all sidecar routes.
 		mkApply("domain", cl.f.EdgeDomain()).run(cl.flags)
@@ -92,16 +99,18 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 			default:
 				if r := (cmd{
 					// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
-					args:   fmt.Sprintf("get catalog-mesh %s", mesh.Name),
-					reader: values("mesh_id", "session_statuses.default"),
+					args: fmt.Sprintf("get catalog-mesh %s", mesh.Name),
+					log: func(args string, r result) {
+						if r.err != nil {
+							logger.Info("Waiting to connect to Catalog", "Mesh", mesh.Name)
+						}
+					},
 				}).run(cl.flags); r.err == nil {
 					break PING_CATALOG_LOOP
 				}
-				time.Sleep(time.Second * 5)
+				time.Sleep(time.Second * 10)
 			}
 		}
-
-		logger.Info("Connected to Catalog", "Mesh", mesh.Name)
 
 		// Then consume additional commands for catalog objects
 		for {
@@ -127,6 +136,11 @@ func mkApply(kind string, data json.RawMessage) cmd {
 		requeue: true,
 		stdin:   data,
 		reader:  values(kk),
+		log: func(args string, r result) {
+			if r.err == nil {
+				logger.Info(args, r.kvs...)
+			}
+		},
 		or: cmdOpt{
 			cmd: &cmd{
 				args:    fmt.Sprintf("edit %s %s", kind, objKey(kind, data)),

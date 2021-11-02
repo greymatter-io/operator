@@ -23,6 +23,9 @@ type cmd struct {
 	and cmdOpt
 	// If the cmd (or read) fails, run this cmd instead.
 	or cmdOpt
+
+	// A custom logger; if not used, the full cmdout will be logged, maybe as an error.
+	log func(args string, r result)
 }
 
 type result struct {
@@ -55,35 +58,30 @@ func (c cmd) run(flags []string, from ...src) result {
 	}
 
 	out, err := command.CombinedOutput()
-	cmdout := string(out)
-	var r result
+	r := result{cmdout: string(out), err: err}
 
 	// If err is a bad exit code, capture stderr as the error.
-	if err != nil {
-		r.err = fmt.Errorf(cmdout)
+	if r.err != nil {
+		r.err = fmt.Errorf(r.cmdout)
 	} else {
 		// Otherwise, if c.reader is defined, call it on cmdout to parse it.
-		r.cmdout = cmdout
+		// If no c.reader is defined, add a single k/v pair with the full cmdout.
 		if c.reader != nil {
 			r = c.reader(r.cmdout)
+		} else {
+			r.kvs = []interface{}{"output", r.cmdout}
 		}
 	}
 
-	if r.err != nil {
+	if r.err != nil && c.or.cmd != nil && (c.or.when == nil || c.or.when(r.cmdout)) {
 		// If there is an err (as cmdout or from c.reader), run c.or if specified.
-		if c.or.cmd != nil && (c.or.when == nil || c.or.when(r.cmdout)) {
-			from = append(from, src{strings.Split(c.args, " ")[0], "||"})
-			return c.or.run(flags, from...)
-		}
-	} else {
+		from = append(from, src{strings.Split(c.args, " ")[0], "||"})
+		return c.or.run(flags, from...)
+	} else if r.err == nil && c.and.cmd != nil && (c.and.when == nil || c.and.when(r.cmdout)) {
 		// If c.and is specified, pipe cmdout into it and run it next.
-		if c.and.cmd != nil && (c.and.when == nil || c.and.when(r.cmdout)) {
-			c.and.stdin = json.RawMessage(r.cmdout)
-			from = append(from, src{strings.Split(c.args, " ")[0], ">"})
-			return c.and.run(flags, from...)
-		} else {
-			r.kvs = []interface{}{"output", cmdout}
-		}
+		c.and.stdin = json.RawMessage(r.cmdout)
+		from = append(from, src{strings.Split(c.args, " ")[0], ">"})
+		return c.and.run(flags, from...)
 	}
 
 	if len(from) > 0 {
@@ -93,6 +91,10 @@ func (c cmd) run(flags []string, from ...src) result {
 	}
 
 	// Log the final result.
+	if c.log != nil {
+		c.log(c.args, r)
+		return r
+	}
 	if r.err != nil {
 		logger.Error(r.err, c.args, r.kvs...)
 	} else {
