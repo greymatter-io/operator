@@ -116,6 +116,7 @@ func getOpenshiftClusterIngressDomain(c client.Client, ingressName string) (stri
 
 // Check that a suported ingress controller class exists in a kubernetes cluster.
 // This will be expanded later on as we support additional ingress implementations.
+//lint:ignore U1000 save for reference
 func isSupportedKubernetesIngressClassPresent(c client.Client) bool {
 	ingressClassList := &networkingv1.IngressClassList{}
 	if err := c.List(context.TODO(), ingressClassList); err != nil {
