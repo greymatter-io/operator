@@ -27,21 +27,25 @@ envoyEdge: envoy & {
 				_port: 10808
 				_routes: [
 					{
-						match: prefix: "/services/control/api/"
+						match: {
+							prefix: "/services/control/api/"
+							case_sensitive: false
+						}
 						route: {
 							cluster: "control"
 							prefix_rewrite: "/"
-							timeout: "1s"
-							idle_timeout: "1s"
+							timeout: "60s"
 						}
 					},
 					{
-						match: prefix: "/services/catalog/"
+						match: {
+							prefix: "/services/catalog/"
+							case_sensitive: false
+						}
 						route: {
 							cluster: "catalog"
 							prefix_rewrite: "/"
-							timeout: "1s"
-							idle_timeout: "1s"
+							timeout: "60s"
 						}
 					}
 				]
@@ -104,10 +108,11 @@ envoyCluster: {
 	_port: int
 
 	name: _name
-	http2_protocol_options: {}
 	type: "STRICT_DNS"
-	connect_timeout: "0.25s"
-	lb_policy: "LEAST_REQUEST"
+	connect_timeout: "5s"
+	if _name == "xds_cluster" {
+		http2_protocol_options: {}
+	}
 	load_assignment: {
 		cluster_name: _name
 		endpoints: [
@@ -141,7 +146,7 @@ envoyHTTPListener: listener & {
 						stat_prefix: _key
 						codec_type: "AUTO"
 						route_config: {
-							name: _key
+							name: "\(_name):\(_port)"
 							virtual_hosts: [
 								{
 									name: "*-\(_port)"
@@ -150,6 +155,27 @@ envoyHTTPListener: listener & {
 								}
 							]
 						}
+						http_filters: [
+              {
+                name: "envoy.filters.http.cors",
+                typed_config: "@type": "type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors"
+              },
+							{
+								name: "envoy.filters.http.router",
+								typed_config: {
+									"@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
+									upstream_log: [
+										{
+											name: "envoy.access_loggers.file"
+											typed_config: {
+												"@type": "type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog",
+                        path: "/dev/stdout"
+                      }
+										}
+									]
+								}
+							}
+						]
 					}
 				}
 			]
@@ -197,18 +223,22 @@ envoy: {
 		}
 	}
 	dynamic_resources: {
-		ads_config: {
-			api_type: "GRPC"
-			grpc_services: envoy_grpc: cluster_name: "xds_cluster"
-			transport_api_version: "V3"
+		lds_config: {
+			ads: {}
+			resource_api_version: "V3"
 		}
 		cds_config: {
 			ads: {}
 			resource_api_version: "V3"
 		}
-		lds_config: {
-			ads: {}
-			resource_api_version: "V3"
+		ads_config: {
+			api_type: "GRPC"
+			grpc_services: [
+				{
+					envoy_grpc: cluster_name: "xds_cluster"
+				}
+			]
+			transport_api_version: "V3"
 		}
 	}
 	admin: {
