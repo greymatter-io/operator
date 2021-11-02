@@ -106,7 +106,7 @@ envoyCluster: {
 	name: _name
 	http2_protocol_options: {}
 	type: "STRICT_DNS"
-	connect_timeout: "0.250s"
+	connect_timeout: "0.25s"
 	lb_policy: "LEAST_REQUEST"
 	load_assignment: {
 		cluster_name: _name
@@ -129,6 +129,7 @@ envoyHTTPListener: listener & {
 	_name: string
 	_port: int
 	_routes: [...{...}]
+	_key: "\(_name)-\(_port)"
 
 	filter_chains: [
 		{
@@ -137,17 +138,18 @@ envoyHTTPListener: listener & {
 					name: "envoy.filters.network.http_connection_manager"
 					typed_config: {
 						"@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
-						use_remote_address: true
-						skip_xff_append: false
-						codec_type: "auto"
-						stat_prefix: "\(_name)-\(_port)"
-						route_config: virtual_hosts: [
-							{
-								name: "*-\(_port)"
-								domains: ["*", "*:\(_port)"]
-								routes: _routes
-							}
-						]
+						stat_prefix: _key
+						codec_type: "AUTO"
+						route_config: {
+							name: _key
+							virtual_hosts: [
+								{
+									name: "*-\(_port)"
+									domains: ["*", "*:\(_port)"]
+									routes: _routes
+								}
+							]
+						}
 					}
 				}
 			]
