@@ -1,0 +1,18 @@
+{
+  "CN": "greymatter.io",
+  "hosts": [
+    "greymatter.io",
+    "www.greymatter.io"
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "US",
+      "ST": "VA",
+      "O": "Grey Matter"
+    }
+  ]
+}

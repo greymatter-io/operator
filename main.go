@@ -44,6 +44,13 @@ import (
 var (
 	scheme = runtime.NewScheme()
 	logger = ctrl.Log.WithName("setup")
+
+	// Global config flags
+	configFile           string
+	metricsAddr          string
+	probeAddr            string
+	enableLeaderElection bool
+	development          bool
 )
 
 func init() {
@@ -63,12 +70,6 @@ func init() {
 //+kubebuilder:rbac:groups=config.openshift.io,resources=ingresses,verbs=get;list
 
 func main() {
-	var configFile string
-	var metricsAddr string
-	var probeAddr string
-	var enableLeaderElection bool
-	var development bool
-
 	flag.StringVar(&configFile, "config", "", "The operator will load its initial configuration from this file if defined.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -92,10 +93,10 @@ func main() {
 	// These values will not be replaced by any values set in a read configFile.
 	var err error
 	options := ctrl.Options{
-		Scheme:         scheme,
-		LeaderElection: enableLeaderElection,
-		// TODO: Generate hash for ID; should be unique with multiple operator replicas
-		LeaderElectionID: "715805a0.greymatter.io",
+		Scheme:                  scheme,
+		LeaderElection:          enableLeaderElection,
+		LeaderElectionID:        "715805a0.greymatter.io",
+		LeaderElectionNamespace: "gm-operator",
 	}
 
 	// Attempt to read a configFile if one has been configured.
@@ -142,6 +143,11 @@ func main() {
 		logger.Error(err, "Unable to create initial client")
 	}
 
+	// Set default image pull secret name in bootstrap config.
+	if cfg.ImagePullSecretName == "" {
+		cfg.ImagePullSecretName = "gm-docker-secret"
+	}
+
 	// Initialize installer
 	inst, err := installer.New(c, gmcli, cfg.ImagePullSecretName, cfg.ClusterIngressName)
 	if err != nil {
@@ -155,6 +161,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Register the webhook handlers with our server to receive requests
 	webhooks.Register(mgr, inst, gmcli, c)
 
 	//+kubebuilder:scaffold:builder

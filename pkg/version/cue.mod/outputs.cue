@@ -1,9 +1,9 @@
 package base
 
 import (
-	appsv1     "k8s.io/api/apps/v1"
-	corev1     "k8s.io/api/core/v1"
-	netv1      "k8s.io/api/networking/v1"
+	appsv1        "k8s.io/api/apps/v1"
+	corev1        "k8s.io/api/core/v1"
+	networkingv1  "k8s.io/api/networking/v1"
 )
 
 manifests: [...#ManifestGroup] & [
@@ -53,6 +53,11 @@ manifests: [...#ManifestGroup] & [
             imagePullSecrets: [
               { name: "gm-docker-secret" }
             ]
+          }
+          if Environment != "openshift" && (_c[0].name == "gm-redis" || _c[0].name == "gm-prometheus") {
+            securityContext: {
+              fsGroup: 2000
+            }
           }
           containers: [
             for _, c in _c {
@@ -146,6 +151,10 @@ manifests: [...#ManifestGroup] & [
     }
     spec: {
       selector: "greymatter.io/workload": _c[0].name
+      // Make the edge service a LoadBalancer for ingress
+      if _c[0].name == "edge" {
+        type: "LoadBalancer"
+      }
       ports: [
         for _, c in _c {
           for k, v in c.ports {
@@ -191,12 +200,12 @@ manifests: [...#ManifestGroup] & [
     }
   ]
   if _c[0].name == "edge" {
-    ingress: netv1.#Ingress & {
+    ingress: networkingv1.#Ingress & {
       {
         apiVersion: "networking.k8s.io/v1"
         kind: "Ingress"
         metadata: {
-          name: "greymatter-ingress"
+          name: MeshName
           namespace: InstallNamespace
         }
         spec: {
@@ -204,16 +213,16 @@ manifests: [...#ManifestGroup] & [
             {
               host: IngressSubDomain
               http: paths: [
-                  {
-                    pathType: "ImplementationSpecific"
-                    backend: {
-                      service: {
-                        name: "edge"
-                        port: number: 10808
-                      }
+                {
+                  pathType: "ImplementationSpecific"
+                  backend: {
+                    service: {
+                      name: "edge"
+                      port: number: 10808
                     }
-                  },
-                ]
+                  }
+                }
+              ]
             }
           ]
         }

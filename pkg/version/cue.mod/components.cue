@@ -129,7 +129,7 @@ catalog: #Component & {
       mesh_type: greymatter
       sessions:
         default:
-          url: control.\(InstallNamespace).svc:50000
+          url: control.\(InstallNamespace).svc.cluster.local:50000
           zone: \(Zone)
       labels:
         zone_key: \(Zone)
