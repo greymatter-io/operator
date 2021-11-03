@@ -105,6 +105,7 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 
 	// TCP egresses are served at 10910 and up (one listener each).
 	// Redis and (eventually) NATS TCP egresses are prepended by default for all services.
+	// TODO: Pass options here for specifying an external Redis egress.
 	tcpEgresses := []EgressArgs{}
 	if name != "gm-redis" {
 		tcpEgresses = append(tcpEgresses, EgressArgs{Cluster: "gm-redis", TCPPort: 10910})

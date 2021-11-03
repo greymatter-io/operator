@@ -1,6 +1,6 @@
 package base
 
-import "strconv"
+// import "strconv"
 
 envoyEdge: envoy & {
 	static_resources: {
@@ -11,12 +11,12 @@ envoyEdge: envoy & {
 				_port: 50000
 			},
 			envoyCluster & {
-				_name: "control"
+				_name: "_control"
 				_host: sidecar.controlHost
 				_port: 5555
 			},
 			envoyCluster & {
-				_name: "catalog"
+				_name: "_catalog"
 				_host: "catalog.\(InstallNamespace).svc.cluster.local"
 				_port: 8080
 			}
@@ -24,28 +24,28 @@ envoyEdge: envoy & {
 		listeners: [
 			envoyHTTPListener & {
 				_name: "edge"
-				_port: 10808
+				_port: 10707
 				_routes: [
 					{
 						match: {
-							prefix: "/services/control/api/"
+							prefix: "/control/"
 							case_sensitive: false
 						}
 						route: {
-							cluster: "control"
+							cluster: "_control"
 							prefix_rewrite: "/"
-							timeout: "60s"
+							timeout: "5s"
 						}
 					},
 					{
 						match: {
-							prefix: "/services/catalog/"
+							prefix: "/catalog/"
 							case_sensitive: false
 						}
 						route: {
-							cluster: "catalog"
+							cluster: "_catalog"
 							prefix_rewrite: "/"
-							timeout: "60s"
+							timeout: "5s"
 						}
 					}
 				]
@@ -64,8 +64,8 @@ envoyMeshConfigs: envoy & {
 			},
 			envoyCluster & {
 				_name: "gm-redis"
-				_host: Redis.host
-				_port: strconv.Atoi(Redis.port)
+				_host: "gm-redis.\(InstallNamespace).svc.cluster.local"
+				_port: 6379
 			},
 		]
 		listeners: [
@@ -73,30 +73,6 @@ envoyMeshConfigs: envoy & {
 				_name: sidecar.xdsCluster
 				_port: 10910
 				_cluster: "gm-redis"
-			}
-		]
-	}
-}
-
-envoyRedis: envoy & {
-	static_resources: {
-		clusters: [
-			envoyCluster & {
-				_name: "xds_cluster"
-				_host: sidecar.controlHost
-				_port: 50000
-			},
-			envoyCluster & {
-				_name: "gm-redis:6379"
-				_host: "127.0.0.1"
-				_port: 6379
-			}
-		]
-		listeners: [
-			envoyTCPListener & {
-				_name: "gm-redis"
-				_port: 10910
-				_cluster: "gm-redis:6379"
 			}
 		]
 	}

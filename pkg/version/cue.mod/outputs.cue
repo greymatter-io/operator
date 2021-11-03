@@ -238,11 +238,8 @@ sidecar: {
   if xdsCluster == "edge" {
     staticConfig: envoyEdge
   }
-  if xdsCluster == "control" || xdsCluster == "catalog" {
+  if xdsCluster == "control" || xdsCluster == "catalog" || xdsCluster == "jwt-security" {
     staticConfig: envoyMeshConfigs
-  }
-  if xdsCluster == "gm-redis" {
-    staticConfig: envoyRedis
   }
   container: corev1.#Container & {
     name: "sidecar"

@@ -109,21 +109,21 @@ func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
 				)
 			},
 		},
-		{
-			name:       "With xdsCluster gm-redis",
-			xdsCluster: "gm-redis",
-			options:    baseOptions,
-			checkSidecar: func(t *testing.T, sidecar Sidecar) {
-				if len(sidecar.StaticConfig) == 0 {
-					t.Fatal("no StaticConfig was set")
-				}
-				t.Run("StaticConfig's gm-redis goes to localhost",
-					assert.JSONHasSubstrings(sidecar.StaticConfig,
-						`"address":"127.0.0.1","port_value":6379`,
-					),
-				)
-			},
-		},
+		// {
+		// 	name:       "With xdsCluster gm-redis",
+		// 	xdsCluster: "gm-redis",
+		// 	options:    baseOptions,
+		// 	checkSidecar: func(t *testing.T, sidecar Sidecar) {
+		// 		if len(sidecar.StaticConfig) == 0 {
+		// 			t.Fatal("no StaticConfig was set")
+		// 		}
+		// 		t.Run("StaticConfig's gm-redis goes to localhost",
+		// 			assert.JSONHasSubstrings(sidecar.StaticConfig,
+		// 				`"address":"127.0.0.1","port_value":6379`,
+		// 			),
+		// 		)
+		// 	},
+		// },
 	}, to...) {
 		t.Run(tc.name, func(t *testing.T) {
 			vc := v.Copy()

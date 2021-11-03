@@ -95,7 +95,7 @@ func injectXDSCluster(xdsCluster string) cue.Value {
 			controlHost: "127.0.0.1"
 		}`, xdsCluster, node))
 
-	case "edge", "catalog", "gm-redis":
+	case "edge", "catalog", "jwt-security":
 		return cueutils.FromStrings(fmt.Sprintf(`sidecar: {
 			xdsCluster: "%s"
 			node: "%s"
