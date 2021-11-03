@@ -66,9 +66,9 @@ func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value) {
 	// for CLI 4
 	// conf := fmt.Sprintf(`
 	// [api]
-	// host = "http://control.%s.svc.cluster.local:5555/v1.0"
+	// host = "http://edge.%s.svc.cluster.local:10707/control/v1.0"
 	// [catalog]
-	// host = "http://catalog.%s.svc.cluster.local:8080"
+	// host = "http://edge.%s.svc.cluster.local:10707/catalog"
 	// mesh = "%s"
 	// `, mesh.Spec.InstallNamespace, mesh.Spec.InstallNamespace, mesh.Name)
 	// conf = base64.StdEncoding.EncodeToString([]byte(conf))

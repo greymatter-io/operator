@@ -83,7 +83,7 @@ envoyMeshConfig: envoy & {
 				_port: 10910
 				_cluster: "gm-redis"
 			},
-			if sidecar.xdsCluster == "control" {
+			if sidecar.xdsCluster == "control" || sidecar.xdsCluster == "catalog" {
 				envoyHTTPListener & {
 					_name: "bootstrap"
 					_port: 10707

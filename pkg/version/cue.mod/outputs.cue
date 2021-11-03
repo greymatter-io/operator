@@ -143,16 +143,17 @@ manifests: [...#ManifestGroup] & [
     }
   }
   service: corev1.#Service & {
+    _name: _c[0].name
     apiVersion: "v1"
     kind: "Service"
     metadata: {
-      name: _c[0].name
+      name: _name
       namespace: InstallNamespace
     }
     spec: {
-      selector: "greymatter.io/workload": _c[0].name
+      selector: "greymatter.io/workload": _name
       // Make the edge service a LoadBalancer for ingress
-      if _c[0].name == "edge" {
+      if _name == "edge" {
         type: "LoadBalancer"
       }
       ports: [
@@ -162,14 +163,20 @@ manifests: [...#ManifestGroup] & [
           port: 10808
           targetPort: 10808
         },
-        for _, c in _c {
-          for k, v in c.ports if k != "proxy" {
-            {
-              name: k
-              protocol: "TCP"
-              port: v
-              targetPort: v
-            }
+        if _name == "edge" || _name == "control" || _name == "catalog" || _name == "jwt-security" || _name == "gm-redis" {
+          {
+            name: "bootstrap"
+            protocol: "TCP"
+            port: 10707
+            targetPort: 10707
+          },
+        }
+        if _name == "control" {
+          {
+            name: "control"
+            protocol: "TCP"
+            port: 50000
+            targetPort: 50000
           }
         }
       ]
