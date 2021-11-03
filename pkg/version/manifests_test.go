@@ -24,19 +24,22 @@ type testOptions struct {
 }
 
 func TestVersionManifests_1_7(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	testVersionManifests(t, loadVersion(t, "1.7"))
 }
 
 func TestVersionManifests_1_6(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	testVersionManifests(t, loadVersion(t, "1.6"))
 }
 
 func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	// Run all general tests for manifests
 	t.Run("without options", func(t *testing.T) {
-		v.Manifests()
+		m := v.Manifests()
+		y, _ := yaml.Marshal(m[0].Service)
+		fmt.Println(string(y))
 		// unimplemented
 		// all expected manifests exist
 	})
@@ -277,8 +280,6 @@ func getEnvValue(container corev1.Container, key string) (string, bool) {
 }
 
 func loadVersion(t *testing.T, name string) Version {
-	t.Helper()
-
 	versions, err := loadBaseWithVersions(nil)
 	if err != nil {
 		cueutils.LogError(logger, err)

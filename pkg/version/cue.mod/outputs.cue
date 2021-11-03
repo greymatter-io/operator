@@ -156,7 +156,15 @@ manifests: [...#ManifestGroup] & [
         type: "LoadBalancer"
       }
       ports: [
-        for _, c in _c {
+        for k, v in _c[0].ports if len(_c) == 1 {
+          {
+            name: k
+            protocol: "TCP"
+            port: v
+            targetPort: v
+          }
+        }
+        for _, c in _c if len(_c) > 1 {
           for k, v in c.ports {
             {
               name: k

@@ -38,6 +38,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 
 	// Consume commands to send to Control
 	go func(ctx context.Context, controlCmds chan cmd) {
+		start := time.Now()
 
 		// Ping Control every 5s until responsive by getting and editing the Mesh's zone.
 		// This ensures we can read and write from Control without any errors.
@@ -54,13 +55,17 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 						args: fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
 						log: func(args string, r result) {
 							if r.err != nil {
-								logger.Info("Waiting on Control datastore initialization", "Mesh", mesh.Name)
+								logger.Info("Waiting on Control datastore initialization",
+									"Mesh", mesh.Name,
+									"Elapsed", time.Since(start).String())
 							}
 						},
 					}},
 					log: func(args string, r result) {
 						if r.err != nil {
-							logger.Info("Waiting to connect to Control", "Mesh", mesh.Name)
+							logger.Info("Waiting to connect to Control",
+								"Mesh", mesh.Name,
+								"Elapsed", time.Since(start).String())
 						}
 					},
 				}).run(cl.flags); r.err == nil {
@@ -89,6 +94,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 
 	// Consume commands to send to Catalog
 	go func(ctx context.Context, catalogCmds chan cmd) {
+		start := time.Now()
 
 		// Ping Catalog every 5s until responsive (getting the Mesh's session status with Control).
 	PING_CATALOG_LOOP:
@@ -102,7 +108,9 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 					args: fmt.Sprintf("get catalog-mesh %s", mesh.Name),
 					log: func(args string, r result) {
 						if r.err != nil {
-							logger.Info("Waiting to connect to Catalog", "Mesh", mesh.Name)
+							logger.Info("Waiting to connect to Catalog",
+								"Mesh", mesh.Name,
+								"Elapsed", time.Since(start).String())
 						}
 					},
 				}).run(cl.flags); r.err == nil {

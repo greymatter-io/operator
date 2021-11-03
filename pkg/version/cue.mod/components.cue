@@ -44,6 +44,7 @@ proxy: #Component & {
 
 edge: #Component & proxy & {
   name: "edge"
+  ports: bootstrap: 10707
   env: XDS_CLUSTER: "edge"
 }
 
@@ -80,8 +81,8 @@ control_api: #Component & {
     GM_CONTROL_API_PERSISTER_TYPE: "redis"
     GM_CONTROL_API_REDIS_MAX_RETRIES: "50"
     GM_CONTROL_API_REDIS_RETRY_DELAY: "5s"
-    // The TCP egress route is configured internally in fabric.go.
-    // Otherwise, it would be configured via annotation: i.e. `greymatter.io/egress-tcp-local/external: gm-redis`
+    // The TCP egress route to Redis is configured internally via Envoy bootstrap config in envoy.cue.
+    // The local cluster behind 10910 will point either to our own gm-redis or an externally provided one.
     GM_CONTROL_API_REDIS_HOST: "127.0.0.1"
     GM_CONTROL_API_REDIS_PORT: "10910"
     GM_CONTROL_API_REDIS_DB: Redis.db

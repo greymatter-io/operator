@@ -14,15 +14,16 @@ import (
 )
 
 func TestVersionSidecar_1_7(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	testVersionSidecar(t, loadVersion(t, "1.7"))
 }
 
 func TestVersionSidecar_1_6(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	testVersionSidecar(t, loadVersion(t, "1.6"))
 }
 
 func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	// Run all general tests for sidecar
 	t.Run("without options", func(t *testing.T) {

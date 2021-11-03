@@ -40,19 +40,28 @@ metadata:
           "port": 80
         }
       ]
+    # greymatter.io/egress-tcp-local: '["tcpbin"]'
+    # greymatter.io/egress-tcp-external: |-
+    #   [
+    #     {
+    #       "name": "tcpbin",
+    #       "host": "tcpb.in",
+    #       "port": 80
+    #     }
+    #   ]
 spec:
   selector:
     matchLabels:
-      app: egress-demo
+      app: fibonacci
   template:
     metadata:
       labels:
-        app: egress-demo
+        app: fibonacci
     spec:
       containers:
-      - image: docker.greymatter.io/internal/responder:egress-demo
+      - image: docker.greymatter.io/internal/fibonacci:latest
         imagePullPolicy: Always
-        name: egress-demo
+        name: fibonacci
         ports:
         - containerPort: 8080
           protocol: TCP

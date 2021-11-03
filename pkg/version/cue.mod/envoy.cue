@@ -7,12 +7,12 @@ envoyEdge: envoy & {
 		clusters: [
 			envoyCluster & {
 				_name: "xds_cluster"
-				_host: sidecar.controlHost
+				_host: "control.\(InstallNamespace).svc.cluster.local"
 				_port: 50000
 			},
 			envoyCluster & {
 				_name: "_control"
-				_host: sidecar.controlHost
+				_host: "control.\(InstallNamespace).svc.cluster.local"
 				_port: 5555
 			},
 			envoyCluster & {
@@ -64,8 +64,10 @@ envoyMeshConfigs: envoy & {
 			},
 			envoyCluster & {
 				_name: "gm-redis"
-				_host: "gm-redis.\(InstallNamespace).svc.cluster.local"
-				_port: 6379
+				// TODO: Point this to the sidecar, or the external Redis
+				// If sidecar, the service will need to expose 10808.
+				_host: Redis.host
+				_port: strconv.Atoi(Redis.port)
 			},
 		]
 		listeners: [
@@ -73,6 +75,30 @@ envoyMeshConfigs: envoy & {
 				_name: sidecar.xdsCluster
 				_port: 10910
 				_cluster: "gm-redis"
+			}
+		]
+	}
+}
+
+envoyRedis: envoy & {
+	static_resources: {
+		clusters: [
+			envoyCluster & {
+				_name: "xds_cluster"
+				_host: sidecar.controlHost
+				_port: 50000
+			},
+			envoyCluster & {
+				_name: "gm-redis:6379"
+				_host: "127.0.0.1"
+				_port: 6379
+			}
+		]
+		listeners: [
+			envoyTCPListener & {
+				_name: "gm-redis"
+				_port: 10808
+				_cluster: "gm-redis:6379"
 			}
 		]
 	}
