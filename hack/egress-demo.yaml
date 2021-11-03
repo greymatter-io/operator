@@ -1,42 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: egress-demo
-  namespace: gm-operator-test3
+  name: fibonacci
+  namespace: gm-operator-watched
   labels:
-    app: egress-demo
-  annotations:
-    greymatter.io/egress-http-local: '["fibonacci"]'
-    # greymatter.io/egress-tcp-local: '["tcpbin"]'
-    greymatter.io/egress-http-external: |-
-      [
-        {
-          "name": "httpbin",
-          "host": "httpbin.org",
-          "port": 80
-        }
-      ]
-    # greymatter.io/egress-tcp-external: |-
-    #   [
-    #     {
-    #       "name": "tcpbin",
-    #       "host": "tcpb.in",
-    #       "port": 80
-    #     }
-    #   ]
+    app: fibonacci
 spec:
   selector:
     matchLabels:
-      app: egress-demo
+      app: fibonacci
   template:
     metadata:
       labels:
-        app: egress-demo
+        app: fibonacci
     spec:
       containers:
-      - image: docker.greymatter.io/internal/responder:egress-demo
+      - image: docker.greymatter.io/internal/fibonacci:latest
         imagePullPolicy: Always
-        name: egress-demo
+        name: fibonacci
         ports:
         - containerPort: 8080
           protocol: TCP
@@ -45,10 +26,29 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fibonacci
-  namespace: gm-operator-test3
+  name: egress-demo
+  namespace: gm-operator-watched
   labels:
-    app: fibonacci
+    app: egress-demo
+  annotations:
+    greymatter.io/egress-http-local: '["fibonacci"]'
+    greymatter.io/egress-http-external: |-
+      [
+        {
+          "name": "httpbin",
+          "host": "httpbin.org",
+          "port": 80
+        }
+      ]
+    # greymatter.io/egress-tcp-local: '["tcpbin"]'
+    # greymatter.io/egress-tcp-external: |-
+    #   [
+    #     {
+    #       "name": "tcpbin",
+    #       "host": "tcpb.in",
+    #       "port": 80
+    #     }
+    #   ]
 spec:
   selector:
     matchLabels:

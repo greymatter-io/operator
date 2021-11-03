@@ -143,27 +143,40 @@ manifests: [...#ManifestGroup] & [
     }
   }
   service: corev1.#Service & {
+    _name: _c[0].name
     apiVersion: "v1"
     kind: "Service"
     metadata: {
-      name: _c[0].name
+      name: _name
       namespace: InstallNamespace
     }
     spec: {
-      selector: "greymatter.io/workload": _c[0].name
+      selector: "greymatter.io/workload": _name
       // Make the edge service a LoadBalancer for ingress
-      if _c[0].name == "edge" {
+      if _name == "edge" {
         type: "LoadBalancer"
       }
       ports: [
-        for _, c in _c {
-          for k, v in c.ports {
-            {
-              name: k
-              protocol: "TCP"
-              port: v
-              targetPort: v
-            }
+        {
+          name: "proxy"
+          protocol: "TCP"
+          port: 10808
+          targetPort: 10808
+        },
+        if _name == "edge" || _name == "control" || _name == "catalog" || _name == "jwt-security" || _name == "gm-redis" {
+          {
+            name: "bootstrap"
+            protocol: "TCP"
+            port: 10707
+            targetPort: 10707
+          },
+        }
+        if _name == "control" {
+          {
+            name: "control"
+            protocol: "TCP"
+            port: 50000
+            targetPort: 50000
           }
         }
       ]
@@ -233,6 +246,27 @@ manifests: [...#ManifestGroup] & [
 
 sidecar: {
   xdsCluster: string
+  // localPort: *10808 | int32
+  node: *"" | string
+  controlHost: *"control.\(InstallNamespace).svc.cluster.local" | string
+  if xdsCluster == "edge" {
+    staticConfig: envoyEdge
+  }
+  if xdsCluster == "control" {
+    staticConfig: envoyMeshConfig
+    localPort: 5555
+  }
+  if xdsCluster == "catalog" {
+    staticConfig: envoyMeshConfig
+    localPort: 8080
+  }
+  if xdsCluster == "jwt-security" {
+    staticConfig: envoyMeshConfig
+    localPort: 3000
+  }
+  if xdsCluster == "gm-redis" {
+    staticConfig: envoyRedis
+  }
   container: corev1.#Container & {
     name: "sidecar"
     image: proxy.image

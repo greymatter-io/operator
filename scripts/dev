@@ -53,7 +53,7 @@ k8s_push() {
 
 k8s_deploy() {
   prompt_push k8s
-  k_deploy
+  k_deploy kops
 }
 
 k8s_cleanup() {
@@ -80,13 +80,13 @@ k8s_sample() {
 # mostly similar to Kubernetes commamnds, might delete later
 
 k3d_push() {
-  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest-kops
-  k3d image import docker.greymatter.io/internal/gm-operator:latest-kops
+  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest-k3d
+  k3d image import -c gm-operator docker.greymatter.io/internal/gm-operator:latest-k3d
 }
 
 k3d_deploy() {
   prompt_push k3d
-  k_deploy
+  k_deploy k3d
 }
 
 k3d_cleanup() {
@@ -140,8 +140,11 @@ k_deploy() {
   local bundle=$(cat ./tmpcerts/ca.pem | base64 - | tr -d '\n')
 
   ./bin/kustomize build config/default > manifests.yaml
-	sed -i'.original' -e "s|development/gm-operator:0.0.1|internal/gm-operator:latest-kops|" manifests.yaml
+	sed -i'.original' -e "s|development/gm-operator:0.0.1|internal/gm-operator:latest-$1|" manifests.yaml
 	sed -i'.original' -e "s|caBundle: \"\"|caBundle: $bundle|g" manifests.yaml
+  if [ $1 == "k3d" ]; then
+	  sed -i'.original' -e "s|imagePullPolicy: Always|imagePullPolicy: Never|" manifests.yaml
+  fi
   kubectl apply -f manifests.yaml
   rm manifests.yaml
   rm manifests.yaml.original

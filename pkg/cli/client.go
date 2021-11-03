@@ -38,29 +38,44 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 
 	// Consume commands to send to Control
 	go func(ctx context.Context, controlCmds chan cmd) {
+		start := time.Now()
 
 		// Ping Control every 5s until responsive by getting and editing the Mesh's zone.
 		// This ensures we can read and write from Control without any errors.
-		if (cmd{
-			// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
-			args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
-			retry: retry{
-				dur: time.Second * 5,
-				ctx: ctx,
-			},
-			and: cmdOpt{cmd: &cmd{
-				args:   fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
-				reader: values("zone_key"),
-				retry: retry{
-					dur: time.Second * 10,
-					ctx: ctx,
-				},
-			}},
-		}).run(cl.flags).err != nil {
-			return
+	PING_CONTROL_LOOP:
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				if r := (cmd{
+					// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
+					args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
+					log: func(args string, r result) {
+						if r.err != nil {
+							logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name)
+						}
+					},
+					and: cmdOpt{
+						cmd: &cmd{
+							args: fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
+							log: func(args string, r result) {
+								if r.err != nil {
+									logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name)
+								} else {
+									logger.Info("Connected to Control API",
+										"Mesh", mesh.Name,
+										"Elapsed", time.Since(start).String())
+								}
+							},
+						},
+					},
+				}).run(cl.flags); r.err == nil {
+					break PING_CONTROL_LOOP
+				}
+				time.Sleep(time.Second * 10)
+			}
 		}
-
-		logger.Info("Connected to Control", "Mesh", mesh.Name)
 
 		// Configure edge domain, since it is a dependency for all sidecar routes.
 		mkApply("domain", cl.f.EdgeDomain()).run(cl.flags)
@@ -81,21 +96,33 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 
 	// Consume commands to send to Catalog
 	go func(ctx context.Context, catalogCmds chan cmd) {
+		start := time.Now()
 
 		// Ping Catalog every 5s until responsive (getting the Mesh's session status with Control).
-		if (cmd{
-			// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
-			args:   fmt.Sprintf("get catalog-mesh %s", mesh.Name),
-			reader: values("mesh_id", "session_statuses.default"),
-			retry: retry{
-				dur: time.Second * 10,
-				ctx: ctx,
-			},
-		}).run(cl.flags).err != nil {
-			return
+	PING_CATALOG_LOOP:
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				if r := (cmd{
+					// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
+					args: fmt.Sprintf("get catalog-mesh %s", mesh.Name),
+					log: func(args string, r result) {
+						if r.err != nil {
+							logger.Info("Waiting to connect to Catalog API", "Mesh", mesh.Name)
+						} else {
+							logger.Info("Connected to Catalog API",
+								"Mesh", mesh.Name,
+								"Elapsed", time.Since(start).String())
+						}
+					},
+				}).run(cl.flags); r.err == nil {
+					break PING_CATALOG_LOOP
+				}
+				time.Sleep(time.Second * 10)
+			}
 		}
-
-		logger.Info("Connected to Catalog", "Mesh", mesh.Name)
 
 		// Then consume additional commands for catalog objects
 		for {
@@ -121,6 +148,11 @@ func mkApply(kind string, data json.RawMessage) cmd {
 		requeue: true,
 		stdin:   data,
 		reader:  values(kk),
+		log: func(args string, r result) {
+			if r.err == nil {
+				logger.Info(args, r.kvs...)
+			}
+		},
 		or: cmdOpt{
 			cmd: &cmd{
 				args:    fmt.Sprintf("edit %s %s", kind, objKey(kind, data)),
@@ -150,7 +182,7 @@ func values(keys ...string) func(string) result {
 				kvs = append(kvs, key, value)
 			}
 		}
-		r := result{kvs, nil}
+		r := result{out, kvs, nil}
 		if len(kvs) == 0 {
 			r.err = fmt.Errorf("failed to get %v", keys)
 		}

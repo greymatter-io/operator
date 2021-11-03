@@ -94,7 +94,7 @@ func loadVersions(base cue.Value) (map[string]Version, error) {
 		}
 
 		name := strings.Replace(file.Name(), ".cue", "", 1)
-		cueVersions[name] = Version{value}
+		cueVersions[name] = Version{name, value}
 		logger.Info("Loaded versioned install configuration", "name", name)
 	}
 
