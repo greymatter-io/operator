@@ -51,22 +51,24 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 				if r := (cmd{
 					// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
 					args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
-					and: cmdOpt{cmd: &cmd{
-						args: fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
-						log: func(args string, r result) {
-							if r.err != nil {
-								logger.Info("Waiting on Control datastore initialization",
-									"Mesh", mesh.Name,
-									"Elapsed", time.Since(start).String())
-							}
-						},
-					}},
 					log: func(args string, r result) {
 						if r.err != nil {
-							logger.Info("Waiting to connect to Control",
-								"Mesh", mesh.Name,
-								"Elapsed", time.Since(start).String())
+							logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name)
 						}
+					},
+					and: cmdOpt{
+						cmd: &cmd{
+							args: fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
+							log: func(args string, r result) {
+								if r.err != nil {
+									logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name)
+								} else {
+									logger.Info("Connected to Control API",
+										"Mesh", mesh.Name,
+										"Elapsed", time.Since(start).String())
+								}
+							},
+						},
 					},
 				}).run(cl.flags); r.err == nil {
 					break PING_CONTROL_LOOP
@@ -108,7 +110,9 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 					args: fmt.Sprintf("get catalog-mesh %s", mesh.Name),
 					log: func(args string, r result) {
 						if r.err != nil {
-							logger.Info("Waiting to connect to Catalog",
+							logger.Info("Waiting to connect to Catalog API", "Mesh", mesh.Name)
+						} else {
+							logger.Info("Connected to Catalog API",
 								"Mesh", mesh.Name,
 								"Elapsed", time.Since(start).String())
 						}

@@ -71,7 +71,10 @@ control: #Component & {
 control_api: #Component & {
   name: "control-api"
   image: =~"^docker.greymatter.io/(release|development)/gm-control-api:" & !~"latest$"
-  ports: api: 5555
+  ports: {
+    api: 5555
+    bootstrap: 10707
+  }
   env: {
     GM_CONTROL_API_ADDRESS: "0.0.0.0:5555"
     GM_CONTROL_API_USE_TLS: "false"
@@ -98,7 +101,10 @@ control_api: #Component & {
 catalog: #Component & {
   name: "catalog"
   image: =~"^docker.greymatter.io/(release|development)/gm-catalog:" & !~"latest$"
-  ports: api: 8080
+  ports: {
+    api: 8080
+    bootstrap: 10707
+  }
   env: {
     SEED_FILE_PATH: "/app/seed/seed.yaml"
     SEED_FILE_FORMAT: "yaml"
@@ -177,7 +183,10 @@ dashboard: #Component & {
 jwt_security: #Component & {
   name: "jwt-security"
   image: =~"^docker.greymatter.io/(release|development)/gm-jwt-security:" & !~"latest$"
-  ports: api: 3000
+  ports: {
+    api: 3000
+    bootstrap: 10707
+  }
   env: {
     HTTP_PORT: "3000"
     REDIS_HOST: "127.0.0.1"

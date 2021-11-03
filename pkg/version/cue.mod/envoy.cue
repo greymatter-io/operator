@@ -1,6 +1,6 @@
 package base
 
-// import "strconv"
+import "strconv"
 
 envoyEdge: envoy & {
 	static_resources: {
@@ -12,18 +12,20 @@ envoyEdge: envoy & {
 			},
 			envoyCluster & {
 				_name: "_control"
+				_alt: "control"
 				_host: "control.\(InstallNamespace).svc.cluster.local"
-				_port: 5555
+				_port: 10707
 			},
 			envoyCluster & {
 				_name: "_catalog"
+				_alt: "catalog"
 				_host: "catalog.\(InstallNamespace).svc.cluster.local"
-				_port: 8080
+				_port: 10707
 			}
 		]
 		listeners: [
 			envoyHTTPListener & {
-				_name: "edge"
+				_name: "bootstrap"
 				_port: 10707
 				_routes: [
 					{
@@ -54,7 +56,7 @@ envoyEdge: envoy & {
 	}
 }
 
-envoyMeshConfigs: envoy & {
+envoyMeshConfig: envoy & {
 	static_resources: {
 		clusters: [
 			envoyCluster & {
@@ -64,17 +66,40 @@ envoyMeshConfigs: envoy & {
 			},
 			envoyCluster & {
 				_name: "gm-redis"
-				// TODO: Point this to the sidecar, or the external Redis
-				// If sidecar, the service will need to expose 10808.
+				// This either points to the gm-redis sidecar or an external Redis.
 				_host: Redis.host
 				_port: strconv.Atoi(Redis.port)
 			},
+			envoyCluster & {
+				_name: "bootstrap"
+				_alt: "\(sidecar.xdsCluster):\(sidecar.localPort)"
+				_host: "127.0.0.1"
+				_port: sidecar.localPort
+			}
 		]
 		listeners: [
 			envoyTCPListener & {
 				_name: sidecar.xdsCluster
 				_port: 10910
 				_cluster: "gm-redis"
+			},
+			if sidecar.xdsCluster == "control" {
+				envoyHTTPListener & {
+					_name: "bootstrap"
+					_port: 10707
+					_routes: [
+						{
+							match: {
+								prefix: "/"
+								case_sensitive: false
+							}
+							route: {
+								cluster: "bootstrap"
+								timeout: "5s"
+							}
+						}
+					]
+				}
 			}
 		]
 	}
@@ -89,16 +114,17 @@ envoyRedis: envoy & {
 				_port: 50000
 			},
 			envoyCluster & {
-				_name: "gm-redis:6379"
+				_name: "bootstrap"
+				_alt: "gm-redis:6379"
 				_host: "127.0.0.1"
 				_port: 6379
 			}
 		]
 		listeners: [
 			envoyTCPListener & {
-				_name: "gm-redis"
-				_port: 10808
-				_cluster: "gm-redis:6379"
+				_name: "bootstrap"
+				_port: 10707
+				_cluster: "bootstrap"
 			}
 		]
 	}
@@ -106,10 +132,14 @@ envoyRedis: envoy & {
 
 envoyCluster: {
 	_name: string
+	_alt: *"" | string
 	_host: string
 	_port: int
 
 	name: _name
+	if _alt != "" {
+		alt_stat_name: _alt
+	}
 	type: "STRICT_DNS"
 	connect_timeout: "5s"
 	if _name == "xds_cluster" {

@@ -156,16 +156,14 @@ manifests: [...#ManifestGroup] & [
         type: "LoadBalancer"
       }
       ports: [
-        for k, v in _c[0].ports if len(_c) == 1 {
-          {
-            name: k
-            protocol: "TCP"
-            port: v
-            targetPort: v
-          }
-        }
-        for _, c in _c if len(_c) > 1 {
-          for k, v in c.ports {
+        {
+          name: "proxy"
+          protocol: "TCP"
+          port: 10808
+          targetPort: 10808
+        },
+        for _, c in _c {
+          for k, v in c.ports if k != "proxy" {
             {
               name: k
               protocol: "TCP"
@@ -241,13 +239,26 @@ manifests: [...#ManifestGroup] & [
 
 sidecar: {
   xdsCluster: string
+  // localPort: *10808 | int32
   node: *"" | string
   controlHost: *"control.\(InstallNamespace).svc.cluster.local" | string
   if xdsCluster == "edge" {
     staticConfig: envoyEdge
   }
-  if xdsCluster == "control" || xdsCluster == "catalog" || xdsCluster == "jwt-security" {
-    staticConfig: envoyMeshConfigs
+  if xdsCluster == "control" {
+    staticConfig: envoyMeshConfig
+    localPort: 5555
+  }
+  if xdsCluster == "catalog" {
+    staticConfig: envoyMeshConfig
+    localPort: 8080
+  }
+  if xdsCluster == "jwt-security" {
+    staticConfig: envoyMeshConfig
+    localPort: 3000
+  }
+  if xdsCluster == "gm-redis" {
+    staticConfig: envoyRedis
   }
   container: corev1.#Container & {
     name: "sidecar"
