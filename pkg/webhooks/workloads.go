@@ -3,7 +3,9 @@ package webhooks
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/greymatter-io/operator/pkg/cli"
@@ -104,46 +106,63 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 	switch req.Kind.Kind {
 	case "Deployment":
 		deployment := &appsv1.Deployment{}
+		wd.Decode(req, deployment)
 		if req.Operation != admissionv1.Delete {
-			wd.Decode(req, deployment)
-			if deployment.Annotations == nil {
-				deployment.Annotations = make(map[string]string)
+
+			if !excludeFromMesh(deployment.Labels) {
+				if deployment.Annotations == nil {
+					deployment.Annotations = make(map[string]string)
+				}
+				deployment.Annotations["greymatter.io/last-applied"] = time.Now().String()
+				deployment.Spec.Template = addClusterLabel(deployment.Spec.Template, req.Name)
+				rawUpdate, err = json.Marshal(deployment)
+				if err != nil {
+					logger.Error(err, "Failed to add cluster label to Deployment", "Name", req.Name, "Namespace", req.Namespace)
+					return admission.ValidationResponse(false, "failed to add cluster label")
+				}
+				logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
+				go wd.ConfigureService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
+			} else {
+				rawUpdate, _ = json.Marshal(deployment)
 			}
-			deployment.Annotations["greymatter.io/last-applied"] = time.Now().String()
-			deployment.Spec.Template = addClusterLabel(deployment.Spec.Template, req.Name)
-			rawUpdate, err = json.Marshal(deployment)
-			if err != nil {
-				logger.Error(err, "Failed to add cluster label to Deployment", "Name", req.Name, "Namespace", req.Namespace)
-				return admission.ValidationResponse(false, "failed to add cluster label")
-			}
-			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-			go wd.ConfigureService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
 		} else {
-			wd.DecodeRaw(req.OldObject, deployment)
-			go wd.RemoveService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
-			return admission.ValidationResponse(true, "allowed")
+			if !excludeFromMesh(deployment.Labels) {
+				go wd.RemoveService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
+				return admission.ValidationResponse(true, "allowed")
+			} else {
+				rawUpdate, _ = json.Marshal(deployment)
+			}
 		}
 
 	case "StatefulSet":
 		statefulset := &appsv1.StatefulSet{}
 		if req.Operation != admissionv1.Delete {
 			wd.Decode(req, statefulset)
-			if statefulset.Annotations == nil {
-				statefulset.Annotations = make(map[string]string)
+			if !excludeFromMesh(statefulset.Labels) {
+				if statefulset.Annotations == nil {
+					statefulset.Annotations = make(map[string]string)
+				}
+				statefulset.Annotations["greymatter.io/last-applied"] = time.Now().String()
+				statefulset.Spec.Template = addClusterLabel(statefulset.Spec.Template, req.Name)
+				rawUpdate, err = json.Marshal(statefulset)
+				if err != nil {
+					logger.Error(err, "Failed to add cluster label to StatefulSet", "Name", req.Name, "Namespace", req.Namespace)
+					return admission.ValidationResponse(false, "failed to add cluster label")
+				}
+				logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
+				go wd.ConfigureService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
+			} else {
+				rawUpdate, _ = json.Marshal(statefulset)
 			}
-			statefulset.Annotations["greymatter.io/last-applied"] = time.Now().String()
-			statefulset.Spec.Template = addClusterLabel(statefulset.Spec.Template, req.Name)
-			rawUpdate, err = json.Marshal(statefulset)
-			if err != nil {
-				logger.Error(err, "Failed to add cluster label to StatefulSet", "Name", req.Name, "Namespace", req.Namespace)
-				return admission.ValidationResponse(false, "failed to add cluster label")
-			}
-			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-			go wd.ConfigureService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
 		} else {
 			wd.DecodeRaw(req.OldObject, statefulset)
-			go wd.RemoveService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
-			return admission.ValidationResponse(true, "allowed")
+			if !excludeFromMesh(statefulset.Labels) {
+				go wd.RemoveService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
+				return admission.ValidationResponse(true, "allowed")
+			} else {
+				rawUpdate, _ = json.Marshal(statefulset)
+			}
+
 		}
 	}
 
@@ -156,4 +175,19 @@ func addClusterLabel(tmpl corev1.PodTemplateSpec, name string) corev1.PodTemplat
 	}
 	tmpl.Labels["greymatter.io/cluster"] = name
 	return tmpl
+}
+
+func excludeFromMesh(podLabels map[string]string) bool {
+	const exclusionLabel = "greymatter.io/exclude-from-mesh"
+	// Checks for label indicating the pod should not be added to the mesh
+	if val, ok := podLabels[exclusionLabel]; ok {
+		exclude, err := strconv.ParseBool(val)
+		if err != nil {
+			fmt.Printf("found [%s] label but unable to parse value\n", exclusionLabel)
+			// Do we care about this? if its not able to parse but the label is there then should we just assume it should not be in the mesh?
+			return false
+		}
+		return exclude
+	}
+	return false
 }
