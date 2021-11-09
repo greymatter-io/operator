@@ -4,6 +4,40 @@ Grey Matter Operator is a Kubernetes operator that enables using `greymatter.io/
 
 This project is currently in an unstable alpha stage. This README will be updated constantly throughout the initial development process. For now, most things documented here will be in short-form.
 
+## Generating Manifests
+
+The current process for generating manifests to be applied to a Kubernetes cluster for installing the operator is to use [kustomize](https://kustomize.io/). The following command prints the manifests to stdout:
+
+```
+kustomize build config/default
+```
+
+`kustomize` may be downloaded to this repo's `bin` directory by using the `make kustomize` target.
+
+Note that the output of `./bin/kustomize build config/default` will result in an incomplete installation since it cannot meet the following additional requirements:
+
+1. The manifests contain a `MutatingWebhookConfiguration` and `ValidatingWebhookConfiguration` that require injected `caBundle` values in each webhook specified. The `caBundle` value must be a valid PEM-encoded CA cert base64 string.
+
+2. The manifests reference two secrets you must manually create in the `gm-operator` namespace. The first is a `webhook-server-cert` TLS secret which contains PEM-encoded cert and key base64 strings, and the next is a `gm-docker-secret` Docker registry secret which contains Docker credentials for pulling Grey Matter images. These can be created with the following commands:
+
+```
+kubectl create secret tls webhook-server-cert \
+  --cert=<path-to-cert>.pem \
+  --key=<path-to-cert-key>.pem \
+  -n gm-operator
+```
+
+```
+kubectl create secret docker-registry gm-docker-secret \
+  --docker-server=docker.greymatter.io \
+  --docker-username=<user> \
+  --docker-password=<password> \
+  --docker-email=<user> \
+  -n gm-operator
+```
+
+After making edits from step #1, you can apply the manifests to your cluster and then create the secrets in step #2 in order to have a fully working installation.
+
 ## Development
 
 ### Dependencies
