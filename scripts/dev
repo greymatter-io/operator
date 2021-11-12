@@ -2,6 +2,10 @@
 
 set -euf -o pipefail
 
+cli_deploy() {
+  greymatter k8s-operator | kubectl apply -f -
+}
+
 # Openshift
 
 oc_push() {
@@ -169,6 +173,7 @@ choose() {
     k3*) k3d_$2 ;;
     k8*) k8s_$2 ;;
     o*)  oc_$2 ;;
+    cli) cli_$2 ;;
     *)
       echo "invalid argument $1: expected match with k3*, k8*, or o*."
       exit 1
