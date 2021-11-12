@@ -1,7 +1,9 @@
 resources:
 - manifests.yaml
-- secret.yaml
 - service.yaml
 
 configurations:
 - kustomizeconfig.yaml
+
+patchesStrategicMerge:
+- namespace_selector.yaml

@@ -12,20 +12,21 @@ oc_push() {
 oc_deploy() {
   prompt_push oc
 
-  make packagemanifests VERSION=0.0.1 CHANNEL=alpha IS_CHANNEL_DEFAULT=1 IMG=docker.greymatter.io/internal/gm-operator:latest
-  operator-sdk run packagemanifests -n gm-operator --version 0.0.1
-  rm -rf ./packagemanifests
-
   oc create secret docker-registry gm-docker-secret \
     --docker-server=docker.greymatter.io \
     --docker-username=$NEXUS_USER \
     --docker-password=$NEXUS_PASSWORD \
     --docker-email=$NEXUS_USER \
     -n gm-operator
+
+  make packagemanifests VERSION=0.0.1 CHANNEL=alpha IS_CHANNEL_DEFAULT=1 IMG=docker.greymatter.io/internal/gm-operator:latest
+  operator-sdk run packagemanifests -n gm-operator --version 0.0.1
+  rm -rf ./packagemanifests
 }
 
 oc_cleanup() {
   operator-sdk cleanup -n gm-operator gm-operator
+  oc delete secret gm-docker-secret -n gm-operator
   oc delete clusterrole gm-control
   oc delete pvc gm-redis-append-dir-gm-redis-0 -n gm-operator-test2
 }
@@ -57,7 +58,8 @@ k8s_deploy() {
 }
 
 k8s_cleanup() {
-  kubectl delete -f hack/k8s-manifests.yaml
+  ./bin/kustomize build config/default | kubectl delete -f -
+  kubectl delete secret gm-docker-secret -n gm-operator
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
@@ -90,7 +92,8 @@ k3d_deploy() {
 }
 
 k3d_cleanup() {
-  kubectl delete -f hack/k8s-manifests.yaml
+  ./bin/kustomize build config/default | kubectl delete -f -
+  kubectl delete secret gm-docker-secret -n gm-operator
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
@@ -121,6 +124,7 @@ prompt_push() {
 }
 
 k_deploy() {
+  ./bin/kustomize build config/default | kubectl apply -f -
   kubectl apply -f hack/k8s-manifests.yaml
 
   kubectl create secret docker-registry gm-docker-secret \

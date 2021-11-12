@@ -14,10 +14,15 @@ spec:
           protocol: TCP
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
-          name: cert
+          name: webhook-cert
           readOnly: true
       volumes:
-      - name: cert
+      - name: webhook-cert
         secret:
           defaultMode: 420
-          secretName: gm-webhook-server-cert
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          secretName: gm-controller-manager-service-cert

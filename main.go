@@ -164,11 +164,8 @@ func main() {
 
 	// Initialize the webhooks Loader and add it as a runnable process to the manager so that
 	// it patches our webhook configurations after the manager starts.
-	// TODO: Make loading certs optional since
-	// 1) in OpenShift OLM populates our configurations for us.
-	// 2) the user may not want to use CFSSL to sign certs.
-	wl := webhooks.New(c, inst, gmcli, mgr.GetWebhookServer)
-	if err := wl.LoadCerts(); err != nil {
+	wl, err := webhooks.New(c, inst, gmcli, mgr.GetWebhookServer, cfg.DisableWebhookCertGeneration)
+	if err != nil {
 		os.Exit(1)
 	}
 	mgr.Add(wl)
