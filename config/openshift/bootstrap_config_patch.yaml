@@ -16,5 +16,5 @@ data:
       leaderElect: true
       resourceName: 715805a0.greymatter.io
     imagePullSecretName: gm-docker-secret
-    disableWebhookCertGeneration: false
+    disableWebhookCertGeneration: true
     clusterIngressName: cluster

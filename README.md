@@ -9,23 +9,14 @@ This project is currently in an unstable alpha stage. This README will be update
 The current process for generating manifests to be applied to a Kubernetes cluster for installing the operator is to use [kustomize](https://kustomize.io/). The following command prints the manifests to stdout:
 
 ```
-kustomize build config/default
+kustomize build config/k8s
 ```
 
-`kustomize` may be downloaded to this repo's `bin` directory by using the `make kustomize` target.
+(NOTE: If deploying to OpenShift, you can run `kustomize build config/openshift`.)
 
-Note that the output of `./bin/kustomize build config/default` will result in an incomplete installation since it cannot meet the following additional requirements:
+As a convenience, `kustomize` may be downloaded to this repo's `bin` directory by using the `make kustomize` target.
 
-1. The manifests contain a `MutatingWebhookConfiguration` and `ValidatingWebhookConfiguration` that require injected `caBundle` values in each webhook specified. The `caBundle` value must be a valid PEM-encoded CA cert base64 string.
-
-2. The manifests reference two secrets you must manually create in the `gm-operator` namespace. The first is a `webhook-server-cert` TLS secret which contains PEM-encoded cert and key base64 strings, and the next is a `gm-docker-secret` Docker registry secret which contains Docker credentials for pulling Grey Matter images. These can be created with the following commands:
-
-```
-kubectl create secret tls webhook-server-cert \
-  --cert=<path-to-cert>.pem \
-  --key=<path-to-cert-key>.pem \
-  -n gm-operator
-```
+When applying these manifests to your Kubernetes cluster, you'll also need to create a [docker-registry secret](https://kubernetes.io/docs/concepts/configuration/secret/#docker-config-secrets) so the Kubelet has access to pull Grey Matter images. Provided that you have the necessary Docker username and password, these can be created with the following command:
 
 ```
 kubectl create secret docker-registry gm-docker-secret \
@@ -35,8 +26,6 @@ kubectl create secret docker-registry gm-docker-secret \
   --docker-email=<user> \
   -n gm-operator
 ```
-
-After making edits from step #1, you can apply the manifests to your cluster and then create the secrets in step #2 in order to have a fully working installation.
 
 ## Development
 
