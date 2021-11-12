@@ -40,12 +40,13 @@ type Loader struct {
 func New(cl client.Client, i *installer.Installer, c *cli.CLI, get func() *webhook.Server, disableCertGen bool) (*Loader, error) {
 	wl := &Loader{Client: cl, Installer: i, CLI: c, getServer: get, disableCertGen: disableCertGen}
 
-	var err error
 	if !wl.disableCertGen {
-		err = wl.loadCerts()
+		if err := wl.loadCerts(); err != nil {
+		    return nil, err
+		}
 	}
 
-	return wl, err
+	return wl, nil
 }
 
 func (wl *Loader) Start(ctx context.Context) error {
