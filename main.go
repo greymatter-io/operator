@@ -162,19 +162,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize the webhooks CertLoader and add it as a runnable process to the manager
-	// so that it patches our webhook configurations after the manager starts
-	// and prior to launching the webhook server.
-	// TODO: Make the CertLoader optional since
-	// 1) it shouldn't be used in OpenShift, since OLM populates our configurations for us.
-	// 2) it shouldn't be used if the user doesn't wanna use CFSSL, and wants to sign manually
-	certLoader := &webhooks.CertsLoader{Client: c}
-	if err := certLoader.Load(); err != nil {
+	// Initialize the webhooks Loader and add it as a runnable process to the manager so that
+	// it patches our webhook configurations after the manager starts.
+	// TODO: Make loading certs optional since
+	// 1) in OpenShift OLM populates our configurations for us.
+	// 2) the user may not want to use CFSSL to sign certs.
+	wl := webhooks.New(c, inst, gmcli, mgr.GetWebhookServer)
+	if err := wl.LoadCerts(); err != nil {
 		os.Exit(1)
 	}
-	mgr.Add(certLoader)
-	// Then register webhook handlers with the manager to receive requests.
-	webhooks.Register(mgr, inst, gmcli, c)
+	mgr.Add(wl)
 
 	//+kubebuilder:scaffold:builder
 

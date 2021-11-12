@@ -1,5 +1,5 @@
 resources:
-- webhooks.yaml
+- manifests.yaml
 - secret.yaml
 - service.yaml
 

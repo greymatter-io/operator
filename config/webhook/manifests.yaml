@@ -10,7 +10,6 @@ webhooks:
   - v1
   - v1beta1
   clientConfig:
-    caBundle: ""
     service:
       name: webhook-service
       namespace: system
@@ -32,18 +31,12 @@ webhooks:
   - v1
   - v1beta1
   clientConfig:
-    caBundle: ""
     service:
       name: webhook-service
       namespace: system
       path: /mutate-workload
   failurePolicy: Fail
   name: mutate-workload.greymatter.io
-  namespaceSelector:
-    matchExpressions:
-    - key: control-plane
-      operator: NotIn
-      values: ["controller-manager"]
   rules:
   - apiGroups:
     - ""
@@ -71,7 +64,6 @@ webhooks:
   - v1
   - v1beta1
   clientConfig:
-    caBundle: ""
     service:
       name: webhook-service
       namespace: system

@@ -518,10 +518,12 @@ spec:
 ---
 apiVersion: v1
 kind: Secret
-type: kubernetes.io/tls
 metadata:
   name: gm-webhook-server-cert
   namespace: gm-operator
+data:
+  tls.crt: ""
+  tls.key: ""
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
