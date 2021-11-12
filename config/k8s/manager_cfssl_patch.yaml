@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gm-controller-manager
+  namespace: gm-operator
+spec:
+  template:
+    spec:
+      containers:
+      - name: cfssl
+        image: docker.io/bcmendoza/cfssl
+        volumeMounts:
+        - mountPath: /tmp/cfssl
+          name: gm-cfssl-config
+      - name: manager
+        image: docker.greymatter.io/internal/gm-operator:latest-kops
+      volumes:
+      - name: gm-cfssl-config
+        configMap:
+          name: gm-cfssl-config

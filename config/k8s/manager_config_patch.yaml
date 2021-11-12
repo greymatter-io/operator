@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gm-manager-config
+  namespace: gm-operator
+data:
+  bootstrap_config.yaml: |
+    kind: BootstrapConfig
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: 127.0.0.1:8080
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: 715805a0.greymatter.io
+    imagePullSecretName: gm-docker-secret
+    disableWebhookCertGeneration: false
+    clusterIngressName: cluster

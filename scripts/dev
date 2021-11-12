@@ -58,7 +58,7 @@ k8s_deploy() {
 }
 
 k8s_cleanup() {
-  ./bin/kustomize build config/default | kubectl delete -f -
+  ./bin/kustomize build config/k8s | kubectl delete -f -
   kubectl delete secret gm-docker-secret -n gm-operator
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
@@ -92,7 +92,7 @@ k3d_deploy() {
 }
 
 k3d_cleanup() {
-  ./bin/kustomize build config/default | kubectl delete -f -
+  ./bin/kustomize build config/k8s | kubectl delete -f -
   kubectl delete secret gm-docker-secret -n gm-operator
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
@@ -124,8 +124,7 @@ prompt_push() {
 }
 
 k_deploy() {
-  ./bin/kustomize build config/default | kubectl apply -f -
-  kubectl apply -f hack/k8s-manifests.yaml
+  ./bin/kustomize build config/k8s | kubectl apply -f -
 
   kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
