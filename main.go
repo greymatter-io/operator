@@ -67,6 +67,7 @@ func init() {
 //+kubebuilder:rbac:groups=core,resources=services;configmaps;serviceaccounts;secrets;pods,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations;validatingwebhookconfigurations,verbs=get;patch
 //+kubebuilder:rbac:groups=config.openshift.io,resources=ingresses,verbs=get;list
 
 func main() {
@@ -161,7 +162,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Register the webhook handlers with our server to receive requests
+	// Initialize the webhooks CertLoader and add it as a runnable process to the manager
+	// so that it patches our webhook configurations after the manager starts
+	// and prior to launching the webhook server.
+	// TODO: Make the CertLoader optional since
+	// 1) it shouldn't be used in OpenShift, since OLM populates our configurations for us.
+	// 2) it shouldn't be used if the user doesn't wanna use CFSSL, and wants to sign manually
+	certLoader := &webhooks.CertsLoader{Client: c}
+	if err := certLoader.Load(); err != nil {
+		os.Exit(1)
+	}
+	mgr.Add(certLoader)
+	// Then register webhook handlers with the manager to receive requests.
 	webhooks.Register(mgr, inst, gmcli, c)
 
 	//+kubebuilder:scaffold:builder

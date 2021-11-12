@@ -1,0 +1,612 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: gm-operator
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.6.1
+  name: meshes.greymatter.io
+spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        service:
+          name: gm-webhook-service
+          namespace: gm-operator
+          path: /convert
+      conversionReviewVersions:
+      - v1
+  group: greymatter.io
+  names:
+    kind: Mesh
+    listKind: MeshList
+    plural: meshes
+    singular: mesh
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Mesh defines a Grey Matter mesh's desired state and describes its observed state.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: MeshSpec defines the desired state of a Grey Matter mesh.
+            properties:
+              install_namespace:
+                description: Namespace where mesh core components and dependencies should be installed.
+                type: string
+              redis:
+                description: Adds an external Redis provider for caching Grey Matter configuration state.
+                properties:
+                  cert_secret_name:
+                    type: string
+                  url:
+                    type: string
+                required:
+                - url
+                type: object
+              release_version:
+                default: "1.7"
+                description: The version of Grey Matter to install for this mesh.
+                enum:
+                - "1.6"
+                - "1.7"
+                type: string
+              user_tokens:
+                description: Add user tokens to the JWT Security Service.
+                items:
+                  properties:
+                    label:
+                      type: string
+                    values:
+                      additionalProperties:
+                        items:
+                          type: string
+                        type: array
+                      type: object
+                  required:
+                  - label
+                  - values
+                  type: object
+                type: array
+              watch_namespaces:
+                description: Namespaces to include in the mesh network.
+                items:
+                  type: string
+                type: array
+              zone:
+                default: default-zone
+                description: Label this mesh as belonging to a particular zone.
+                type: string
+            required:
+            - install_namespace
+            - release_version
+            - zone
+            type: object
+          status:
+            description: MeshStatus describes the observed state of a Grey Matter mesh.
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: v1
+imagePullSecrets:
+- name: gm-docker-secret
+kind: ServiceAccount
+metadata:
+  name: gm-controller-manager
+  namespace: gm-operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gm-leader-election-role
+  namespace: gm-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: gm-manager-role
+rules:
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - patch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - pods
+  - secrets
+  - serviceaccounts
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - greymatter.io
+  resources:
+  - meshes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - greymatter.io
+  resources:
+  - meshes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gm-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gm-proxy-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gm-leader-election-rolebinding
+  namespace: gm-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gm-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: gm-controller-manager
+  namespace: gm-operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gm-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gm-manager-role
+subjects:
+- kind: ServiceAccount
+  name: gm-controller-manager
+  namespace: gm-operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gm-proxy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gm-proxy-role
+subjects:
+- kind: ServiceAccount
+  name: gm-controller-manager
+  namespace: gm-operator
+---
+apiVersion: v1
+data:
+  bootstrap_config.yaml: |
+    kind: BootstrapConfig
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: 127.0.0.1:8080
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: 715805a0.greymatter.io
+    imagePullSecretName: gm-docker-secret
+    clusterIngressName: cluster
+kind: ConfigMap
+metadata:
+  name: gm-manager-config
+  namespace: gm-operator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: gm-controller-manager-metrics-service
+  namespace: gm-operator
+spec:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: https
+  selector:
+    control-plane: controller-manager
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gm-webhook-service
+  namespace: gm-operator
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    control-plane: controller-manager
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cfssl-config
+  namespace: gm-operator
+data:
+  ca-config.json: |
+    {
+      "signing": {
+        "default": {
+          "expiry": "8760h"
+        },
+        "profiles": {
+          "server": {
+            "usages": ["signing", "key encipherment", "server auth", "client auth"],
+            "expiry": "8760h"
+          }
+        }
+      }
+    }
+  ca-csr.json: |
+    {
+      "CN": "greymatter.io",
+      "hosts": [
+        "greymatter.io",
+        "www.greymatter.io"
+      ],
+      "key": {
+        "algo": "rsa",
+        "size": 2048
+      },
+      "names": [
+        {
+          "C": "US",
+          "ST": "VA",
+          "O": "Grey Matter"
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: gm-controller-manager
+  namespace: gm-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      labels:
+        control-plane: controller-manager
+    spec:
+      containers:
+      - name: cfssl
+        image: docker.io/bcmendoza/cfssl
+        volumeMounts:
+        - mountPath: /tmp/cfssl
+          name: cfssl-config
+        resources:
+          limits:
+            cpu: 200m
+            memory: 100Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+      - args:
+        - --config=bootstrap_config.yaml
+        command:
+        - /manager
+        image: docker.greymatter.io/internal/gm-operator:latest-kops
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 200m
+            memory: 100Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+        - mountPath: /bootstrap_config.yaml
+          name: manager-config
+          subPath: bootstrap_config.yaml
+      - args:
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=10
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 200m
+            memory: 100Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+      imagePullSecrets:
+      - name: gm-docker-secret
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: gm-controller-manager
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: gm-webhook-server-cert
+      - configMap:
+          name: gm-manager-config
+        name: manager-config
+      - name: cfssl-config
+        configMap:
+          name: cfssl-config
+---
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: gm-webhook-server-cert
+  namespace: gm-operator
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: gm-mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: gm-webhook-service
+      namespace: gm-operator
+      path: /mutate-mesh
+  failurePolicy: Fail
+  name: mutate-mesh.greymatter.io
+  rules:
+  - apiGroups:
+    - greymatter.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - meshes
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: gm-webhook-service
+      namespace: gm-operator
+      path: /mutate-workload
+  failurePolicy: Fail
+  name: mutate-workload.greymatter.io
+  namespaceSelector:
+    matchExpressions:
+    - key: control-plane
+      operator: NotIn
+      values:
+      - controller-manager
+  rules:
+  - apiGroups:
+    - ""
+    - apps
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - pods
+    - deployments
+    - statefulsets
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: gm-validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: gm-webhook-service
+      namespace: gm-operator
+      path: /validate-mesh
+  failurePolicy: Fail
+  name: validate-mesh.greymatter.io
+  rules:
+  - apiGroups:
+    - greymatter.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - meshes
+  sideEffects: None

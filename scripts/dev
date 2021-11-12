@@ -57,7 +57,7 @@ k8s_deploy() {
 }
 
 k8s_cleanup() {
-  ./bin/kustomize build config/default | kubectl delete -f -
+  kubectl delete -f hack/k8s-manifests.yaml
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
@@ -90,7 +90,7 @@ k3d_deploy() {
 }
 
 k3d_cleanup() {
-  ./bin/kustomize build config/default | kubectl delete -f -
+  kubectl delete -f hack/k8s-manifests.yaml
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
@@ -121,40 +121,7 @@ prompt_push() {
 }
 
 k_deploy() {
-  local ca_config="../hack/ca-config.json"
-  local ca_req="../hack/ca-csr.json"
-  local cert_req="../hack/cert-csr.json"
-
-  mkdir -p tmpcerts
-  cd tmpcerts
-  cfssl gencert -initca $ca_req | cfssljson -bare ca
-  cfssl gencert \
-    -ca=ca.pem \
-    -ca-key=ca-key.pem \
-    -config=$ca_config \
-    -hostname=gm-webhook-service.gm-operator.svc \
-    -profile=server \
-    $cert_req | cfssljson -bare server
-  cd ..
-
-  local bundle=$(cat ./tmpcerts/ca.pem | base64 - | tr -d '\n')
-
-  ./bin/kustomize build config/default > manifests.yaml
-	sed -i'.original' -e "s|development/gm-operator:0.0.1|internal/gm-operator:latest-$1|" manifests.yaml
-	sed -i'.original' -e "s|caBundle: \"\"|caBundle: $bundle|g" manifests.yaml
-  if [ $1 == "k3d" ]; then
-	  sed -i'.original' -e "s|imagePullPolicy: Always|imagePullPolicy: Never|" manifests.yaml
-  fi
-  kubectl apply -f manifests.yaml
-  rm manifests.yaml
-  rm manifests.yaml.original
-
-  kubectl create secret tls webhook-server-cert \
-    --cert=./tmpcerts/server.pem \
-    --key=./tmpcerts/server-key.pem \
-    -n gm-operator
-
-  rm -rf ./tmpcerts
+  kubectl apply -f hack/k8s-manifests.yaml
 
   kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
