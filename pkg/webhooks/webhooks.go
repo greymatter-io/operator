@@ -1,16 +1,13 @@
 package webhooks
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"net/http"
+	"os"
 	"time"
 
 	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"
+
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,9 +38,23 @@ func New(cl client.Client, i *installer.Installer, c *cli.CLI, get func() *webho
 	wl := &Loader{Client: cl, Installer: i, CLI: c, getServer: get, disableCertGen: disableCertGen}
 
 	if !wl.disableCertGen {
-		if err := wl.loadCerts(); err != nil {
-		    return nil, err
+		// Initialize and launch CFSSL server. This will eventualy move out of the webhooks package,
+		// but can stay here for now since we're just using it to issue our webhook certs.
+		caBundle, err := serveCFSSL()
+		if err != nil {
+			logger.Error(err, "Failed to launch CFSSL server")
+			return nil, err
 		}
+		wl.caBundle = caBundle
+
+		certs, err := requestWebhookCerts()
+		if err != nil {
+			logger.Error(err, "failed to retrieve webhook certs")
+			return nil, err
+		}
+
+		wl.cert = certs[0]
+		wl.key = certs[1]
 	}
 
 	return wl, nil
@@ -107,7 +118,16 @@ func (wl *Loader) Start(ctx context.Context) error {
 		return err
 	}
 
-	// Register handlers with the webhook server
+	// Since we've just patched our webhook secret, check the mounted file for changes.
+	// This lets us wait for the certwatcher to identify cert "rotation" before registering webhooks.
+	logger.Info("Waiting for certwatcher to detect TLS certificate update")
+	var byteCount int64
+	for byteCount == 0 {
+		fileInfo, _ := os.Stat("/tmp/k8s-webhook-server/serving-certs/tls.crt")
+		byteCount = fileInfo.Size()
+		time.Sleep(time.Second * 3)
+	}
+
 	wl.register()
 
 	return nil
@@ -142,78 +162,4 @@ func (wl *Loader) register() {
 	server.Register("/mutate-mesh", &admission.Webhook{Handler: &meshDefaulter{Installer: wl.Installer}})
 	server.Register("/validate-mesh", &admission.Webhook{Handler: &meshValidator{Installer: wl.Installer, Client: wl.Client}})
 	server.Register("/mutate-workload", &admission.Webhook{Handler: &workloadDefaulter{Installer: wl.Installer, CLI: wl.CLI}})
-}
-
-func (wl *Loader) loadCerts() error {
-	certs, err := genCerts()
-	if err != nil {
-		logger.Error(err, "failed to generate certs")
-		return err
-	}
-
-	wl.caBundle = []byte(certs[0])
-	wl.cert = certs[1]
-	wl.key = certs[2]
-
-	return nil
-}
-
-type cfsslResp struct {
-	Result struct {
-		Cert string `json:"certificate"`
-		Key  string `json:"private_key"`
-	} `json:"result"`
-}
-
-func genCerts() ([]string, error) {
-	c := http.Client{Timeout: time.Second}
-
-	// Request root CA without specifying a signer label, since we expect only one root (for now; maybe support multi-root later)
-	info, err := getCFSSLResp(c, "info", "{}")
-	if err != nil {
-		return nil, err
-	}
-	caBundle := info.Result.Cert
-
-	// Request a new signed cert for our webhook server endpoints
-	newcert, err := getCFSSLResp(c, "newcert", `{
-		"request": {
-			"CN":"admission",
-			"hosts":["gm-webhook-service.gm-operator.svc"],
-			"key":{"algo":"rsa","size":2048},
-			"names": [{"C":"US","ST":"VA","O":"Grey Matter"}]
-		},
-		"profile": "server"
-	}`)
-	if err != nil {
-		return nil, err
-	}
-	signed := newcert.Result
-
-	return []string{
-		caBundle,
-		string(signed.Cert),
-		string(signed.Key),
-	}, nil
-}
-
-func getCFSSLResp(c http.Client, path, data string) (*cfsslResp, error) {
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:8888/api/v1/cfssl/%s", path), bytes.NewReader([]byte(data)))
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	respBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	body := &cfsslResp{}
-	if err := json.Unmarshal(respBody, body); err != nil {
-		return nil, err
-	}
-	return body, nil
 }

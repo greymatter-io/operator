@@ -59,7 +59,6 @@ k8s_deploy() {
 
 k8s_cleanup() {
   ./bin/kustomize build config/k8s | kubectl delete -f -
-  kubectl delete secret gm-docker-secret -n gm-operator
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
@@ -93,7 +92,6 @@ k3d_deploy() {
 
 k3d_cleanup() {
   ./bin/kustomize build config/k8s | kubectl delete -f -
-  kubectl delete secret gm-docker-secret -n gm-operator
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
