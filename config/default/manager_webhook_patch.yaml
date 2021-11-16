@@ -16,8 +16,9 @@ spec:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: webhook-cert
           readOnly: true
-      # The secret referenced in this volume contains signed certs which are issued by the operator's embedded CFSSL server at startup.
       # When the Deployment is first created, this referenced secret's tls.crt and tls.key are initialized as empty files.
+      # If deployed to OpenShift, the Operator Lifecycle Manager will inject certs prior to deploying the operator.
+      # If deployed to any other Kubernetes distribution, the operator will inject its own certs via its embedded CFSSL server.
       volumes:
       - name: webhook-cert
         secret:
