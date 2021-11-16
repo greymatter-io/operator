@@ -75,8 +75,8 @@ help: ## Display this help.
 
 ##@ Development
 
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+manifests: controller-gen ## Generate WebhookConfiguration and CustomResourceDefinition objects.
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -141,7 +141,6 @@ CI = $(shell echo ${CIRCLECI} | xargs)
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
 	if [[ "$$CI" != "true" ]]; then echo "Error: Must only run in CI";exit 1;fi
-	operator-sdk generate kustomize manifests --package gm-operator -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --package gm-operator --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
@@ -215,6 +214,5 @@ PKG_MAN_OPTS ?= $(PKG_FROM_VERSION) $(PKG_CHANNELS) $(PKG_IS_DEFAULT_CHANNEL)
 
 .PHONY: packagemanifests
 packagemanifests: kustomize manifests ## Generates a 'dev' bundle to be pushed directly to an OpenShift cluster. Use only in development.
-	operator-sdk generate kustomize manifests --package gm-operator
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate packagemanifests --package gm-operator --version $(VERSION) $(PKG_MAN_OPTS)

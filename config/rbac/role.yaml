@@ -6,92 +6,49 @@ metadata:
   creationTimestamp: null
   name: manager-role
 rules:
-- apiGroups:
-  - admissionregistration.k8s.io
-  resources:
-  - mutatingwebhookconfigurations
-  - validatingwebhookconfigurations
-  verbs:
-  - get
-  - patch
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  - statefulsets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - config.openshift.io
-  resources:
-  - ingresses
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - pods
-  - secrets
-  - serviceaccounts
-  - services
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - greymatter.io
-  resources:
-  - meshes
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - greymatter.io
-  resources:
-  - meshes/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - networking.k8s.io
-  resources:
-  - ingresses
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - clusterrolebindings
-  - clusterroles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+
+# All Mesh ops.
+- apiGroups: ["greymatter.io"]
+  resources: ["meshes"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups: ["greymatter.io"]
+  resources: ["meshes/status"]
+  verbs: ["get", "patch", "update"]
+
+# Patch webhook configurations which exist at runtime.
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations"]
+  resourceNames: ["gm-mutating-webhook-configuration", "gm-validating-webhook-configuration"]
+  verbs: ["get", "patch"]
+
+# Apply mesh core services and label/annotate for fabric configuration.
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets"]
+  verbs: ["get", "list", "create", "update"]
+
+# Apply mesh core service configurations.
+# Note: patch is needed for the webhook cert secret.
+# TODO: Replace all updates with patch in all API calls.
+- apiGroups: [""]
+  resources: ["configmaps", "secrets", "serviceaccounts", "services"]
+  verbs: ["get", "create", "update", "patch"]
+
+# Apply a clusterrole and clusterrolebinding
+# which allows each mesh control plane to discover pods.
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["clusterrolebindings", "clusterroles"]
+  # resourceNames: ["gm-control"]
+  verbs: ["get", "create", "update"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list"]
+
+# Apply mesh ingresses.
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "create", "update"]
+
+# Identify OpenShift cluster-wide ingress information if configured.
+- apiGroups: ["config.openshift.io"]
+  resources: ["ingresses"]
+  verbs: ["list"]

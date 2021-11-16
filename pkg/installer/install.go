@@ -205,7 +205,7 @@ func applyClusterRBAC(c client.Client, scheme *runtime.Scheme) {
 			{
 				APIGroups: []string{""},
 				Resources: []string{"pods"},
-				Verbs:     []string{"get", "list"},
+				Verbs:     []string{"list"},
 			},
 		},
 	}
