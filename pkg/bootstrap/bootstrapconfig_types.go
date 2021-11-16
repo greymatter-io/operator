@@ -18,10 +18,7 @@ package bootstrap
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	basecfg "k8s.io/component-base/config/v1alpha1"
-	ctrl "sigs.k8s.io/controller-runtime"
 	cfg "sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 //+kubebuilder:object:root=true
@@ -41,28 +38,4 @@ type BootstrapConfig struct {
 	// This is used to determine the domain of the cluster. Defaults to "cluster" if not set.
 	// This is ignored in non-Openshift environments.
 	ClusterIngressName string `json:"clusterIngressName"`
-}
-
-// Load our bootstrap config and read any manager options that have not already been set in manager.Options.
-// The values set in manager.Options will always take precedence.
-func LoadWithManagerOptions(path string, options manager.Options) (BootstrapConfig, manager.Options, error) {
-	conf := BootstrapConfig{
-		ControllerManagerConfigurationSpec: cfg.ControllerManagerConfigurationSpec{
-			// Required as an empty config since options.AndFrom below does not check for nil
-			LeaderElection: &basecfg.LeaderElectionConfiguration{},
-		},
-		// Set default config values
-		ClusterIngressName: "cluster",
-	}
-	if path == "" {
-		return conf, options, nil
-	}
-
-	var err error
-	options, err = options.AndFrom(ctrl.ConfigFile().AtPath(path).OfKind(&conf))
-	if err != nil {
-		return conf, options, err
-	}
-
-	return conf, options, nil
 }

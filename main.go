@@ -34,8 +34,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	basecfg "k8s.io/component-base/config/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	cfg "sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	//+kubebuilder:scaffold:imports
@@ -48,6 +50,15 @@ var (
 	// Global config flags
 	configFile  string
 	development bool
+
+	// Default bootstrap config values
+	defaultBootstrapConfig = bootstrap.BootstrapConfig{
+		// LeaderElection is required as an empty config since it cannot be nil.
+		ControllerManagerConfigurationSpec: cfg.ControllerManagerConfigurationSpec{
+			LeaderElection: &basecfg.LeaderElectionConfiguration{},
+		},
+		ClusterIngressName: "cluster",
+	}
 )
 
 func init() {
@@ -67,8 +78,9 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	flag.Parse()
 
-	// Initialize our config and manager options.
-	cfg, options, err := bootstrap.LoadWithManagerOptions(configFile, ctrl.Options{
+	// Initialize manager options with set values.
+	// These values will not be replaced by any values set in a read configFile.
+	options := ctrl.Options{
 		Scheme:                  scheme,
 		LeaderElection:          true,
 		LeaderElectionID:        "715805a0.greymatter.io",
@@ -76,12 +88,20 @@ func main() {
 		Port:                    9443,
 		MetricsBindAddress:      ":8080",
 		HealthProbeBindAddress:  ":8081",
-	})
-	if err != nil {
-		logger.Error(err, "Unable to load config with manager options", "path", configFile)
-		os.Exit(1)
 	}
-	logger.Info("Loaded bootstrap config", "Path", configFile)
+
+	// Attempt to read a configFile if one has been configured.
+	cfg := defaultBootstrapConfig
+	var err error
+	if configFile != "" {
+		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&cfg))
+		if err != nil {
+			logger.Error(err, "Unable to load bootstrap config", "path", configFile)
+			os.Exit(1)
+		} else {
+			logger.Info("Loaded bootstrap config", "Path", configFile)
+		}
+	}
 
 	// Create context for goroutine cleanup
 	ctx := ctrl.SetupSignalHandler()
