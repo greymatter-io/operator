@@ -46,11 +46,8 @@ var (
 	logger = ctrl.Log.WithName("setup")
 
 	// Global config flags
-	configFile           string
-	metricsAddr          string
-	probeAddr            string
-	enableLeaderElection bool
-	development          bool
+	configFile  string
+	development bool
 )
 
 func init() {
@@ -60,71 +57,31 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-// Add tags here for generating RBAC rules for the role that will be used by the Operator.
-//+kubebuilder:rbac:groups=greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=greymatter.io,resources=meshes/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=services;configmaps;serviceaccounts;secrets;pods,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations;validatingwebhookconfigurations,verbs=get;patch
-//+kubebuilder:rbac:groups=config.openshift.io,resources=ingresses,verbs=get;list
-
 func main() {
 	flag.StringVar(&configFile, "config", "", "The operator will load its initial configuration from this file if defined.")
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", true, "Enable leader election, ensuring only one active controller manager.")
 	flag.BoolVar(&development, "development", false, "Run in development mode.")
 
-	// Bind flags for Zap logger options, which I assume allows args to be passed in by OLM (?)
-	opts := zap.Options{}
+	// Bind flags for Zap logger options.
+	opts := zap.Options{Development: development}
 	opts.BindFlags(flag.CommandLine)
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	flag.Parse()
 
-	// If the development flag is set, override previous settings as this is likely not running in-cluster.
-	if development {
-		opts.Development = development
-		enableLeaderElection = false
-	}
-
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	// Initialize manager options with set values.
-	// These values will not be replaced by any values set in a read configFile.
-	var err error
-	options := ctrl.Options{
+	// Initialize our config and manager options.
+	cfg, options, err := bootstrap.LoadWithManagerOptions(configFile, ctrl.Options{
 		Scheme:                  scheme,
-		LeaderElection:          enableLeaderElection,
+		LeaderElection:          true,
 		LeaderElectionID:        "715805a0.greymatter.io",
 		LeaderElectionNamespace: "gm-operator",
+		Port:                    9443,
+		MetricsBindAddress:      ":8080",
+		HealthProbeBindAddress:  ":8081",
+	})
+	if err != nil {
+		logger.Error(err, "Unable to load config with manager options", "path", configFile)
+		os.Exit(1)
 	}
-
-	// Attempt to read a configFile if one has been configured.
-	cfg := bootstrap.BootstrapConfig{}
-	if configFile != "" {
-		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&cfg))
-		if err != nil {
-			logger.Error(err, "Unable to load bootstrap config", "path", configFile)
-			os.Exit(1)
-		} else {
-			logger.Info("Loaded bootstrap config", "Path", configFile)
-		}
-	}
-
-	// If the configFile does not define these values, use defaults.
-	if options.Port == 0 {
-		options.Port = 9443
-	}
-	if options.MetricsBindAddress == "" {
-		options.MetricsBindAddress = metricsAddr
-	}
-	if options.HealthProbeBindAddress == "" {
-		options.HealthProbeBindAddress = probeAddr
-	}
-	if cfg.ClusterIngressName == "" {
-		cfg.ClusterIngressName = "cluster"
-	}
+	logger.Info("Loaded bootstrap config", "Path", configFile)
 
 	// Create context for goroutine cleanup
 	ctx := ctrl.SetupSignalHandler()
