@@ -8,4 +8,4 @@ spec:
     spec:
       containers:
       - name: manager
-        image: docker.greymatter.io/internal/gm-operator:latest-kops
+        image: docker.greymatter.io/internal/gm-operator:latest

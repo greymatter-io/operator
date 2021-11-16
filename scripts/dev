@@ -4,13 +4,8 @@ set -euf -o pipefail
 
 # Openshift
 
-oc_push() {
-  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
-  make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
-}
-
 oc_deploy() {
-  prompt_push oc
+  prompt_push
 
   oc create secret docker-registry gm-docker-secret \
     --docker-server=docker.greymatter.io \
@@ -47,13 +42,8 @@ oc_sample() {
 
 # Kubernetes
 
-k8s_push() {
-  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest-kops
-  make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest-kops
-}
-
 k8s_deploy() {
-  prompt_push k8s
+  prompt_push
   k_deploy kops
 }
 
@@ -64,7 +54,7 @@ k8s_cleanup() {
 }
 
 k8s_upgrade() {
-  ./scripts/dev push k8s
+  push_docker
   kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs)
 }
 
@@ -80,13 +70,8 @@ k8s_sample() {
 # K3D (local development)
 # mostly similar to Kubernetes commamnds, might delete later
 
-k3d_push() {
-  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest-k3d
-  k3d image import -c gm-operator docker.greymatter.io/internal/gm-operator:latest-k3d
-}
-
 k3d_deploy() {
-  prompt_push k3d
+  prompt_push
   k_deploy k3d
 }
 
@@ -97,7 +82,8 @@ k3d_cleanup() {
 }
 
 k3d_upgrade() {
-  ./scripts/dev push k3d
+  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
+  k3d image import -c gm-operator docker.greymatter.io/internal/gm-operator:latest
   kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs)
 }
 
@@ -117,8 +103,13 @@ prompt_push() {
   echo ""
   if [[ $REPLY =~ ^[Yy]$ ]]
   then
-    ./scripts/dev push $1
+    push_docker
   fi
+}
+
+push_docker() {
+  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
+  make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
 }
 
 k_deploy() {
@@ -150,7 +141,7 @@ if [ $# -lt 2 ]; then
 fi
 
 case $1 in
-  push)     choose $2 push;    ;; 
+  push)     push_docker;       ;; 
   deploy)   choose $2 deploy;  ;;
   cleanup)  choose $2 cleanup; ;;
   upgrade)  choose $2 upgrade; ;;
