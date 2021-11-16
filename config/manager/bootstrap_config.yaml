@@ -1,1 +1,8 @@
-imagePullSecretName: gm-docker-secret
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: manager-config
+  namespace: system
+data:
+  bootstrap_config.yaml: |
+    imagePullSecretName: gm-docker-secret
