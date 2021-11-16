@@ -52,7 +52,10 @@ func serveCFSSL() ([]byte, error) {
 
 	go func() {
 		err := serve.Command.Main(nil, cli.Config{
-			Port:      8888,
+			Port: 8888,
+			// Disable endpoints expect the ones we use
+			// ref: https://github.com/cloudflare/cfssl/blob/master/cli/serve/serve.go#L121
+			Disable:   "sign,authsign,crl,gencrl,bundle,newkey,init_ca,scan,scaninfo,certinfo,ocspsign,revoke,/,health,certadd",
 			CAFile:    "env:CFSSL_CA",
 			CAKeyFile: "env:CFSSL_CA_KEY",
 			CFG: &config.Config{
