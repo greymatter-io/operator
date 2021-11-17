@@ -16,7 +16,7 @@ then
 else
   case $1 in 
   docker)
-    docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
+    docker login -u $DOCKER_USER -p $DOCKER_PASSWORD docker.greymatter.io
     make docker-build VERSION=latest
     ;;
   *) 

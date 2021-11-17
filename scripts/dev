@@ -9,9 +9,9 @@ oc_deploy() {
 
   oc create secret docker-registry gm-docker-secret \
     --docker-server=docker.greymatter.io \
-    --docker-username=$NEXUS_USER \
-    --docker-password=$NEXUS_PASSWORD \
-    --docker-email=$NEXUS_USER \
+    --docker-username=$DOCKER_USER \
+    --docker-password=$DOCKER_PASSWORD \
+    --docker-email=$DOCKER_USER \
     -n gm-operator
 
   make packagemanifests VERSION=0.0.1 CHANNEL=alpha IS_CHANNEL_DEFAULT=1 IMG=docker.greymatter.io/internal/gm-operator:latest
@@ -117,9 +117,9 @@ k_deploy() {
 
   kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
-  --docker-username=$NEXUS_USER \
-  --docker-password=$NEXUS_PASSWORD \
-  --docker-email=$NEXUS_USER \
+  --docker-username=$DOCKER_USER \
+  --docker-password=$DOCKER_PASSWORD \
+  --docker-email=$DOCKER_USER \
   -n gm-operator
 }
 
