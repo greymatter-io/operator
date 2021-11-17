@@ -8,17 +8,8 @@ cli_deploy() {
 
 # Openshift
 
-oc_push() {
-  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
-  make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
-}
-
 oc_deploy() {
-  prompt_push oc
-
-  make packagemanifests VERSION=0.0.1 CHANNEL=alpha IS_CHANNEL_DEFAULT=1 IMG=docker.greymatter.io/internal/gm-operator:latest
-  operator-sdk run packagemanifests -n gm-operator --version 0.0.1
-  rm -rf ./packagemanifests
+  prompt_push
 
   oc create secret docker-registry gm-docker-secret \
     --docker-server=docker.greymatter.io \
@@ -26,10 +17,15 @@ oc_deploy() {
     --docker-password=$NEXUS_PASSWORD \
     --docker-email=$NEXUS_USER \
     -n gm-operator
+
+  make packagemanifests VERSION=0.0.1 CHANNEL=alpha IS_CHANNEL_DEFAULT=1 IMG=docker.greymatter.io/internal/gm-operator:latest
+  operator-sdk run packagemanifests -n gm-operator --version 0.0.1
+  rm -rf ./packagemanifests
 }
 
 oc_cleanup() {
   operator-sdk cleanup -n gm-operator gm-operator
+  oc delete secret gm-docker-secret -n gm-operator
   oc delete clusterrole gm-control
   oc delete pvc gm-redis-append-dir-gm-redis-0 -n gm-operator-test2
 }
@@ -50,24 +46,19 @@ oc_sample() {
 
 # Kubernetes
 
-k8s_push() {
-  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest-kops
-  make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest-kops
-}
-
 k8s_deploy() {
-  prompt_push k8s
+  prompt_push
   k_deploy kops
 }
 
 k8s_cleanup() {
-  ./bin/kustomize build config/default | kubectl delete -f -
+  kubectl delete -k config/k8s
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
 
 k8s_upgrade() {
-  ./scripts/dev push k8s
+  push_docker
   kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs)
 }
 
@@ -83,24 +74,20 @@ k8s_sample() {
 # K3D (local development)
 # mostly similar to Kubernetes commamnds, might delete later
 
-k3d_push() {
-  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest-k3d
-  k3d image import -c gm-operator docker.greymatter.io/internal/gm-operator:latest-k3d
-}
-
 k3d_deploy() {
-  prompt_push k3d
+  prompt_push
   k_deploy k3d
 }
 
 k3d_cleanup() {
-  ./bin/kustomize build config/default | kubectl delete -f -
+  kubectl delete -k config/k8s
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
 
 k3d_upgrade() {
-  ./scripts/dev push k3d
+  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
+  k3d image import -c gm-operator docker.greymatter.io/internal/gm-operator:latest
   kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs)
 }
 
@@ -120,45 +107,17 @@ prompt_push() {
   echo ""
   if [[ $REPLY =~ ^[Yy]$ ]]
   then
-    ./scripts/dev push $1
+    push_docker
   fi
 }
 
+push_docker() {
+  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
+  make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
+}
+
 k_deploy() {
-  local ca_config="../hack/ca-config.json"
-  local ca_req="../hack/ca-csr.json"
-  local cert_req="../hack/cert-csr.json"
-
-  mkdir -p tmpcerts
-  cd tmpcerts
-  cfssl gencert -initca $ca_req | cfssljson -bare ca
-  cfssl gencert \
-    -ca=ca.pem \
-    -ca-key=ca-key.pem \
-    -config=$ca_config \
-    -hostname=gm-webhook-service.gm-operator.svc \
-    -profile=server \
-    $cert_req | cfssljson -bare server
-  cd ..
-
-  local bundle=$(cat ./tmpcerts/ca.pem | base64 - | tr -d '\n')
-
-  ./bin/kustomize build config/default > manifests.yaml
-	sed -i'.original' -e "s|development/gm-operator:0.0.1|internal/gm-operator:latest-$1|" manifests.yaml
-	sed -i'.original' -e "s|caBundle: \"\"|caBundle: $bundle|g" manifests.yaml
-  if [ $1 == "k3d" ]; then
-	  sed -i'.original' -e "s|imagePullPolicy: Always|imagePullPolicy: Never|" manifests.yaml
-  fi
-  kubectl apply -f manifests.yaml
-  rm manifests.yaml
-  rm manifests.yaml.original
-
-  kubectl create secret tls webhook-server-cert \
-    --cert=./tmpcerts/server.pem \
-    --key=./tmpcerts/server-key.pem \
-    -n gm-operator
-
-  rm -rf ./tmpcerts
+  kubectl apply -k config/k8s
 
   kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
@@ -187,7 +146,7 @@ if [ $# -lt 2 ]; then
 fi
 
 case $1 in
-  push)     choose $2 push;    ;; 
+  push)     push_docker;       ;; 
   deploy)   choose $2 deploy;  ;;
   cleanup)  choose $2 cleanup; ;;
   upgrade)  choose $2 upgrade; ;;

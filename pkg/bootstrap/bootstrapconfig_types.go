@@ -23,16 +23,19 @@ import (
 
 //+kubebuilder:object:root=true
 
-// BootstrapConfig enables defining configuration settings for a Grey Matter Operator.
+// BootstrapConfig specifies global settings for the operator.
 // Fields are camelCased rather than snake_cased for compatibility with cfg.ControllerManagerConfigSpec.
 type BootstrapConfig struct {
 	metav1.TypeMeta                        `json:",inline"`
 	cfg.ControllerManagerConfigurationSpec `json:",inline"`
-	// The name of the secret in the namespace where Grey Matter Operator is deployed.
-	// This secret is re-created in each namespace where Grey Matter Core is installed.
+	// The name of the secret in the namespace where the operator is deployed.
+	// This secret is re-created in each namespace that belongs to a Mesh's scope.
 	ImagePullSecretName string `json:"imagePullSecretName"`
-	// The name of the cluster ingress (configs.openshift.io/v1.Ingress) in an openshift environment.
-	// This is used to determine the domain of the cluster.  Unless specifically changed the default clusterIngressName is "cluster"
-	// When deploying in non openshift environments this will not be used
+	// By default, the operator uses a local CFSSL API server for signing its webhook TLS certs.
+	// Set this to true when deploying to Openshift or in cases where users want to manually sign the webhook TLS certs.
+	DisableWebhookCertGeneration bool `json:"disableWebhookCertGeneration"`
+	// The name of the cluster ingress (configs.openshift.io/v1.Ingress) in an Openshift environment.
+	// This is used to determine the domain of the cluster. Defaults to "cluster" if not set.
+	// This is ignored in non-Openshift environments.
 	ClusterIngressName string `json:"clusterIngressName"`
 }

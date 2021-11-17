@@ -34,8 +34,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	basecfg "k8s.io/component-base/config/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	cfg "sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	//+kubebuilder:scaffold:imports
@@ -46,11 +48,17 @@ var (
 	logger = ctrl.Log.WithName("setup")
 
 	// Global config flags
-	configFile           string
-	metricsAddr          string
-	probeAddr            string
-	enableLeaderElection bool
-	development          bool
+	configFile  string
+	development bool
+
+	// Default bootstrap config values
+	defaultBootstrapConfig = bootstrap.BootstrapConfig{
+		// LeaderElection is required as an empty config since it cannot be nil.
+		ControllerManagerConfigurationSpec: cfg.ControllerManagerConfigurationSpec{
+			LeaderElection: &basecfg.LeaderElectionConfiguration{},
+		},
+		ClusterIngressName: "cluster",
+	}
 )
 
 func init() {
@@ -60,47 +68,31 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-// Add tags here for generating RBAC rules for the role that will be used by the Operator.
-//+kubebuilder:rbac:groups=greymatter.io,resources=meshes,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=greymatter.io,resources=meshes/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=services;configmaps;serviceaccounts;secrets;pods,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=config.openshift.io,resources=ingresses,verbs=get;list
-
 func main() {
 	flag.StringVar(&configFile, "config", "", "The operator will load its initial configuration from this file if defined.")
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", true, "Enable leader election, ensuring only one active controller manager.")
 	flag.BoolVar(&development, "development", false, "Run in development mode.")
 
-	// Bind flags for Zap logger options, which I assume allows args to be passed in by OLM (?)
-	opts := zap.Options{}
+	// Bind flags for Zap logger options.
+	opts := zap.Options{Development: development}
 	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
-
-	// If the development flag is set, override previous settings as this is likely not running in-cluster.
-	if development {
-		opts.Development = development
-		enableLeaderElection = false
-	}
-
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	flag.Parse()
 
 	// Initialize manager options with set values.
 	// These values will not be replaced by any values set in a read configFile.
-	var err error
 	options := ctrl.Options{
 		Scheme:                  scheme,
-		LeaderElection:          enableLeaderElection,
+		LeaderElection:          true,
 		LeaderElectionID:        "715805a0.greymatter.io",
 		LeaderElectionNamespace: "gm-operator",
+		Port:                    9443,
+		MetricsBindAddress:      ":8080",
+		HealthProbeBindAddress:  ":8081",
 	}
 
 	// Attempt to read a configFile if one has been configured.
-	cfg := bootstrap.BootstrapConfig{}
+	cfg := defaultBootstrapConfig
+	var err error
 	if configFile != "" {
 		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&cfg))
 		if err != nil {
@@ -109,20 +101,6 @@ func main() {
 		} else {
 			logger.Info("Loaded bootstrap config", "Path", configFile)
 		}
-	}
-
-	// If the configFile does not define these values, use defaults.
-	if options.Port == 0 {
-		options.Port = 9443
-	}
-	if options.MetricsBindAddress == "" {
-		options.MetricsBindAddress = metricsAddr
-	}
-	if options.HealthProbeBindAddress == "" {
-		options.HealthProbeBindAddress = probeAddr
-	}
-	if cfg.ClusterIngressName == "" {
-		cfg.ClusterIngressName = "cluster"
 	}
 
 	// Create context for goroutine cleanup
@@ -161,8 +139,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Register the webhook handlers with our server to receive requests
-	webhooks.Register(mgr, inst, gmcli, c)
+	// Initialize the webhooks Loader and add it as a runnable process to the manager so that
+	// it patches our webhook configurations after the manager starts.
+	wl, err := webhooks.New(c, inst, gmcli, mgr.GetWebhookServer, cfg.DisableWebhookCertGeneration)
+	if err != nil {
+		os.Exit(1)
+	}
+	mgr.Add(wl)
 
 	//+kubebuilder:scaffold:builder
 

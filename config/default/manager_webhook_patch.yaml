@@ -14,10 +14,18 @@ spec:
           protocol: TCP
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
-          name: cert
+          name: webhook-cert
           readOnly: true
+      # When the Deployment is first created, this referenced secret's tls.crt and tls.key are initialized as empty files.
+      # If deployed to OpenShift, the Operator Lifecycle Manager will inject certs prior to deploying the operator.
+      # If deployed to any other Kubernetes distribution, the operator will inject its own certs via its embedded CFSSL server.
       volumes:
-      - name: cert
+      - name: webhook-cert
         secret:
           defaultMode: 420
-          secretName: webhook-server-cert
+          secretName: gm-controller-manager-service-cert
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
