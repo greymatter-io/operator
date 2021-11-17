@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/cloudflare/cfssl/csr"
 	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"
 
@@ -30,8 +31,8 @@ type Loader struct {
 	getServer      func() *webhook.Server
 	disableCertGen bool
 	caBundle       []byte
-	cert           string
-	key            string
+	cert           []byte
+	key            []byte
 }
 
 func New(cl client.Client, i *installer.Installer, c *cli.CLI, get func() *webhook.Server, disableCertGen bool) (*Loader, error) {
@@ -40,21 +41,30 @@ func New(cl client.Client, i *installer.Installer, c *cli.CLI, get func() *webho
 	if !wl.disableCertGen {
 		// Initialize and launch CFSSL server. This will eventualy move out of the webhooks package,
 		// but can stay here for now since we're just using it to issue our webhook certs.
-		caBundle, err := serveCFSSL()
+		cs, err := NewCFSSLServer(nil, nil)
 		if err != nil {
-			logger.Error(err, "Failed to launch CFSSL server")
-			return nil, err
-		}
-		wl.caBundle = caBundle
-
-		certs, err := requestWebhookCerts()
-		if err != nil {
-			logger.Error(err, "failed to retrieve webhook certs")
+			logger.Error(err, "Failed to configure CFSSL server")
 			return nil, err
 		}
 
-		wl.cert = certs[0]
-		wl.key = certs[1]
+		if err := cs.Start(); err != nil {
+			logger.Error(err, "CFSSL server failed to start")
+			return nil, err
+		}
+
+		wl.caBundle = cs.GetCABundle()
+
+		wl.cert, wl.key, err = cs.RequestCert(csr.CertificateRequest{
+			CN:         "admission",
+			Hosts:      []string{"gm-webhook-service.gm-operator.svc"},
+			KeyRequest: &csr.KeyRequest{A: "rsa", S: 2048},
+		})
+		if err != nil {
+			logger.Error(err, "failed to retrieve certs for webhook server")
+			return nil, err
+		}
+
+		logger.Info("Retrieved signed certs from CFSSL server")
 	}
 
 	return wl, nil
@@ -80,8 +90,8 @@ func (wl *Loader) Start(ctx context.Context) error {
 		if s.StringData == nil {
 			s.StringData = make(map[string]string)
 		}
-		s.StringData["tls.crt"] = wl.cert
-		s.StringData["tls.key"] = wl.key
+		s.StringData["tls.crt"] = string(wl.cert)
+		s.StringData["tls.key"] = string(wl.key)
 		return s
 	}
 	if err := applyPatch(wl.Client, secret, patch); err != nil {
