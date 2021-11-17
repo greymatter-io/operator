@@ -14,6 +14,7 @@ NetworkFilters: #EnabledNetworkFilters
 Ingresses: [string]: int32
 HTTPEgresses: [...#EgressArgs]
 TCPEgresses: [...#EgressArgs]
+NetworkMode: string
 
 #EnabledHttpFilters: {
   "gm.metrics": true
@@ -41,40 +42,45 @@ edgeDomain: #Domain & {
 }
 
 service: {
-  catalogservice: #CatalogService & {
-    mesh_id: MeshName
-    service_id: ServiceName
+  if NetworkMode != "internal"{
+    catalogservice: #CatalogService & {
+      mesh_id: MeshName
+      service_id: ServiceName
 
-    if ServiceName == "edge" {
-      name: "Grey Matter Edge"
-      description: "Handles north/south traffic flowing through the mesh."
-      api_endpoint: "/"
-    }
-    if ServiceName == "jwt-security" {
-      name: "Grey Matter JWT Security"
-      description: "A JWT token generation and retrieval service."
-      api_endpoint: "/services/jwt-security/"
-      api_spec_endpoint: "/services/jwt-security/"
-    }
-    if ServiceName == "control" {
-      name: "Grey Matter Control"
-      description: "Manages the configuration of the Grey Matter data plane."
-      api_endpoint: "/services/control/api/"
-      api_spec_endpoint: "/services/control/api/"
-    }
-    if ServiceName == "catalog" {
-      name: "Grey Matter Catalog"
-      description: "Interfaces with the control plane to expose the current state of the mesh."
-      api_endpoint: "/services/catalog/"
-      api_spec_endpoint: "/services/catalog/"
-    }
-    if ServiceName == "dashboard" {
-      name: "Grey Matter Dashboard"
-      description: "A user dashboard that paints a high-level picture of the mesh."
-    }
-    if ServiceName == "gm-redis" {
-      name: "Redis"
-      description: "A data store for caching Grey Matter core service configurations."
+      if ServiceName == "edge" {
+        name: "Grey Matter Edge"
+        description: "Handles north/south traffic flowing through the mesh."
+        api_endpoint: "/"
+      }
+      if ServiceName == "jwt-security" {
+        name: "Grey Matter JWT Security"
+        description: "A JWT token generation and retrieval service."
+        api_endpoint: "/services/jwt-security/"
+        api_spec_endpoint: "/services/jwt-security/"
+      }
+      if ServiceName == "control" {
+        name: "Grey Matter Control"
+        description: "Manages the configuration of the Grey Matter data plane."
+        api_endpoint: "/services/control/api/"
+        api_spec_endpoint: "/services/control/api/"
+      }
+      if ServiceName == "catalog" {
+        name: "Grey Matter Catalog"
+        description: "Interfaces with the control plane to expose the current state of the mesh."
+        api_endpoint: "/services/catalog/"
+        api_spec_endpoint: "/services/catalog/"
+      }
+      if ServiceName == "dashboard" {
+        name: "Grey Matter Dashboard"
+        description: "A user dashboard that paints a high-level picture of the mesh."
+      }
+      if ServiceName == "gm-redis" {
+        name: "Redis"
+        description: "A data store for caching Grey Matter core service configurations."
+      }
+      if ServiceName != "edge" && ServiceName != "jwt-security" && ServiceName != "control" && ServiceName != "catalog" && ServiceName != "dashboard" && ServiceName != "gm-redis" {
+        api_endpoint: "/services/\(ServiceName)/"
+      }
     }
   }
 
@@ -180,7 +186,8 @@ service: {
   ]
 
   routes: [...#Route] & [
-    if ServiceName != "dashboard" && ServiceName != "edge" {
+    // creates route from edge to sidecar
+    if ServiceName != "dashboard" && ServiceName != "edge" && NetworkMode != "internal"{
       {
         route_key: ServiceName
         domain_key: "edge"

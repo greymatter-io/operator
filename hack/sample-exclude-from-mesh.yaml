@@ -5,7 +5,7 @@ metadata:
   namespace: gm-operator-test3
   labels:
     app: fibonacci
-    greymatter.io/exclude-from-mesh: "true"
+    greymatter.io/network-mode: "exclude"
 spec:
   selector:
     matchLabels:

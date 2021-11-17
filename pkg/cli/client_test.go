@@ -46,8 +46,8 @@ func TestNewClient(t *testing.T) {
 		}},
 	}
 
-	c.ConfigureService("mesh", "mock", nil, containers)
-	c.RemoveService("mesh", "mock", nil, containers)
+	c.ConfigureService("mesh", "mock", nil, nil, containers)
+	c.RemoveService("mesh", "mock", nil, nil, containers)
 
 	c.RemoveMeshClient("mesh")
 

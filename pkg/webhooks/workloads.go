@@ -3,9 +3,8 @@ package webhooks
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/greymatter-io/operator/pkg/cli"
@@ -109,7 +108,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 		wd.Decode(req, deployment)
 		if req.Operation != admissionv1.Delete {
 
-			if !excludeFromMesh(deployment.Labels) {
+			if networkModeIncludeSidecar(deployment.Labels) {
 				if deployment.Annotations == nil {
 					deployment.Annotations = make(map[string]string)
 				}
@@ -121,13 +120,13 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 					return admission.ValidationResponse(false, "failed to add cluster label")
 				}
 				logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-				go wd.ConfigureService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
+				go wd.ConfigureService(mesh, req.Name, deployment.Annotations, deployment.Labels, deployment.Spec.Template.Spec.Containers)
 			} else {
 				rawUpdate, _ = json.Marshal(deployment)
 			}
 		} else {
-			if !excludeFromMesh(deployment.Labels) {
-				go wd.RemoveService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
+			if networkModeIncludeSidecar(deployment.Labels) {
+				go wd.RemoveService(mesh, req.Name, deployment.Annotations, deployment.Labels, deployment.Spec.Template.Spec.Containers)
 				return admission.ValidationResponse(true, "allowed")
 			} else {
 				rawUpdate, _ = json.Marshal(deployment)
@@ -138,7 +137,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 		statefulset := &appsv1.StatefulSet{}
 		if req.Operation != admissionv1.Delete {
 			wd.Decode(req, statefulset)
-			if !excludeFromMesh(statefulset.Labels) {
+			if networkModeIncludeSidecar(statefulset.Labels) {
 				if statefulset.Annotations == nil {
 					statefulset.Annotations = make(map[string]string)
 				}
@@ -150,14 +149,14 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 					return admission.ValidationResponse(false, "failed to add cluster label")
 				}
 				logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-				go wd.ConfigureService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
+				go wd.ConfigureService(mesh, req.Name, statefulset.Annotations, statefulset.Labels, statefulset.Spec.Template.Spec.Containers)
 			} else {
 				rawUpdate, _ = json.Marshal(statefulset)
 			}
 		} else {
 			wd.DecodeRaw(req.OldObject, statefulset)
-			if !excludeFromMesh(statefulset.Labels) {
-				go wd.RemoveService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
+			if networkModeIncludeSidecar(statefulset.Labels) {
+				go wd.RemoveService(mesh, req.Name, statefulset.Annotations, statefulset.Labels, statefulset.Spec.Template.Spec.Containers)
 				return admission.ValidationResponse(true, "allowed")
 			} else {
 				rawUpdate, _ = json.Marshal(statefulset)
@@ -177,17 +176,14 @@ func addClusterLabel(tmpl corev1.PodTemplateSpec, name string) corev1.PodTemplat
 	return tmpl
 }
 
-func excludeFromMesh(podLabels map[string]string) bool {
-	const exclusionLabel = "greymatter.io/exclude-from-mesh"
-	// Checks for label indicating the pod should not be added to the mesh
-	if val, ok := podLabels[exclusionLabel]; ok {
-		exclude, err := strconv.ParseBool(val)
-		if err != nil {
-			fmt.Printf("found [%s] label but unable to parse value\n", exclusionLabel)
-			// Do we care about this? if its not able to parse but the label is there then should we just assume it should not be in the mesh?
-			return false
+// networkMode will return (add sidecar bool, mesh config type string)
+func networkModeIncludeSidecar(podLabels map[string]string) bool {
+	const networkModeLabel = "greymatter.io/network-mode"
+	addSideCar := true
+	if val, ok := podLabels[networkModeLabel]; ok {
+		if strings.ToLower(strings.TrimSpace(val)) == "exclude" {
+			addSideCar = false
 		}
-		return exclude
 	}
-	return false
+	return addSideCar
 }

@@ -117,7 +117,7 @@ func (c *CLI) RemoveMeshClient(name string) {
 
 // ConfigureService applies fabric objects that add a workload to the mesh specified
 // given the workload's annotations and a list of its corev1.Containers.
-func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]string, containers []corev1.Container) {
+func (c *CLI) ConfigureService(mesh, workload string, annotations, labels map[string]string, containers []corev1.Container) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -139,7 +139,7 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 		}
 	}
 
-	objects, err := cl.f.Service(workload, annotations, ingresses)
+	objects, err := cl.f.Service(workload, annotations, labels, ingresses)
 	if err != nil {
 		logger.Error(err, "failed to configure fabric objects for workload", "Mesh", mesh, "Workload", workload)
 		return
@@ -193,7 +193,7 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 
 // RemoveService removes fabric objects, disconnecting the workload from the mesh specified,
 // along with all ingress and egress cluster routes derived from the given annotations and containers.
-func (c *CLI) RemoveService(mesh, workload string, annotations map[string]string, containers []corev1.Container) {
+func (c *CLI) RemoveService(mesh, workload string, annotations, labels map[string]string, containers []corev1.Container) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -211,7 +211,7 @@ func (c *CLI) RemoveService(mesh, workload string, annotations map[string]string
 		}
 	}
 
-	objects, err := cl.f.Service(workload, annotations, ingresses)
+	objects, err := cl.f.Service(workload, annotations, labels, ingresses)
 	if err != nil {
 		logger.Error(err, "failed to configure fabric objects for workload", "Mesh", mesh, "Workload", workload)
 		return

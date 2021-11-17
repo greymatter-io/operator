@@ -81,7 +81,7 @@ type EgressArgs struct {
 
 // Service creates fabric objects for adding a workload to a mesh,
 // given the workload's annotations and a map of its parsed container ports.
-func (f *Fabric) Service(name string, annotations map[string]string, ingresses map[string]int32) (Objects, error) {
+func (f *Fabric) Service(name string, annotations, labels map[string]string, ingresses map[string]int32) (Objects, error) {
 
 	// All ingress routes use 10808. They are defined from named container ports.
 	// There may only be one ingress if TCP (via the envoy.tcp_proxy filter).
@@ -94,6 +94,12 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 		annotations = make(map[string]string)
 	}
 
+	// Labels are use for determining the mesh networking mode
+	// current modes are route (edge -> sidecar -> service), internal (sidecar -> service), exclude (no routes)
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+
 	// Filter names are passed as comma-delimited strings, but transformed into lookup tables for Cue.
 	httpFilters := parseFilters(annotations["greymatter.io/http-filters"])
 	networkFilters := parseFilters(annotations["greymatter.io/network-filters"])
@@ -102,6 +108,19 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	// Array literals are used here so that they are parsed as non-nil arrays in Cue.
 	httpEgresses, _ := parseLocalEgressArgs([]EgressArgs{}, annotations["greymatter.io/egress-http-local"], 0)
 	httpEgresses, _ = parseExternalEgressArgs(httpEgresses, annotations["greymatter.io/egress-http-external"], 0)
+
+	// network mode is route by default unless the label is set otherwise
+	networkMode := "route"
+	if val, ok := labels["greymatter.io/network-mode"]; ok {
+		networkMode = strings.ToLower(strings.TrimSpace(val))
+	}
+	switch networkMode { //using a switch statment because this will grow
+	case "gateway":
+		// stig out gateway
+	case "internal":
+		// internal- sidecar -> service
+		networkMode = "internal"
+	}
 
 	// TCP egresses are served at 10910 and up (one listener each).
 	// Redis and (eventually) NATS TCP egresses are prepended by default for all services.
@@ -126,6 +145,7 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 			Ingresses: %s
 			HTTPEgresses: %s
 			TCPEgresses: %s
+			NetworkMode: "%s"
 		`,
 			name,
 			mustMarshal(httpFilters, `{}`),
@@ -133,6 +153,7 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 			mustMarshal(ingresses, `[]`),
 			mustMarshal(httpEgresses, `[]`),
 			mustMarshal(tcpEgresses, `[]`),
+			networkMode,
 		)),
 	)
 	if err := value.Err(); err != nil {

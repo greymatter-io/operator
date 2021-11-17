@@ -27,7 +27,7 @@ func TestEdgeDomain(t *testing.T) {
 func TestService(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example", nil, nil)
+	service, err := f.Service("example", nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func TestService(t *testing.T) {
 func TestServiceEdge(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("edge", nil, map[string]int32{
+	service, err := f.Service("edge", nil, nil, map[string]int32{
 		"proxy": 10808,
 	})
 	if err != nil {
@@ -128,7 +128,7 @@ func TestServiceEdge(t *testing.T) {
 func TestServiceGMRedis(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("gm-redis", nil, nil)
+	service, err := f.Service("gm-redis", nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +169,7 @@ func TestServiceGMRedis(t *testing.T) {
 func TestServiceNoIngress(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example", nil, nil)
+	service, err := f.Service("example", nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestServiceNoIngress(t *testing.T) {
 func TestServiceOneIngress(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example", nil, map[string]int32{
+	service, err := f.Service("example", nil, nil, map[string]int32{
 		"api": 5555,
 	})
 	if err != nil {
@@ -228,7 +228,7 @@ func TestServiceOneIngress(t *testing.T) {
 func TestServiceMultipleIngresses(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example", nil, map[string]int32{
+	service, err := f.Service("example", nil, nil, map[string]int32{
 		"api":  5555,
 		"api2": 8080,
 	})
@@ -278,7 +278,7 @@ func TestServiceOneHTTPLocalEgress(t *testing.T) {
 	service, err := f.Service("example",
 		map[string]string{
 			"greymatter.io/egress-http-local": `["othercluster"]`,
-		}, nil,
+		}, nil, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -320,7 +320,7 @@ func TestServiceOneHTTPLocalEgressFromGMRedis(t *testing.T) {
 	service, err := f.Service("gm-redis",
 		map[string]string{
 			"greymatter.io/egress-http-local": `["othercluster"]`,
-		}, nil,
+		}, nil, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -353,7 +353,7 @@ func TestServiceMultipleHTTPLocalEgresses(t *testing.T) {
 	service, err := f.Service("example",
 		map[string]string{
 			"greymatter.io/egress-http-local": `["othercluster1","othercluster2"]`,
-		}, nil,
+		}, nil, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -380,7 +380,7 @@ func TestServiceOneHTTPExternalEgress(t *testing.T) {
 
 	service, err := f.Service("example", map[string]string{
 		"greymatter.io/egress-http-external": `[{"name":"google","host":"google.com","port":80}]`,
-	}, nil)
+	}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +428,7 @@ func TestServiceMultipleHTTPExternalEgresses(t *testing.T) {
 			{"name":"google","host":"google.com","port":80},
 			{"name":"amazon","host":"amazon.com","port":80}
 		]`,
-	}, nil)
+	}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -460,7 +460,7 @@ func TestServiceOneTCPLocalEgress(t *testing.T) {
 	service, err := f.Service("example",
 		map[string]string{
 			"greymatter.io/egress-tcp-local": `["othercluster"]`,
-		}, nil,
+		}, nil, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -505,7 +505,7 @@ func TestServiceMultipleTCPLocalEgresses(t *testing.T) {
 	service, err := f.Service("example",
 		map[string]string{
 			"greymatter.io/egress-tcp-local": `["c1","c2"]`,
-		}, nil,
+		}, nil, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -558,7 +558,7 @@ func TestServiceOneTCPExternalEgress(t *testing.T) {
 	service, err := f.Service("example",
 		map[string]string{
 			"greymatter.io/egress-tcp-external": `[{"name":"redis","host":"1.2.3.4","port":6379}]`,
-		}, nil,
+		}, nil, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -611,7 +611,7 @@ func TestServiceMultipleTCPExternalEgresses(t *testing.T) {
 				{"name":"s1","host":"1.1.1.1","port":1111},
 				{"name":"s2","host":"2.2.2.2","port":2222}
 			]`,
-		}, nil,
+		}, nil, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -893,6 +893,67 @@ func TestParseExternalEgressArgs(t *testing.T) {
 			if port != tc.expectedPort {
 				t.Errorf("port: expected %d but got %d", tc.expectedPort, port)
 			}
+		})
+	}
+}
+
+func TestNetWorkMode(t *testing.T) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	for _, tc := range []struct {
+		name                        string
+		labelValue                  string
+		expectedRoutesCount         int32
+		expectedCatalogServiceCount int32
+	}{
+		{
+			name:                        "internal-correct-value",
+			labelValue:                  "internal",
+			expectedRoutesCount:         0,
+			expectedCatalogServiceCount: 0,
+		},
+		{
+			name:                        "internal-invalid-value",
+			labelValue:                  "internal-service",
+			expectedRoutesCount:         1,
+			expectedCatalogServiceCount: 1,
+		},
+		{
+			name:                        "route",
+			labelValue:                  "route",
+			expectedRoutesCount:         1,
+			expectedCatalogServiceCount: 1,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := loadMock(t)
+			labelMap := map[string]string{
+				"greymatter.io/network-mode": tc.labelValue,
+			}
+			service, err := f.Service(tc.name, nil, labelMap, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			fmt.Printf("Routes: \n")
+			for _, i := range service.Routes {
+				prettyPrint(i)
+			}
+
+			if count := len(service.Routes); count != int(tc.expectedRoutesCount) {
+				t.Errorf("expected %d routes but got %d", tc.expectedRoutesCount, count)
+			}
+
+			fmt.Printf("CatalogService: \n")
+			prettyPrint(service.CatalogService)
+
+			if tc.expectedCatalogServiceCount > 0 {
+				t.Run("CatalogService", testContains(service.CatalogService,
+					`"mesh_id":"mymesh"`,
+					fmt.Sprintf(`"service_id":"%s"`, tc.name),
+					fmt.Sprintf(`"name":"%s"`, tc.name),
+				))
+			}
+
 		})
 	}
 }
