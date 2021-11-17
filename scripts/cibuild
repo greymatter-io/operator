@@ -4,7 +4,7 @@
 set -e
 
 install_greymatter_cli() {
-  wget --user $DOCKER_USER --password $DOCKER_PASSWORD \
+  wget --user $NEXUS_USER --password $NEXUS_PASSWORD \
     nexus.greymatter.io/repository/raw/release/gm-cli/greymatter-3.0.0.tar.gz \
     -O /tmp/greymatter.tar.gz
   tar -C /tmp -zxf /tmp/greymatter.tar.gz
@@ -40,7 +40,7 @@ release_container() {
     exit 0
   fi
 
-  docker login -u $DOCKER_USER -p $DOCKER_PASSWORD docker.greymatter.io
+  docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
   echo "branch workflow"
   make docker-push VERSION=latest
 
@@ -68,7 +68,7 @@ release_bundle() {
   install_operator-sdk
   make bundle
   make bundle-build VERSION=latest
-  docker login -u $DOCKER_USER -p $DOCKER_PASSWORD docker.greymatter.io
+  docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
   make bundle-push VERSION=latest
 
   if [[ -n "$CIRCLE_TAG" ]]; then

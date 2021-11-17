@@ -9,8 +9,8 @@ short-form.
 
 ## Quick Install
 
-Prior to installing, ensure you have the following environment variables sourced: `DOCKER_USER` and
-`DOCKER_PASSWORD`. These require your credentials for pulling Grey Matter core service Docker images
+Prior to installing, ensure you have the following environment variables sourced: `NEXUS_USER` and
+`NEXUS_PASSWORD`. These require your credentials for pulling Grey Matter core service Docker images
 from `docker.greymatter.io`.
 
 To get the latest development version of the operator up and running in your Kubernetes cluster, run
@@ -21,9 +21,9 @@ kubectl apply -k config/k8s
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
-  --docker-username=$DOCKER_USER \
-  --docker-password=$DOCKER_PASSWORD \
-  --docker-email=$DOCKER_USER \
+  --docker-username=$NEXUS_USER \
+  --docker-password=$NEXUS_PASSWORD \
+  --docker-email=$NEXUS_USER \
   -n gm-operator
 ```
 
@@ -83,8 +83,8 @@ gitignored `/pkg/version/cue.mod/gen` directory.
 
 This section documents commands provided for deploying to a Kubernetes cluster.
 
-First, ensure you have the following environment variables sourced: `DOCKER_USER` and
-`DOCKER_PASSWORD`. These require your credentials for pulling Grey Matter core service Docker images
+First, ensure you have the following environment variables sourced: `NEXUS_USER` and
+`NEXUS_PASSWORD`. These require your credentials for pulling Grey Matter core service Docker images
 from `docker.greymatter.io`.
 
 Run the following to install the operator in your Kubernetes cluster, optionally building and
