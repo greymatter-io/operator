@@ -13,7 +13,8 @@ Prior to installing, ensure you have the following environment variables sourced
 `DOCKER_PASSWORD`. These require your credentials for pulling Grey Matter core service Docker images
 from `docker.greymatter.io`.
 
-To get the latest development version of the operator up and running in your Kubernetes cluster, run the following:
+To get the latest development version of the operator up and running in your Kubernetes cluster, run
+the following:
 
 ```
 kubectl apply -k config/k8s
