@@ -23,7 +23,7 @@ func LoadManifests() (string, error) {
 	opts.DoLegacyResourceSort = true
 
 	k := krusty.MakeKustomizer(opts)
-	res, err := k.Run(kfs, "k8s")
+	res, err := k.Run(kfs, "context/kubernetes")
 	if err != nil {
 		return "", fmt.Errorf("failed to perform kustomization: %w", err)
 	}

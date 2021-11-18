@@ -16,7 +16,17 @@ spec:
     singular: mesh
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.install_namespace
+      name: Install Namespace
+      type: string
+    - jsonPath: .spec.release_version
+      name: Release Version
+      type: string
+    - jsonPath: .spec.zone
+      name: Zone
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Mesh defines a Grey Matter mesh's desired state and describes

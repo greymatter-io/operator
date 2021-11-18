@@ -17,7 +17,7 @@ To get the latest development version of the operator up and running in your Kub
 the following:
 
 ```
-kubectl apply -k config/k8s
+kubectl apply -k config/context/kubernetes
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
@@ -34,17 +34,18 @@ The operator will be running in a pod in the `gm-operator` namespace.
 The following command prints the manifests that should be applied to a Kubernetes cluster:
 
 ```
-kubectl apply -k config/k8s --dry-run=client -o yaml
+kubectl apply -k config/context/kubernetes --dry-run=client -o yaml
 ```
 
-(NOTE: If deploying to OpenShift, you can replace `config/k8s` with `config/openshift`.)
+(NOTE: If deploying to OpenShift, you can replace `config/context/kubernetes` with
+`config/context/openshift`.)
 
 Under the hood, kubectl uses [kustomize](https://kustomize.io). As a convenience, `kustomize` may be
 downloaded to this repo's `bin` directory by using the `make kustomize` target. To generate the raw
-manifests that can be piped into a file, run
+manifests that can be piped into a file after downloading kustomize, run
 
 ```
-./bin/kustomize build config/k8s
+./bin/kustomize build config/context/kubernetes
 ```
 
 ## Development

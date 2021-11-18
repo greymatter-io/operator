@@ -1,4 +1,5 @@
 resources:
+- namespace.yaml
 - manager.yaml
 - bootstrap_config.yaml
 
