@@ -26,14 +26,18 @@ var KubernetesCommand = &cli.Command{
 			Value:   "docker.greymatter.io/development/gm-operator:0.0.1",
 		},
 		&cli.StringFlag{
-			Name:    "username",
-			Usage:   "The username for accessing the Grey Matter container image repository. If not set, the enviornment variable 'GREYMATTER_DOCKER_USERNAME' is used.",
-			Aliases: []string{"u"},
+			Name:     "username",
+			Usage:    "The username for accessing the Grey Matter container image repository. May also be set via environment variable.",
+			Aliases:  []string{"u"},
+			EnvVars:  []string{"GREYMATTER_DOCKER_USERNAME"},
+			Required: true,
 		},
 		&cli.StringFlag{
-			Name:    "password",
-			Usage:   "The password for accessing the Grey Matter container image repository. If not set, the environment variable 'GREYMATTER_DOCKER_PASSWORD' is used.",
-			Aliases: []string{"p"},
+			Name:     "password",
+			Usage:    "The password for accessing the Grey Matter container image repository. May also be set via environment variable.",
+			Aliases:  []string{"p"},
+			EnvVars:  []string{"GREYMATTER_DOCKER_PASSWORD"},
+			Required: true,
 		},
 		&cli.BoolFlag{
 			Name: "disable-internal-ca",
@@ -47,18 +51,10 @@ var KubernetesCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
-		dockerUsername := c.String("username")
-		dockerPassword := c.String("password")
-		if dockerUsername == "" {
-			dockerUsername = os.Getenv("GREYMATTER_DOCKER_USERNAME")
-		}
-		if dockerPassword == "" {
-			dockerPassword = os.Getenv("GREYMATTER_DOCKER_PASSWORD")
-		}
 		return loadManifests("context/kubernetes-options", manifestConfig{
 			DockerImageURL:               c.String("image"),
-			DockerUsername:               dockerUsername,
-			DockerPassword:               dockerPassword,
+			DockerUsername:               c.String("username"),
+			DockerPassword:               c.String("password"),
 			DisableWebhookCertGeneration: c.Bool("disable-internal-ca"),
 		})
 	},
@@ -74,13 +70,7 @@ type manifestConfig struct {
 }
 
 func loadManifests(dirPath string, conf manifestConfig) error {
-	if conf.DockerUsername == "" || conf.DockerPassword == "" {
-		return fmt.Errorf("missing docker credentials")
-	}
 	conf.DockerConfigBase64 = genDockerConfigBase64(conf.DockerUsername, conf.DockerPassword)
-	if conf.DockerImageURL == "" {
-		conf.DockerImageURL = "docker.greymatter.io/development/gm-operator:0.0.1"
-	}
 
 	tmplString, err := loadTemplateString(dirPath)
 	if err != nil {
