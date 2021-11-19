@@ -14,6 +14,8 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
+const OperatorImageURL = "docker.greymatter.io/development/gm-operator:0.0.1"
+
 //go:embed *
 var configFS embed.FS
 
@@ -23,7 +25,7 @@ var KubernetesCommand = &cli.Command{
 			Name:    "image",
 			Usage:   "Which container image to use in the operator deployment.",
 			Aliases: []string{"i"},
-			Value:   "docker.greymatter.io/development/gm-operator:0.0.1",
+			Value:   OperatorImageURL,
 		},
 		&cli.StringFlag{
 			Name:     "username",
@@ -122,15 +124,19 @@ func loadTemplateString(dirPath string) (string, error) {
 	return string(yml), nil
 }
 
+// Loads a filesys.FileSystem with data from an embed.FS suitable for building a kustomize resource map.
 func mkKyamlFileSys(efs embed.FS) (filesys.FileSystem, error) {
 	kfs := filesys.MakeFsInMemory()
 	loadFunc := mkFileLoader(efs, kfs)
 	if err := fs.WalkDir(efs, ".", loadFunc); err != nil {
-		return kfs, err
+		return nil, err
 	}
 	return kfs, nil
 }
 
+// Receives an embed.FS (from the Go 1.16+ standard library) and an filesys.FileSystem (from kustomize)
+// and returns a function that implements the fs.WalkDirFunc function signature for each embed.FS fs.DirEntry.
+// The returned function reads YAML files from the embed.FS and writes it to the same path in the filesys.FileSystem.
 func mkFileLoader(efs embed.FS, kfs filesys.FileSystem) func(string, fs.DirEntry, error) error {
 	return func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
