@@ -19,10 +19,3 @@ spec:
       containers:
       - name: manager
         image: "{{ .DockerImageURL }}"
-        resources:
-          limits:
-            cpu: "{{ .ResourceLimitsCPU }}"
-            memory: "{{ .ResourceLimitsMemory }}"
-          requests:
-            cpu: "{{ .ResourceRequestsCPU }}"
-            memory: "{{ .ResourceRequestsMemory }}"

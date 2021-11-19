@@ -3,37 +3,63 @@ package config
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/urfave/cli/v2"
 )
 
+func TestKubernetesCommand(t *testing.T) {
+	app := cli.NewApp()
+	app.Commands = []*cli.Command{KubernetesCommand}
+	if err := app.Run([]string{"", "",
+		"--image", "my-docker-image-url",
+		"--username", "my-docker-user",
+		"--password", "my-docker-password",
+		"--disable-internal-ca",
+	}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestKubernetesCommandDockerAuthEnvVars(t *testing.T) {
+	app := cli.NewApp()
+	app.Commands = []*cli.Command{KubernetesCommand}
+	os.Setenv("GREYMATTER_DOCKER_USERNAME", "my-docker-user")
+	os.Setenv("GREYMATTER_DOCKER_PASSWORD", "my-docker-password")
+	if err := app.Run([]string{"", ""}); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestLoadManifests(t *testing.T) {
-	conf := ManifestConfig{
+	conf := manifestConfig{
 		DockerImageURL:               "my-docker-image-url",
 		DockerUsername:               "my-docker-user",
 		DockerPassword:               "my-docker-password",
 		DisableWebhookCertGeneration: true,
-		ResourceLimitsCPU:            "",
-		ResourceLimitsMemory:         "",
-		ResourceRequestsCPU:          "",
-		ResourceRequestsMemory:       "",
 	}
-
-	manifests, err := LoadManifests(conf)
-	if err != nil {
+	if err := loadManifests("context/kubernetes-options", conf); err != nil {
 		t.Fatal(err)
 	}
-
-	fmt.Println(manifests)
 }
 
 func TestLoadTemplateString(t *testing.T) {
-	tmplStr, err := loadTemplateString()
+	tmplStr, err := loadTemplateString("context/kubernetes-options")
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(tmplStr)
-	// TODO: Check string for values in a map lookup
+
+	for _, placeholder := range []string{
+		"DockerImageURL",
+		"DisableWebhookCertGeneration",
+		"DockerConfigBase64",
+	} {
+		if !strings.Contains(tmplStr, fmt.Sprintf("{{ .%s }}", placeholder)) {
+			t.Errorf("Did not find placeholder for %s", placeholder)
+		}
+	}
 }
 
 func TestMkKyamlFileSys(t *testing.T) {

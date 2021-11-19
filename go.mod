@@ -10,6 +10,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/openshift/api v0.0.0-20210723150249-a6156965faae
 	github.com/tidwall/gjson v1.9.4
+	github.com/urfave/cli/v2 v2.3.0
 	k8s.io/api v0.22.2
 	k8s.io/apimachinery v0.22.2
 	k8s.io/client-go v0.22.2
