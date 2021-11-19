@@ -8,11 +8,32 @@ import (
 )
 
 func TestLoadManifests(t *testing.T) {
-	manifests, err := LoadManifests()
+	conf := ManifestConfig{
+		DockerImageURL:               "my-docker-image-url",
+		DockerUsername:               "my-docker-user",
+		DockerPassword:               "my-docker-password",
+		DisableWebhookCertGeneration: true,
+		ResourceLimitsCPU:            "",
+		ResourceLimitsMemory:         "",
+		ResourceRequestsCPU:          "",
+		ResourceRequestsMemory:       "",
+	}
+
+	manifests, err := LoadManifests(conf)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	fmt.Println(manifests)
+}
+
+func TestLoadTemplateString(t *testing.T) {
+	tmplStr, err := loadTemplateString()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(tmplStr)
+	// TODO: Check string for values in a map lookup
 }
 
 func TestMkKyamlFileSys(t *testing.T) {
