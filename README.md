@@ -7,11 +7,15 @@ This project is currently in an unstable alpha stage. This README will be update
 throughout the initial development process. For now, most things documented here will be in
 short-form.
 
-## Quick Install
+## Prerequisites
 
-Prior to installing, ensure you have the following environment variables sourced:
-`GREYMATTER_DOCKER_USERNAME` and `GREYMATER_DOCKER_PASSWORD`. These require your credentials for
-pulling Grey Matter core service Docker images from `docker.greymatter.io`.
+It is assumed that you have kubectl installed with cluster administrator access.
+
+Next, ensure you have the following environment variables sourced: `GREYMATTER_DOCKER_USERNAME` and
+`GREYMATER_DOCKER_PASSWORD`. These require your credentials for pulling Grey Matter core service
+Docker images from `docker.greymatter.io`.
+
+## Quick Install
 
 To get the latest development version of the operator up and running in your Kubernetes cluster, run
 the following:
@@ -29,17 +33,6 @@ kubectl create secret docker-registry gm-docker-secret \
 ```
 
 The operator will be running in a pod in the `gm-operator` namespace.
-
-## Installing with the Grey Matter CLI
-
-If you have 4.x+ of the [Grey Matter CLI](https://github.com/greymatter-io/cli) installed, you may
-install the operator in your cluster by running:
-
-```
-greymatter k8s-operator
-```
-
-To see all the available options, run `greymatter k8s-operator -h`.
 
 ## Inspecting Manifests
 
@@ -95,10 +88,6 @@ gitignored `/pkg/version/cue.mod/gen` directory.
 ### Quickstart (Kubernetes)
 
 This section documents commands provided for deploying to a Kubernetes cluster.
-
-First, ensure you have the following environment variables sourced: `GREYMATTER_DOCKER_USERNAME` and
-`GREYMATER_DOCKER_PASSWORD`. These require your credentials for pulling Grey Matter core service
-Docker images from `docker.greymatter.io`.
 
 Run the following to install the operator in your Kubernetes cluster, optionally building and
 pushing a development image from the current code branch to the `docker.greymatter.io` repository.
