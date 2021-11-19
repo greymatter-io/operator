@@ -27,12 +27,12 @@ var KubernetesCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:    "username",
-			Usage:   "The username for accessing the Grey Matter container image repository",
+			Usage:   "The username for accessing the Grey Matter container image repository. If not set, the enviornment variable 'GREYMATTER_DOCKER_USERNAME' is used.",
 			Aliases: []string{"u"},
 		},
 		&cli.StringFlag{
 			Name:    "password",
-			Usage:   "The password for accessing the Grey Matter container image repository",
+			Usage:   "The password for accessing the Grey Matter container image repository. If not set, the environment variable 'GREYMATTER_DOCKER_PASSWORD' is used.",
 			Aliases: []string{"p"},
 		},
 		&cli.BoolFlag{

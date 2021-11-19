@@ -9,25 +9,37 @@ short-form.
 
 ## Quick Install
 
-Prior to installing, ensure you have the following environment variables sourced: `NEXUS_USER` and
-`NEXUS_PASSWORD`. These require your credentials for pulling Grey Matter core service Docker images
-from `docker.greymatter.io`.
+Prior to installing, ensure you have the following environment variables sourced:
+`GREYMATTER_DOCKER_USERNAME` and `GREYMATER_DOCKER_PASSWORD`. These require your credentials for
+pulling Grey Matter core service Docker images from `docker.greymatter.io`.
 
 To get the latest development version of the operator up and running in your Kubernetes cluster, run
 the following:
 
 ```
+
 kubectl apply -k config/context/kubernetes
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
-  --docker-username=$NEXUS_USER \
-  --docker-password=$NEXUS_PASSWORD \
-  --docker-email=$NEXUS_USER \
+  --docker-username=$GREYMATTER_DOCKER_USERNAME \
+  --docker-password=$GREYMATER_DOCKER_PASSWORD \
+  --docker-email=$GREYMATTER_DOCKER_USERNAME \
   -n gm-operator
 ```
 
 The operator will be running in a pod in the `gm-operator` namespace.
+
+## Installing with the Grey Matter CLI
+
+If you have 4.x+ of the [Grey Matter CLI](https://github.com/greymatter-io/cli) installed, you may
+install the operator in your cluster by running:
+
+```
+greymatter k8s-operator
+```
+
+To see all the available options, run `greymatter k8s-operator -h`.
 
 ## Inspecting Manifests
 
@@ -84,9 +96,9 @@ gitignored `/pkg/version/cue.mod/gen` directory.
 
 This section documents commands provided for deploying to a Kubernetes cluster.
 
-First, ensure you have the following environment variables sourced: `NEXUS_USER` and
-`NEXUS_PASSWORD`. These require your credentials for pulling Grey Matter core service Docker images
-from `docker.greymatter.io`.
+First, ensure you have the following environment variables sourced: `GREYMATTER_DOCKER_USERNAME` and
+`GREYMATER_DOCKER_PASSWORD`. These require your credentials for pulling Grey Matter core service
+Docker images from `docker.greymatter.io`.
 
 Run the following to install the operator in your Kubernetes cluster, optionally building and
 pushing a development image from the current code branch to the `docker.greymatter.io` repository.
