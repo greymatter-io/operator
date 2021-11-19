@@ -4,5 +4,4 @@ metadata:
   name: operator-config
   namespace: system
 data:
-  bootstrap_config.yaml: |
-    imagePullSecretName: gm-docker-secret
+  bootstrap_config.yaml: ""

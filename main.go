@@ -121,13 +121,8 @@ func main() {
 		logger.Error(err, "Unable to create initial client")
 	}
 
-	// Set default image pull secret name in bootstrap config.
-	if cfg.ImagePullSecretName == "" {
-		cfg.ImagePullSecretName = "gm-docker-secret"
-	}
-
 	// Initialize installer
-	inst, err := installer.New(c, gmcli, cfg.ImagePullSecretName, cfg.ClusterIngressName)
+	inst, err := installer.New(c, gmcli, cfg.ClusterIngressName)
 	if err != nil {
 		os.Exit(1)
 	}
