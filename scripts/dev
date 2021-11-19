@@ -36,7 +36,7 @@ oc_upgrade() {
 }
 
 oc_logs() {
-  oc logs -n gm-operator $(oc get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
+  oc logs -n gm-operator $(oc get pod -n gm-operator -o json | jq -c '.items[0] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
 }
 
 oc_sample() {
