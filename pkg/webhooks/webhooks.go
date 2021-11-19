@@ -56,7 +56,7 @@ func New(cl client.Client, i *installer.Installer, c *cli.CLI, get func() *webho
 
 		wl.cert, wl.key, err = cs.RequestCert(csr.CertificateRequest{
 			CN:         "admission",
-			Hosts:      []string{"gm-webhook-service.gm-operator.svc"},
+			Hosts:      []string{"gm-webhook.gm-operator.svc"},
 			KeyRequest: &csr.KeyRequest{A: "rsa", S: 2048},
 		})
 		if err != nil {
@@ -81,7 +81,7 @@ func (wl *Loader) Start(ctx context.Context) error {
 	// Patch the opaque secret with our previously loaded signed certs
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "gm-controller-manager-service-cert",
+			Name:      "gm-webhook-cert",
 			Namespace: "gm-operator",
 		},
 	}
@@ -100,7 +100,7 @@ func (wl *Loader) Start(ctx context.Context) error {
 
 	// Patch the mutatingwebhookconfiguration with our previously loaded cabundle
 	mwc := &admissionregistrationv1.MutatingWebhookConfiguration{
-		ObjectMeta: metav1.ObjectMeta{Name: "gm-mutating-webhook-configuration"},
+		ObjectMeta: metav1.ObjectMeta{Name: "gm-mutate-config"},
 	}
 	patch = func(obj client.Object) client.Object {
 		m := obj.(*admissionregistrationv1.MutatingWebhookConfiguration)
@@ -115,7 +115,7 @@ func (wl *Loader) Start(ctx context.Context) error {
 
 	// Patch the validatingwebhookconfiguration with our previously loaded cabundle
 	vwc := &admissionregistrationv1.ValidatingWebhookConfiguration{
-		ObjectMeta: metav1.ObjectMeta{Name: "gm-validating-webhook-configuration"},
+		ObjectMeta: metav1.ObjectMeta{Name: "gm-validate-config"},
 	}
 	patch = func(obj client.Object) client.Object {
 		v := obj.(*admissionregistrationv1.ValidatingWebhookConfiguration)

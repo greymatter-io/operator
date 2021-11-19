@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: controller-manager
+  name: operator
   namespace: system
   labels:
-    control-plane: controller-manager
+    control-plane: gm-operator
 spec:
   selector:
     matchLabels:
-      control-plane: controller-manager
+      control-plane: gm-operator
   replicas: 1
   template:
     metadata:
       labels:
-        control-plane: controller-manager
+        control-plane: gm-operator
     spec:
       securityContext:
         runAsNonRoot: true
@@ -21,12 +21,12 @@ spec:
       - name: gm-docker-secret
       containers:
       - command:
-        - /manager
+        - /operator
         args:
         - --leader-elect
         image: controller:latest
         imagePullPolicy: Always
-        name: manager
+        name: operator
         securityContext:
           allowPrivilegeEscalation: false
         livenessProbe:
@@ -48,5 +48,5 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
-      serviceAccountName: controller-manager
+      serviceAccountName: operator
       terminationGracePeriodSeconds: 10

@@ -3,7 +3,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: manager-role
+  name: operator-role
 rules:
 
 # All Mesh ops.
@@ -17,7 +17,7 @@ rules:
 # Patch webhook configurations which exist at runtime.
 - apiGroups: ["admissionregistration.k8s.io"]
   resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations"]
-  resourceNames: ["gm-mutating-webhook-configuration", "gm-validating-webhook-configuration"]
+  resourceNames: ["gm-mutate-config", "gm-validate-config"]
   verbs: ["get", "patch"]
 
 # Apply mesh core services and label/annotate for fabric configuration.

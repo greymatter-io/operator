@@ -5,4 +5,4 @@ set -x
 
 make build
  
-cd bin && ./manager --config ../config/base/manager/bootstrap_config.yaml --development
+cd bin && ./operator --config ../config/base/deployment/bootstrap_config.yaml --development

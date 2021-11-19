@@ -36,7 +36,7 @@ oc_upgrade() {
 }
 
 oc_logs() {
-  oc logs -n gm-operator $(oc get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs) -c manager -f
+  oc logs -n gm-operator $(oc get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
 }
 
 oc_sample() {
@@ -59,11 +59,11 @@ k8s_cleanup() {
 
 k8s_upgrade() {
   push_docker
-  kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs)
+  kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs)
 }
 
 k8s_logs() {
-  kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs) -c manager -f
+  kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
 }
 
 k8s_sample() {
@@ -88,11 +88,11 @@ k3d_cleanup() {
 k3d_upgrade() {
   make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
   k3d image import -c gm-operator docker.greymatter.io/internal/gm-operator:latest
-  kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs)
+  kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs)
 }
 
 k3d_logs() {
-  kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs) -c manager -f
+  kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
 }
 
 k3d_sample() {

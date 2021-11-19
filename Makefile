@@ -38,7 +38,7 @@ manifests: controller-gen ## Generate CRD objects. These work back to Kubernetes
 	$(CONTROLLER_GEN) crd:trivialVersions=true,preserveUnknownFields=false paths="./..." output:crd:artifacts:config=config/base/crd/bases
 
 pkgmanifests: kustomize manifests ## Generates a 'dev' bundle to be pushed directly to an OpenShift cluster.
-	cd config/base/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	cd config/base/deployment && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/olm/manifests | operator-sdk generate packagemanifests --package gm-operator --version $(VERSION)
 
 fmt: ## Run go fmt against code.
@@ -52,15 +52,15 @@ test: generate manifests fmt vet ## Run tests.
 
 ##@ Build
 
-build: test ## Build manager binary.
-	go build -o bin/manager main.go
+build: test ## Build operator binary.
+	go build -o bin/operator main.go
 	rm -rf bin/cue.mod/
 	cp -r pkg/version/cue.mod/ bin/cue.mod
 
-docker-build: test ## Build docker image with the manager.
+docker-build: test ## Build docker image with the operator.
 	docker build -t ${IMG} .
 
-docker-push: ## Push docker image with the manager.
+docker-push: ## Push docker image with the operator.
 	docker push ${IMG}
 
 ##@ Tools
@@ -99,7 +99,7 @@ check-ci: # NOTE: This is hidden from the help target
 
 .PHONY: bundle
 bundle: check-ci manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
-	cd config/base/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	cd config/base/deployment && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/olm/manifests | operator-sdk generate bundle -q --package gm-operator --overwrite --version $(VERSION)
 	operator-sdk bundle validate ./bundle
 
@@ -126,7 +126,7 @@ ifneq ($(origin CATALOG_BASE_IMG), undefined)
 FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG)
 endif
 
-# Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
+# Build a catalog image by adding bundle images to an empty catalog using the operator package tool, 'opm'.
 # This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
 # https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build

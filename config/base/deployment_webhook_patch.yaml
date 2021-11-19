@@ -1,13 +1,13 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: controller-manager
+  name: operator
   namespace: system
 spec:
   template:
     spec:
       containers:
-      - name: manager
+      - name: operator
         ports:
         - containerPort: 9443
           name: webhook-server
@@ -23,7 +23,7 @@ spec:
       - name: webhook-cert
         secret:
           defaultMode: 420
-          secretName: gm-controller-manager-service-cert
+          secretName: gm-webhook-cert
           items:
           - key: tls.crt
             path: tls.crt

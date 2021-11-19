@@ -3,14 +3,14 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: mutating-webhook-configuration
+  name: mutate-config
 webhooks:
 - admissionReviewVersions:
   - v1
   - v1beta1
   clientConfig:
     service:
-      name: webhook-service
+      name: webhook
       namespace: system
       path: /mutate-mesh
   failurePolicy: Fail
@@ -31,7 +31,7 @@ webhooks:
   - v1beta1
   clientConfig:
     service:
-      name: webhook-service
+      name: webhook
       namespace: system
       path: /mutate-workload
   failurePolicy: Fail
@@ -56,14 +56,14 @@ webhooks:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: validating-webhook-configuration
+  name: validate-config
 webhooks:
 - admissionReviewVersions:
   - v1
   - v1beta1
   clientConfig:
     service:
-      name: webhook-service
+      name: webhook
       namespace: system
       path: /validate-mesh
   failurePolicy: Fail

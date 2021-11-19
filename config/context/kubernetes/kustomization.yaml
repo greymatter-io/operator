@@ -7,4 +7,4 @@ resources:
 
 patchesStrategicMerge:
 # Patch our deployment to use the latest development image
-- manager_image_patch.yaml
+- deployment_image_patch.yaml

@@ -37,11 +37,11 @@ var KubernetesCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name: "disable-internal-ca",
-			Usage: "\n" + strings.Join([]string{
+			Usage: strings.Join([]string{
 				"Disables the operator's internal certificate authority server. Note that the following must be manually configured if this flag is set:",
-				"1. The Secret 'gm-controller-manager-service-cert' must have a signed 'tls.crt' and 'tls.key' with the SAN of 'gm-webhook-service.gm-operator.svc'.",
-				"2. All webhooks defined in ValidatingWebhookConfiguration 'gm-validating-webhook-configuration' must have the signing CA cert in its .clientConfig.caBundle value.",
-				"3. All webhooks defined in MutatingWebhookConfiguration 'gm-mutating-webhook-configuration' must have the signing CA cert in its .clientConfig.caBundle value.",
+				"\t1. The Secret 'gm-webhook-cert' must have a signed 'tls.crt' and 'tls.key' with the SAN of 'gm-webhook.gm-operator.svc'.",
+				"\t2. All webhooks defined in ValidatingWebhookConfiguration 'gm-validate-config' must have the signing CA cert in its .clientConfig.caBundle value.",
+				"\t3. All webhooks defined in MutatingWebhookConfiguration 'gm-mutate-config' must have the signing CA cert in its .clientConfig.caBundle value.\n\t",
 			}, "\n"),
 			Value: false,
 		},

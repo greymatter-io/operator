@@ -1,6 +1,6 @@
 resources:
 - namespace.yaml
-- manager.yaml
+- deployment.yaml
 - bootstrap_config.yaml
 
 generatorOptions:

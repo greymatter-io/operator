@@ -33,6 +33,15 @@ func TestKubernetesCommandDockerAuthEnvVars(t *testing.T) {
 	}
 }
 
+func TestKubernetesCommandHelp(t *testing.T) {
+	app := cli.NewApp()
+	KubernetesCommand.Name = "cmd"
+	app.Commands = []*cli.Command{KubernetesCommand}
+	if err := app.Run([]string{"", "cmd", "-h"}); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestLoadManifests(t *testing.T) {
 	conf := manifestConfig{
 		DockerImageURL:               "my-docker-image-url",

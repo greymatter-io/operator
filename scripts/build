@@ -9,7 +9,7 @@ if [ $# -eq 0 ]
 then
   if [[ $OSTYPE == 'linux-gnu' ]]
   then
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o bin/manager main.go
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o bin/operator main.go
   else
     make build
   fi
