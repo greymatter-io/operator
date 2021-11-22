@@ -1,0 +1,117 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.6.1
+  creationTimestamp: null
+  name: meshes.greymatter.io
+spec:
+  group: greymatter.io
+  names:
+    kind: Mesh
+    listKind: MeshList
+    plural: meshes
+    singular: mesh
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.install_namespace
+      name: Install Namespace
+      type: string
+    - jsonPath: .spec.release_version
+      name: Release Version
+      type: string
+    - jsonPath: .spec.zone
+      name: Zone
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Mesh defines a Grey Matter mesh's desired state and describes
+          its observed state.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: MeshSpec defines the desired state of a Grey Matter mesh.
+            properties:
+              install_namespace:
+                description: Namespace where mesh core components and dependencies
+                  should be installed.
+                type: string
+              redis:
+                description: Adds an external Redis provider for caching Grey Matter
+                  configuration state.
+                properties:
+                  cert_secret_name:
+                    type: string
+                  url:
+                    type: string
+                required:
+                - url
+                type: object
+              release_version:
+                default: "1.7"
+                description: The version of Grey Matter to install for this mesh.
+                enum:
+                - "1.6"
+                - "1.7"
+                type: string
+              user_tokens:
+                description: Add user tokens to the JWT Security Service.
+                items:
+                  properties:
+                    label:
+                      type: string
+                    values:
+                      additionalProperties:
+                        items:
+                          type: string
+                        type: array
+                      type: object
+                  required:
+                  - label
+                  - values
+                  type: object
+                type: array
+              watch_namespaces:
+                description: Namespaces to include in the mesh network.
+                items:
+                  type: string
+                type: array
+              zone:
+                default: default-zone
+                description: Label this mesh as belonging to a particular zone.
+                type: string
+            required:
+            - install_namespace
+            - release_version
+            - zone
+            type: object
+          status:
+            description: MeshStatus describes the observed state of a Grey Matter
+              mesh.
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

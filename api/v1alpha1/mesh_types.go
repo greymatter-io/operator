@@ -20,7 +20,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Reference: https://book.kubebuilder.io/reference/markers/crd.html
+// References:
+// https://book.kubebuilder.io/reference/markers/crd.html
+// https://book.kubebuilder.io/reference/generating-crd.html
 
 // MeshSpec defines the desired state of a Grey Matter mesh.
 type MeshSpec struct {
@@ -53,14 +55,12 @@ type MeshSpec struct {
 type MeshStatus struct {
 }
 
-// Markers for generating manifests for webhooks.
-//+kubebuilder:webhook:path=/mutate-mesh,mutating=true,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update,versions=v1alpha1,name=mutate-mesh.greymatter.io,admissionReviewVersions={v1,v1beta1}
-//+kubebuilder:webhook:path=/validate-mesh,mutating=false,failurePolicy=fail,sideEffects=None,groups=greymatter.io,resources=meshes,verbs=create;update;delete,versions=v1alpha1,name=validate-mesh.greymatter.io,admissionReviewVersions={v1,v1beta1}
-//+kubebuilder:webhook:path=/mutate-workload,mutating=true,failurePolicy=fail,sideEffects=None,groups=core;apps,resources=pods;deployments;statefulsets,verbs=create;update;delete,versions=v1,name=mutate-workload.greymatter.io,admissionReviewVersions={v1,v1beta1}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
+// +kubebuilder:printcolumn:name="Install Namespace",type=string,JSONPath=`.spec.install_namespace`
+// +kubebuilder:printcolumn:name="Release Version",type=string,JSONPath=`.spec.release_version`
+// +kubebuilder:printcolumn:name="Zone",type=string,JSONPath=`.spec.zone`
 
 // Mesh defines a Grey Matter mesh's desired state and describes its observed state.
 type Mesh struct {

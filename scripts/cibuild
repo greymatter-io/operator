@@ -97,6 +97,7 @@ case $1 in
     ./scripts/test
     ;;
   container)
+    docker login -u $NEXUS_USER -p $NEXUS_PASSWORD docker.greymatter.io
     ./scripts/build docker
     ;;
   release)

@@ -1,0 +1,5 @@
+bases:
+- ../../base
+
+patchesStrategicMerge:
+- bootstrap_config_patch.yaml

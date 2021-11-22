@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gm-operator-config
+  namespace: gm-operator
+data:
+  bootstrap_config.yaml: |
+    disableWebhookCertGeneration: {{ .DisableWebhookCertGeneration }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gm-operator
+  namespace: gm-operator
+spec:
+  template:
+    spec:
+      containers:
+      - name: operator
+        image: "{{ .DockerImageURL }}"

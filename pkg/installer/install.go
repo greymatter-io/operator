@@ -44,7 +44,6 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	// Create a Docker image pull secret and service account in this namespace if this Mesh is new.
 	if prev == nil {
 		secret := i.imagePullSecret.DeepCopy()
-		secret.Name = "gm-docker-secret"
 		secret.Namespace = mesh.Spec.InstallNamespace
 		apply(i.client, secret, mesh, scheme)
 		// If this is the first mesh, setup RBAC for control plane service accounts to view pods.

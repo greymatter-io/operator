@@ -1,0 +1,14 @@
+resources:
+- namespace.yaml
+- deployment.yaml
+- bootstrap_config.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: controller
+  newName: docker.greymatter.io/development/gm-operator
+  newTag: 0.0.1

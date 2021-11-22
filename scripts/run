@@ -3,25 +3,6 @@
 set -e
 set -x
 
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS="crd:trivialVersions=true,preserveUnknownFields=false"
-
-# Download controller-gen locally if necessary.
-CONTROLLER_GEN=$(pwd)/bin/controller-gen
-
-# Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-$CONTROLLER_GEN $CRD_OPTIONS rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-
-# Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-$CONTROLLER_GEN object:headerFile="hack/boilerplate.go.txt" paths="./..."
-
-# Make sure go code is properly formatted
-go fmt ./...
-go vet ./...
-
-# Build the manager binary
-go build -o bin/manager main.go
-rm -rf bin/cue.mod/
-cp -r pkg/version/cue.mod/ bin/cue.mod/
-
-cd bin && ./manager --config ../config/manager/bootstrap_config.yaml --development
+make build
+ 
+cd bin && ./operator --config ../config/base/deployment/bootstrap_config.yaml --development

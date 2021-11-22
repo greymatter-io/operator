@@ -7,23 +7,28 @@ This project is currently in an unstable alpha stage. This README will be update
 throughout the initial development process. For now, most things documented here will be in
 short-form.
 
-## Quick Install
+## Prerequisites
 
-Prior to installing, ensure you have the following environment variables sourced: `NEXUS_USER` and
-`NEXUS_PASSWORD`. These require your credentials for pulling Grey Matter core service Docker images
-from `docker.greymatter.io`.
+It is assumed that you have kubectl installed with cluster administrator access.
+
+Next, ensure you have the following environment variables sourced: `GREYMATTER_DOCKER_USERNAME` and
+`GREYMATER_DOCKER_PASSWORD`. These require your credentials for pulling Grey Matter core service
+Docker images from `docker.greymatter.io`.
+
+## Quick Install
 
 To get the latest development version of the operator up and running in your Kubernetes cluster, run
 the following:
 
 ```
-kubectl apply -k config/k8s
+
+kubectl apply -k config/context/kubernetes
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
-  --docker-username=$NEXUS_USER \
-  --docker-password=$NEXUS_PASSWORD \
-  --docker-email=$NEXUS_USER \
+  --docker-username=$GREYMATTER_DOCKER_USERNAME \
+  --docker-password=$GREYMATER_DOCKER_PASSWORD \
+  --docker-email=$GREYMATTER_DOCKER_USERNAME \
   -n gm-operator
 ```
 
@@ -34,17 +39,18 @@ The operator will be running in a pod in the `gm-operator` namespace.
 The following command prints the manifests that should be applied to a Kubernetes cluster:
 
 ```
-kubectl apply -k config/k8s --dry-run=client -o yaml
+kubectl apply -k config/context/kubernetes --dry-run=client -o yaml
 ```
 
-(NOTE: If deploying to OpenShift, you can replace `config/k8s` with `config/openshift`.)
+(NOTE: If deploying to OpenShift, you can replace `config/context/kubernetes` with
+`config/context/openshift`.)
 
 Under the hood, kubectl uses [kustomize](https://kustomize.io). As a convenience, `kustomize` may be
 downloaded to this repo's `bin` directory by using the `make kustomize` target. To generate the raw
-manifests that can be piped into a file, run
+manifests that can be piped into a file after downloading kustomize, run
 
 ```
-./bin/kustomize build config/k8s
+./bin/kustomize build config/context/kubernetes
 ```
 
 ## Development
@@ -82,10 +88,6 @@ gitignored `/pkg/version/cue.mod/gen` directory.
 ### Quickstart (Kubernetes)
 
 This section documents commands provided for deploying to a Kubernetes cluster.
-
-First, ensure you have the following environment variables sourced: `NEXUS_USER` and
-`NEXUS_PASSWORD`. These require your credentials for pulling Grey Matter core service Docker images
-from `docker.greymatter.io`.
 
 Run the following to install the operator in your Kubernetes cluster, optionally building and
 pushing a development image from the current code branch to the `docker.greymatter.io` repository.

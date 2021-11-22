@@ -78,7 +78,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	flag.Parse()
 
-	// Initialize manager options with set values.
+	// Initialize operator options with set values.
 	// These values will not be replaced by any values set in a read configFile.
 	options := ctrl.Options{
 		Scheme:                  scheme,
@@ -121,26 +121,21 @@ func main() {
 		logger.Error(err, "Unable to create initial client")
 	}
 
-	// Set default image pull secret name in bootstrap config.
-	if cfg.ImagePullSecretName == "" {
-		cfg.ImagePullSecretName = "gm-docker-secret"
-	}
-
 	// Initialize installer
-	inst, err := installer.New(c, gmcli, cfg.ImagePullSecretName, cfg.ClusterIngressName)
+	inst, err := installer.New(c, gmcli, cfg.ClusterIngressName)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	// Initialize manager with configured options
+	// Initialize operator with configured options
 	mgr, err := ctrl.NewManager(restConfig, options)
 	if err != nil {
-		logger.Error(err, "unable to start manager")
+		logger.Error(err, "unable to start operator")
 		os.Exit(1)
 	}
 
-	// Initialize the webhooks Loader and add it as a runnable process to the manager so that
-	// it patches our webhook configurations after the manager starts.
+	// Initialize the webhooks Loader and add it as a runnable process to the operator so that
+	// it patches our webhook configurations after the operator starts.
 	wl, err := webhooks.New(c, inst, gmcli, mgr.GetWebhookServer, cfg.DisableWebhookCertGeneration)
 	if err != nil {
 		os.Exit(1)
@@ -159,7 +154,7 @@ func main() {
 	}
 
 	if err := mgr.Start(ctx); err != nil {
-		logger.Error(err, "problem running manager")
+		logger.Error(err, "problem running operator")
 		os.Exit(1)
 	}
 }

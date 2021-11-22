@@ -13,12 +13,12 @@ oc_deploy() {
 
   oc create secret docker-registry gm-docker-secret \
     --docker-server=docker.greymatter.io \
-    --docker-username=$NEXUS_USER \
-    --docker-password=$NEXUS_PASSWORD \
-    --docker-email=$NEXUS_USER \
+    --docker-username=$GREYMATTER_DOCKER_USERNAME \
+    --docker-password=$GREYMATTER_DOCKER_PASSWORD \
+    --docker-email=$GREYMATTER_DOCKER_USERNAME \
     -n gm-operator
 
-  make packagemanifests VERSION=0.0.1 CHANNEL=alpha IS_CHANNEL_DEFAULT=1 IMG=docker.greymatter.io/internal/gm-operator:latest
+  make pkgmanifests VERSION=0.0.1 CHANNEL=alpha IS_CHANNEL_DEFAULT=1 IMG=docker.greymatter.io/internal/gm-operator:latest
   operator-sdk run packagemanifests -n gm-operator --version 0.0.1
   rm -rf ./packagemanifests
 }
@@ -36,7 +36,7 @@ oc_upgrade() {
 }
 
 oc_logs() {
-  oc logs -n gm-operator $(oc get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs) -c manager -f
+  oc logs -n gm-operator $(oc get pod -n gm-operator -o json | jq -c '.items[0] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
 }
 
 oc_sample() {
@@ -52,18 +52,18 @@ k8s_deploy() {
 }
 
 k8s_cleanup() {
-  kubectl delete -k config/k8s
+  kubectl delete -k config/context/kubernetes
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
 
 k8s_upgrade() {
   push_docker
-  kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs)
+  kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs)
 }
 
 k8s_logs() {
-  kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs) -c manager -f
+  kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
 }
 
 k8s_sample() {
@@ -80,7 +80,7 @@ k3d_deploy() {
 }
 
 k3d_cleanup() {
-  kubectl delete -k config/k8s
+  kubectl delete -k config/context/kubernetes
   kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
@@ -88,11 +88,11 @@ k3d_cleanup() {
 k3d_upgrade() {
   make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
   k3d image import -c gm-operator docker.greymatter.io/internal/gm-operator:latest
-  kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs)
+  kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs)
 }
 
 k3d_logs() {
-  kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("manager")).metadata.name' | xargs) -c manager -f
+  kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
 }
 
 k3d_sample() {
@@ -117,13 +117,13 @@ push_docker() {
 }
 
 k_deploy() {
-  kubectl apply -k config/k8s
+  kubectl apply -k config/context/kubernetes
 
   kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
-  --docker-username=$NEXUS_USER \
-  --docker-password=$NEXUS_PASSWORD \
-  --docker-email=$NEXUS_USER \
+  --docker-username=$GREYMATTER_DOCKER_USERNAME \
+  --docker-password=$GREYMATTER_DOCKER_PASSWORD \
+  --docker-email=$GREYMATTER_DOCKER_USERNAME \
   -n gm-operator
 }
 

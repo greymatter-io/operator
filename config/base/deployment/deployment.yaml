@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: operator
+  namespace: system
+  labels:
+    control-plane: gm-operator
+spec:
+  selector:
+    matchLabels:
+      control-plane: gm-operator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        control-plane: gm-operator
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      imagePullSecrets:
+      - name: gm-docker-secret
+      containers:
+      - command:
+        - /operator
+        args:
+        - --leader-elect
+        image: controller:latest
+        imagePullPolicy: Always
+        name: operator
+        securityContext:
+          allowPrivilegeEscalation: false
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 200m
+            memory: 100Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+      serviceAccountName: operator
+      terminationGracePeriodSeconds: 10

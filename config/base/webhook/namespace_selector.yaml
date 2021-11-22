@@ -1,0 +1,11 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mutate-config
+webhooks:
+- name: mutate-workload.greymatter.io
+  namespaceSelector:
+    matchExpressions:
+    - key: control-plane
+      operator: NotIn
+      values: ["gm-operator"]

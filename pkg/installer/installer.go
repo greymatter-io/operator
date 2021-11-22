@@ -42,7 +42,7 @@ type Installer struct {
 }
 
 // New returns a new *Installer instance for installing Grey Matter components and dependencies.
-func New(c client.Client, gmcli *cli.CLI, imagePullSecretName, ingressName string) (*Installer, error) {
+func New(c client.Client, gmcli *cli.CLI, ingressName string) (*Installer, error) {
 	versions, err := version.Load()
 	if err != nil {
 		logger.Error(err, "Failed to initialize installer")
@@ -60,7 +60,7 @@ func New(c client.Client, gmcli *cli.CLI, imagePullSecretName, ingressName strin
 
 	// Copy the image pull secret from the apiserver (block until it's retrieved).
 	// This secret will be re-created in each install namespace where our core services are pulled.
-	i.imagePullSecret = getImagePullSecret(c, imagePullSecretName)
+	i.imagePullSecret = getImagePullSecret(c)
 
 	// Try to get the OpenShift cluster ingress domain if it exists.
 	// TODO: When not in OpenShift, check for other supported ingress class types such as Nginx or Voyager.
@@ -74,26 +74,21 @@ func New(c client.Client, gmcli *cli.CLI, imagePullSecretName, ingressName strin
 	return i, nil
 }
 
-// Retrieves the image pull secret in the gm-operator namespace (default name is gm-docker-secret).
+// Retrieves the image pull secret in the gm-operator namespace.
 // This retries indefinitely at 30s intervals and will block by design.
-func getImagePullSecret(c client.Client, imagePullSecretName string) *corev1.Secret {
-	// If the BootstrapConfig did not specify an ImagePullSecretName, use the default.
-	if imagePullSecretName == "" {
-		imagePullSecretName = "gm-docker-secret"
-	}
-
-	key := client.ObjectKey{Name: imagePullSecretName, Namespace: "gm-operator"}
+func getImagePullSecret(c client.Client) *corev1.Secret {
+	key := client.ObjectKey{Name: "gm-docker-secret", Namespace: "gm-operator"}
 	operatorSecret := &corev1.Secret{}
 	for operatorSecret.CreationTimestamp.IsZero() {
 		if err := c.Get(context.TODO(), key, operatorSecret); err != nil {
-			logger.Error(err, "No image pull secret found in gm-operator namespace. Will retry in 30s.", "Name", imagePullSecretName)
+			logger.Error(err, "No 'gm-docker-secret' image pull secret found in gm-operator namespace. Will retry in 30s.")
 			time.Sleep(time.Second * 30)
 		}
 	}
 
 	// Return new secret with just the dockercfgjson (without additional metadata).
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: imagePullSecretName},
+		ObjectMeta: metav1.ObjectMeta{Name: "gm-docker-secret"},
 		Type:       operatorSecret.Type,
 		Data:       operatorSecret.Data,
 	}
