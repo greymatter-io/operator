@@ -12,7 +12,7 @@ import (
 
 func TestKubernetesCommand(t *testing.T) {
 	app := cli.NewApp()
-	app.Commands = []*cli.Command{KubernetesCommand}
+	app.Commands = []*cli.Command{&kubernetesCommand}
 	if err := app.Run([]string{"", "",
 		"--image", "my-docker-image-url",
 		"--username", "my-docker-user",
@@ -25,7 +25,7 @@ func TestKubernetesCommand(t *testing.T) {
 
 func TestKubernetesCommandDockerAuthEnvVars(t *testing.T) {
 	app := cli.NewApp()
-	app.Commands = []*cli.Command{KubernetesCommand}
+	app.Commands = []*cli.Command{&kubernetesCommand}
 	os.Setenv("GREYMATTER_DOCKER_USERNAME", "my-docker-user")
 	os.Setenv("GREYMATTER_DOCKER_PASSWORD", "my-docker-password")
 	if err := app.Run([]string{"", ""}); err != nil {
@@ -35,8 +35,8 @@ func TestKubernetesCommandDockerAuthEnvVars(t *testing.T) {
 
 func TestKubernetesCommandHelp(t *testing.T) {
 	app := cli.NewApp()
-	KubernetesCommand.Name = "cmd"
-	app.Commands = []*cli.Command{KubernetesCommand}
+	kubernetesCommand.Name = "cmd"
+	app.Commands = []*cli.Command{&kubernetesCommand}
 	if err := app.Run([]string{"", "cmd", "-h"}); err != nil {
 		t.Error(err)
 	}

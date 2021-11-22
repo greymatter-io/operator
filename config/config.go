@@ -19,7 +19,14 @@ const OperatorImageURL = "docker.greymatter.io/development/gm-operator:0.0.1"
 //go:embed *
 var configFS embed.FS
 
-var KubernetesCommand = &cli.Command{
+func MkKubernetesCommand(name, usage string) *cli.Command {
+	command := kubernetesCommand
+	command.Name = name
+	command.Usage = usage
+	return &command
+}
+
+var kubernetesCommand = cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:    "image",
