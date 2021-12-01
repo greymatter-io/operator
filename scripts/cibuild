@@ -81,7 +81,6 @@ release_image() {
   local latest="docker.greymatter.io/development/gm-operator:latest"
   _push_image $latest
 
-  local BUILDKITE_TAG=v0.0.1 # temp
   if [[ -n "$BUILDKITE_TAG" ]]; then
     local tagged="docker.greymatter.io/development/gm-operator:${BUILDKITE_TAG:1}"
     _retag_image $latest $tagged
@@ -102,10 +101,8 @@ _bundle() {
 release_bundle() {
   if [[ $BUILDKITE_BRANCH != "main" ]]; then
     echo "skip release bundle"
-    exit 0
   fi
 
-  local BUILDKITE_TAG=v0.0.1 # temp
   if [[ -n "$BUILDKITE_TAG" ]]; then
     _bundle ${BUILDKITE_TAG:1}
   fi
