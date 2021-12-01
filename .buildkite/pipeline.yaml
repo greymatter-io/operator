@@ -1,0 +1,7 @@
+steps:
+  - label: ":shipit: default build"
+    commands: 
+      - ./scripts/cibuild test
+      - ./scripts/cibuild build
+    agents:
+      container_image: ubuntu-2104-ci

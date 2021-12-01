@@ -24,7 +24,7 @@ spec:
         - /operator
         args:
         - --leader-elect
-        image: controller:latest
+        image: docker.greymatter.io/internal/gm-operator:latest
         imagePullPolicy: Always
         name: operator
         securityContext:
