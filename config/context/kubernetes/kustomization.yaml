@@ -4,7 +4,3 @@ bases:
 resources:
 # Add an opaque secret which will be populated by the operator with signed certs from cfssl
 - webhook_secret.yaml
-
-patchesStrategicMerge:
-# Patch our deployment to use the latest development image
-- deployment_image_patch.yaml

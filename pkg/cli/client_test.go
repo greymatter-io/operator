@@ -13,7 +13,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	t.Skip() // only works locally in integrated env
+	t.Skip() // only test in dev, not in ci
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(false)))
 
@@ -56,7 +56,7 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestCLIVersion(t *testing.T) {
-	t.Skip() // revisit when CLI 4.0 support has been added
+	t.Skip() // only test in dev, not in ci
 
 	v, err := cliversion()
 	if err != nil {

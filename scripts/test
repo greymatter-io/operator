@@ -3,6 +3,7 @@
 set -e
 
 if [ $# -eq 0 ]; then
+  go test ./config/...
   go test ./pkg/...
 else
   case $1 in

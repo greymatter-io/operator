@@ -93,24 +93,6 @@ OPM = $(shell which opm)
 endif
 endif
 
-.PHONY: check-ci
-check-ci: # NOTE: This is hidden from the help target
-	if [[ "$(shell echo ${CIRCLECI} | xargs)" != "true" ]]; then echo "Error: Must only run in CI";exit 1;fi
-
-.PHONY: bundle
-bundle: check-ci manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
-	cd config/base/deployment && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/olm/manifests | operator-sdk generate bundle -q --package gm-operator --overwrite --version $(VERSION)
-	operator-sdk bundle validate ./bundle
-
-.PHONY: bundle-build
-bundle-build: check-ci ## Build the bundle image.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
-
-.PHONY: bundle-push
-bundle-push: check-ci ## Push the bundle image.
-	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
-
 .PHONY: bundle-run
 bundle-run: ## Run the bundle image on the current OpenShift cluster. Uses oc under the hood.
 	operator-sdk run bundle -n gm-operator --pull-secret-name gm-docker-secret $(BUNDLE_IMG)

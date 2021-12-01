@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
-const OperatorImageURL = "docker.greymatter.io/internal/gm-operator:latest"
+const OperatorImageURL = "docker.greymatter.io/development/gm-operator:latest"
 
 //go:embed *
 var configFS embed.FS
