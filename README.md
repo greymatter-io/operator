@@ -11,8 +11,8 @@ short-form.
 
 It is assumed that you have kubectl installed with cluster administrator access.
 
-Next, ensure you have the following environment variables sourced: `GREYMATTER_DOCKER_USERNAME` and
-`GREYMATER_DOCKER_PASSWORD`. These require your credentials for pulling Grey Matter core service
+Next, ensure you have the following environment variables sourced: `GREYMATTER_REGISTRY_USERNAME` and
+`GREYMATTER_REGISTRY_PASSWORD`. These require your credentials for pulling Grey Matter core service
 Docker images from `docker.greymatter.io`.
 
 ## Quick Install
@@ -26,9 +26,9 @@ kubectl apply -k config/context/kubernetes
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
-  --docker-username=$GREYMATTER_DOCKER_USERNAME \
-  --docker-password=$GREYMATER_DOCKER_PASSWORD \
-  --docker-email=$GREYMATTER_DOCKER_USERNAME \
+  --docker-username=$GREYMATTER_REGISTRY_USERNAME \
+  --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
+  --docker-email=$GREYMATTER_REGISTRY_USERNAME \
   -n gm-operator
 ```
 
