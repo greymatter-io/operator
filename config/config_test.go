@@ -15,8 +15,8 @@ func TestKubernetesCommand(t *testing.T) {
 	app.Commands = []*cli.Command{&kubernetesCommand}
 	if err := app.Run([]string{"", "",
 		"--image", "my-docker-image-url",
-		"--username", "my-docker-user",
-		"--password", "my-docker-password",
+		"--registry-username", "my-docker-user",
+		"--registry-password", "my-docker-password",
 		"--disable-internal-ca",
 	}); err != nil {
 		t.Error(err)
@@ -26,8 +26,8 @@ func TestKubernetesCommand(t *testing.T) {
 func TestKubernetesCommandDockerAuthEnvVars(t *testing.T) {
 	app := cli.NewApp()
 	app.Commands = []*cli.Command{&kubernetesCommand}
-	os.Setenv("GREYMATTER_DOCKER_USERNAME", "my-docker-user")
-	os.Setenv("GREYMATTER_DOCKER_PASSWORD", "my-docker-password")
+	os.Setenv("GREYMATTER_REGISTRY_USERNAME", "my-docker-user")
+	os.Setenv("GREYMATTER_REGISTRY_PASSWORD", "my-docker-password")
 	if err := app.Run([]string{"", ""}); err != nil {
 		t.Error(err)
 	}

@@ -35,17 +35,15 @@ var kubernetesCommand = cli.Command{
 			Value:   OperatorImageURL,
 		},
 		&cli.StringFlag{
-			Name:     "username",
+			Name:     "registry-username",
 			Usage:    "The username for accessing the Grey Matter container image repository.",
-			Aliases:  []string{"u"},
-			EnvVars:  []string{"GREYMATTER_DOCKER_USERNAME"},
+			EnvVars:  []string{"GREYMATTER_REGISTRY_USERNAME"},
 			Required: true,
 		},
 		&cli.StringFlag{
-			Name:     "password",
+			Name:     "registry-password",
 			Usage:    "The password for accessing the Grey Matter container image repository.",
-			Aliases:  []string{"p"},
-			EnvVars:  []string{"GREYMATTER_DOCKER_PASSWORD"},
+			EnvVars:  []string{"GREYMATTER_REGISTRY_PASSWORD"},
 			Required: true,
 		},
 		&cli.BoolFlag{
