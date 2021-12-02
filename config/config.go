@@ -60,8 +60,8 @@ var kubernetesCommand = cli.Command{
 	Action: func(c *cli.Context) error {
 		return loadManifests("context/kubernetes-options", manifestConfig{
 			DockerImageURL:               c.String("image"),
-			DockerUsername:               c.String("username"),
-			DockerPassword:               c.String("password"),
+			DockerUsername:               c.String("registry-username"),
+			DockerPassword:               c.String("registry-password"),
 			DisableWebhookCertGeneration: c.Bool("disable-internal-ca"),
 		})
 	},
