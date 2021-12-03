@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"cuelang.org/go/cue"
@@ -48,29 +47,19 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 			case <-ctx.Done():
 				return
 			default:
-				if r := (cmd{
-					// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
-					args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
-					log: func(args string, r result) {
-						if r.err != nil {
+				if _, err := (cmd{
+					args:  "apply -t zone -f -",
+					stdin: json.RawMessage(fmt.Sprintf(`{"name": %s,"zone_key": %s}`, mesh.Spec.Zone, mesh.Spec.Zone)),
+					log: func(err error) {
+						if err != nil {
 							logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name)
+						} else {
+							logger.Info("Connected to Control API",
+								"Mesh", mesh.Name,
+								"Elapsed", time.Since(start).String())
 						}
 					},
-					and: cmdOpt{
-						cmd: &cmd{
-							args: fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
-							log: func(args string, r result) {
-								if r.err != nil {
-									logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name)
-								} else {
-									logger.Info("Connected to Control API",
-										"Mesh", mesh.Name,
-										"Elapsed", time.Since(start).String())
-								}
-							},
-						},
-					},
-				}).run(cl.flags); r.err == nil {
+				}).run(cl.flags); err == nil {
 					break PING_CONTROL_LOOP
 				}
 				time.Sleep(time.Second * 10)
@@ -78,7 +67,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 		}
 
 		// Configure edge domain, since it is a dependency for all sidecar routes.
-		mkApply("domain", cl.f.EdgeDomain()).run(cl.flags)
+		mkApply(mesh.Name, "domain", cl.f.EdgeDomain()).run(cl.flags)
 
 		// Then consume additional commands for control objects
 		for {
@@ -87,7 +76,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 				return
 			case c := <-controlCmds:
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
-				if r := c.run(cl.flags); r.err != nil && c.requeue {
+				if _, err := c.run(cl.flags); err != nil && c.requeue {
 					controlCmds <- c
 				}
 			}
@@ -105,11 +94,10 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 			case <-ctx.Done():
 				return
 			default:
-				if r := (cmd{
-					// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
-					args: fmt.Sprintf("get catalog-mesh %s", mesh.Name),
-					log: func(args string, r result) {
-						if r.err != nil {
+				if _, err := (cmd{
+					args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
+					log: func(err error) {
+						if err != nil {
 							logger.Info("Waiting to connect to Catalog API", "Mesh", mesh.Name)
 						} else {
 							logger.Info("Connected to Catalog API",
@@ -117,7 +105,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 								"Elapsed", time.Since(start).String())
 						}
 					},
-				}).run(cl.flags); r.err == nil {
+				}).run(cl.flags); err == nil {
 					break PING_CATALOG_LOOP
 				}
 				time.Sleep(time.Second * 10)
@@ -131,7 +119,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 				return
 			case c := <-catalogCmds:
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
-				if r := c.run(cl.flags); r.err != nil && c.requeue {
+				if _, err := c.run(cl.flags); err != nil && c.requeue {
 					catalogCmds <- c
 				}
 			}
@@ -141,68 +129,60 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 	return cl
 }
 
-func mkApply(kind string, data json.RawMessage) cmd {
-	kk := kindKey(kind)
+func mkApply(mesh, kind string, data json.RawMessage) cmd {
+	key := objKey(kind, data)
 	return cmd{
-		args:    fmt.Sprintf("create %s", kind),
+		args:    fmt.Sprintf("apply -t %s -f -", kind),
 		requeue: true,
 		stdin:   data,
-		reader:  values(kk),
-		log: func(args string, r result) {
-			if r.err == nil {
-				logger.Info(args, r.kvs...)
+		log: func(err error) {
+			if err != nil {
+				logger.Error(err, "failed apply")
+			} else {
+				logger.Info("apply", "type", kind, "key", key, "Mesh", mesh)
 			}
-		},
-		or: cmdOpt{
-			cmd: &cmd{
-				args:    fmt.Sprintf("edit %s %s", kind, objKey(kind, data)),
-				requeue: true,
-				stdin:   data,
-				reader:  values(kk),
-			},
-			when: func(out string) bool {
-				return strings.Contains(out, "duplicate") || strings.Contains(out, "exists")
-			},
 		},
 	}
 }
 
-func mkDelete(kind string, data json.RawMessage) cmd {
+func mkDelete(mesh, kind string, data json.RawMessage) cmd {
 	key := objKey(kind, data)
-	return cmd{args: fmt.Sprintf("delete %s %s", kind, key)}
-}
-
-func values(keys ...string) func(string) result {
-	return func(out string) result {
-		var kvs []interface{}
-		for _, key := range keys {
-			value := gjson.Get(out, key)
-			if value.Exists() {
-				// Add the gjson.Result without parsing its type.
-				kvs = append(kvs, key, value)
+	args := fmt.Sprintf("delete %s --%s %s", kind, kindFlag(kind), key)
+	if kind == "catalogservice" {
+		args += fmt.Sprintf(" --mesh-id %s", mesh)
+	}
+	return cmd{
+		args: args,
+		log: func(err error) {
+			if err != nil {
+				logger.Error(err, "failed delete")
+			} else {
+				logger.Info("delete", "type", kind, "key", key, "Mesh", mesh)
 			}
-		}
-		r := result{out, kvs, nil}
-		if len(kvs) == 0 {
-			r.err = fmt.Errorf("failed to get %v", keys)
-		}
-		return r
+		},
 	}
 }
 
 func objKey(kind string, data json.RawMessage) string {
-	result := values(kindKey(kind))(string(data))
-	if len(result.kvs) != 2 {
-		logger.Error(fmt.Errorf(kind), "no object key", "data", string(data))
-		return ""
+	key := kindKey(kind)
+	value := gjson.Get(string(data), key)
+	if value.Exists() {
+		return value.String()
 	}
-	// The key value is a gjson.Result, so just format into a string.
-	return fmt.Sprintf("%v", result.kvs[1])
+	logger.Error(fmt.Errorf(kind), "no object key", "data", string(data))
+	return ""
 }
 
 func kindKey(kind string) string {
-	if kind == "catalog-service" {
+	if kind == "catalogservice" {
 		return "service_id"
 	}
 	return fmt.Sprintf("%s_key", kind)
+}
+
+func kindFlag(kind string) string {
+	if kind == "catalogservice" {
+		return "service-id"
+	}
+	return fmt.Sprintf("%s-key", kind)
 }

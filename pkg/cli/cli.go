@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"sync"
 
@@ -62,27 +63,24 @@ func New(ctx context.Context) (*CLI, error) {
 // ConfigureMeshClient initializes or updates a client with flags specifying connection options
 // for reaching Control and Catalog for the given mesh and its configuration options.
 func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value) {
-
-	// for CLI 4
-	// conf := fmt.Sprintf(`
-	// [api]
-	// host = "http://edge.%s.svc.cluster.local:10707/control/v1.0"
-	// [catalog]
-	// host = "http://edge.%s.svc.cluster.local:10707/catalog"
-	// mesh = "%s"
-	// `, mesh.Spec.InstallNamespace, mesh.Spec.InstallNamespace, mesh.Name)
-	// conf = base64.StdEncoding.EncodeToString([]byte(conf))
-	// flags := []string{"--base64-config", conf}
-
-	flags := []string{
-		fmt.Sprintf("--api.host edge.%s.svc.cluster.local:10707", mesh.Spec.InstallNamespace),
-		"--api.prefix /control",
-		fmt.Sprintf("--catalog.host edge.%s.svc.cluster.local:10707", mesh.Spec.InstallNamespace),
-		"--catalog.prefix /catalog",
-		fmt.Sprintf("--catalog.mesh %s", mesh.Name),
-	}
+	conf := mkCLIConfig(
+		fmt.Sprintf("http://edge.%s.svc.cluster.local:10707/control/v1.0", mesh.Spec.InstallNamespace),
+		fmt.Sprintf("http://edge.%s.svc.cluster.local:10707/catalog", mesh.Spec.InstallNamespace),
+		mesh.Name,
+	)
+	flags := []string{"--base64-config", conf}
 
 	c.configureMeshClient(mesh, options, flags...)
+}
+
+func mkCLIConfig(apiHost, catalogHost, catalogMesh string) string {
+	return base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(`
+	[api]
+	host = "%s"
+	[catalog]
+	host = "%s"
+	mesh = "%s"
+	`, apiHost, catalogHost, catalogMesh)))
 }
 
 func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) {
@@ -94,7 +92,7 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value, flag
 		cl.cancel()
 	}
 
-	logger.Info("Initializing fabric objects", "Mesh", mesh.Name)
+	logger.Info("Initializing mesh client", "Mesh", mesh.Name)
 
 	c.clients[mesh.Name] = newClient(mesh, options, flags...)
 }
@@ -109,7 +107,7 @@ func (c *CLI) RemoveMeshClient(name string) {
 		return
 	}
 
-	logger.Info("Removing all fabric objects", "Mesh", name)
+	logger.Info("Removing mesh client", "Mesh", name)
 
 	cl.cancel()
 	delete(c.clients, name)
@@ -145,50 +143,48 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 		return
 	}
 
+	logger.Info("Applying fabric objects", "Mesh", mesh, "Workload", workload)
+
 	if workload != "edge" {
-		cl.controlCmds <- mkApply("domain", objects.Domain)
+		cl.controlCmds <- mkApply(mesh, "domain", objects.Domain)
 	}
-	cl.controlCmds <- mkApply("listener", objects.Listener)
+	cl.controlCmds <- mkApply(mesh, "listener", objects.Listener)
 	for _, cluster := range objects.Clusters {
-		cl.controlCmds <- mkApply("cluster", cluster)
+		cl.controlCmds <- mkApply(mesh, "cluster", cluster)
 	}
 	for _, route := range objects.Routes {
-		cl.controlCmds <- mkApply("route", route)
+		cl.controlCmds <- mkApply(mesh, "route", route)
 	}
 	if objects.Ingresses != nil && len(objects.Ingresses.Routes) > 0 {
-		logger.Info("configuring ingresses", "Mesh", mesh, "Workload", workload)
 		for _, cluster := range objects.Ingresses.Clusters {
-			cl.controlCmds <- mkApply("cluster", cluster)
+			cl.controlCmds <- mkApply(mesh, "cluster", cluster)
 		}
 		for _, route := range objects.Ingresses.Routes {
-			cl.controlCmds <- mkApply("route", route)
+			cl.controlCmds <- mkApply(mesh, "route", route)
 		}
 	}
 	if objects.HTTPEgresses != nil && len(objects.HTTPEgresses.Routes) > 0 {
-		logger.Info("configuring HTTP egresses", "Mesh", mesh, "Workload", workload)
-		cl.controlCmds <- mkApply("domain", objects.HTTPEgresses.Domain)
-		cl.controlCmds <- mkApply("listener", objects.HTTPEgresses.Listener)
+		cl.controlCmds <- mkApply(mesh, "domain", objects.HTTPEgresses.Domain)
+		cl.controlCmds <- mkApply(mesh, "listener", objects.HTTPEgresses.Listener)
 		for _, cluster := range objects.HTTPEgresses.Clusters {
-			cl.controlCmds <- mkApply("cluster", cluster)
+			cl.controlCmds <- mkApply(mesh, "cluster", cluster)
 		}
 		for _, route := range objects.HTTPEgresses.Routes {
-			cl.controlCmds <- mkApply("route", route)
+			cl.controlCmds <- mkApply(mesh, "route", route)
 		}
 	}
-	logger.Info("configuring TCP egresses", "Mesh", mesh, "Workload", workload)
 	for _, egress := range objects.TCPEgresses {
-		cl.controlCmds <- mkApply("domain", egress.Domain)
-		cl.controlCmds <- mkApply("listener", egress.Listener)
+		cl.controlCmds <- mkApply(mesh, "domain", egress.Domain)
+		cl.controlCmds <- mkApply(mesh, "listener", egress.Listener)
 		for _, cluster := range egress.Clusters {
-			cl.controlCmds <- mkApply("cluster", cluster)
+			cl.controlCmds <- mkApply(mesh, "cluster", cluster)
 		}
 		for _, route := range egress.Routes {
-			cl.controlCmds <- mkApply("route", route)
+			cl.controlCmds <- mkApply(mesh, "route", route)
 		}
 	}
-	cl.controlCmds <- mkApply("proxy", objects.Proxy)
-	cl.catalogCmds <- mkApply("catalog-service", objects.CatalogService)
-	// cl.catalogCmds <- mkApply("catalogservice", objects.CatalogService)
+	cl.controlCmds <- mkApply(mesh, "proxy", objects.Proxy)
+	cl.catalogCmds <- mkApply(mesh, "catalogservice", objects.CatalogService)
 }
 
 // RemoveService removes fabric objects, disconnecting the workload from the mesh specified,
@@ -217,47 +213,44 @@ func (c *CLI) RemoveService(mesh, workload string, annotations map[string]string
 		return
 	}
 
-	logger.Info("removing fabric objects", "Mesh", mesh, "Workload", workload)
-	cl.controlCmds <- mkDelete("domain", objects.Domain)
-	cl.controlCmds <- mkDelete("listener", objects.Listener)
+	logger.Info("Removing fabric objects", "Mesh", mesh, "Workload", workload)
+
+	cl.controlCmds <- mkDelete(mesh, "domain", objects.Domain)
+	cl.controlCmds <- mkDelete(mesh, "listener", objects.Listener)
 	for _, cluster := range objects.Clusters {
-		cl.controlCmds <- mkDelete("cluster", cluster)
+		cl.controlCmds <- mkDelete(mesh, "cluster", cluster)
 	}
 	for _, route := range objects.Routes {
-		cl.controlCmds <- mkDelete("route", route)
+		cl.controlCmds <- mkDelete(mesh, "route", route)
 	}
 	if objects.Ingresses != nil && len(objects.Ingresses.Routes) > 0 {
-		logger.Info("removing ingresses", "Mesh", mesh, "Workload", workload)
 		for _, cluster := range objects.Ingresses.Clusters {
-			cl.controlCmds <- mkDelete("cluster", cluster)
+			cl.controlCmds <- mkDelete(mesh, "cluster", cluster)
 		}
 		for _, route := range objects.Ingresses.Routes {
-			cl.controlCmds <- mkDelete("route", route)
+			cl.controlCmds <- mkDelete(mesh, "route", route)
 		}
 	}
 	if objects.HTTPEgresses != nil && len(objects.HTTPEgresses.Routes) > 0 {
-		logger.Info("removing HTTP egresses", "Mesh", mesh, "Workload", workload)
-		cl.controlCmds <- mkDelete("domain", objects.HTTPEgresses.Domain)
-		cl.controlCmds <- mkDelete("listener", objects.HTTPEgresses.Listener)
+		cl.controlCmds <- mkDelete(mesh, "domain", objects.HTTPEgresses.Domain)
+		cl.controlCmds <- mkDelete(mesh, "listener", objects.HTTPEgresses.Listener)
 		for _, cluster := range objects.HTTPEgresses.Clusters {
-			cl.controlCmds <- mkDelete("cluster", cluster)
+			cl.controlCmds <- mkDelete(mesh, "cluster", cluster)
 		}
 		for _, route := range objects.HTTPEgresses.Routes {
-			cl.controlCmds <- mkDelete("route", route)
+			cl.controlCmds <- mkDelete(mesh, "route", route)
 		}
 	}
-	logger.Info("removing TCP egresses", "Mesh", mesh, "Workload", workload)
 	for _, egress := range objects.TCPEgresses {
-		cl.controlCmds <- mkDelete("domain", egress.Domain)
-		cl.controlCmds <- mkDelete("listener", egress.Listener)
+		cl.controlCmds <- mkDelete(mesh, "domain", egress.Domain)
+		cl.controlCmds <- mkDelete(mesh, "listener", egress.Listener)
 		for _, cluster := range egress.Clusters {
-			cl.controlCmds <- mkDelete("cluster", cluster)
+			cl.controlCmds <- mkDelete(mesh, "cluster", cluster)
 		}
 		for _, route := range egress.Routes {
-			cl.controlCmds <- mkDelete("route", route)
+			cl.controlCmds <- mkDelete(mesh, "route", route)
 		}
 	}
-	cl.controlCmds <- mkDelete("proxy", objects.Proxy)
-	cl.catalogCmds <- mkDelete("catalog-service", objects.CatalogService)
-	// cl.catalogCmds <- mkDelete("catalogservice", objects.CatalogService)
+	cl.controlCmds <- mkDelete(mesh, "proxy", objects.Proxy)
+	cl.catalogCmds <- mkDelete(mesh, "catalogservice", objects.CatalogService)
 }

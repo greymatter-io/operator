@@ -27,16 +27,19 @@ func TestNewClient(t *testing.T) {
 	mesh := &v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mesh"},
 		Spec: v1alpha1.MeshSpec{
-			Zone: "zone",
+			Zone:           "zone",
+			ReleaseVersion: "1.7",
 		},
 	}
 
 	c.configureMeshClient(
 		mesh,
 		mesh.Options(""),
-		"--api.host localhost:5555",
-		"--catalog.host localhost:8181",
-		"--catalog.mesh mesh",
+		"--base64-config", mkCLIConfig(
+			"http://localhost:5555",
+			"http://localhost:8181",
+			"mesh",
+		),
 	)
 
 	containers := []corev1.Container{
