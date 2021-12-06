@@ -27,9 +27,9 @@ run_build() {
 
 _build_image () {
   if type -p buildah  &>/dev/null; then
-    buildah bud -t "$1" --layers -f $2 .
+    buildah bud --build-arg username=$NEXUS_USER --build-arg password=$NEXUS_PASS -t "$1" --layers -f $2 .
   else
-    docker build -t "$1" -f $2 .
+    docker build --build-arg username=$NEXUS_USER --build-arg password=$NEXUS_PASS -t "$1" -f $2 .
   fi
 }
 
