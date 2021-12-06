@@ -143,7 +143,7 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 		return
 	}
 
-	logger.Info("Applying fabric objects", "Mesh", mesh, "Workload", workload)
+	logger.Info("loading fabric objects", "Mesh", mesh, "Workload", workload)
 
 	if workload != "edge" {
 		cl.controlCmds <- mkApply(mesh, "domain", objects.Domain)
@@ -213,7 +213,7 @@ func (c *CLI) RemoveService(mesh, workload string, annotations map[string]string
 		return
 	}
 
-	logger.Info("Removing fabric objects", "Mesh", mesh, "Workload", workload)
+	logger.Info("removing fabric objects", "Mesh", mesh, "Workload", workload)
 
 	cl.controlCmds <- mkDelete(mesh, "domain", objects.Domain)
 	cl.controlCmds <- mkDelete(mesh, "listener", objects.Listener)
