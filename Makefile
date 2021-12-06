@@ -57,12 +57,6 @@ build: test ## Build operator binary.
 	rm -rf bin/cue.mod/
 	cp -r pkg/version/cue.mod/ bin/cue.mod
 
-docker-build: test ## Build docker image with the operator.
-	docker build -t ${IMG} .
-
-docker-push: ## Push docker image with the operator.
-	docker push ${IMG}
-
 ##@ Tools
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
@@ -118,4 +112,4 @@ catalog-build: opm ## Build a catalog image.
 # Push the catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
-	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+	docker push $(CATALOG_IMG)

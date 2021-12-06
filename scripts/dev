@@ -86,7 +86,7 @@ k3d_cleanup() {
 }
 
 k3d_upgrade() {
-  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
+  ./scripts/build docker
   k3d image import -c gm-operator docker.greymatter.io/internal/gm-operator:latest
   kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs)
 }
@@ -112,8 +112,8 @@ prompt_push() {
 }
 
 push_docker() {
-  make docker-build IMG=docker.greymatter.io/internal/gm-operator:latest
-  make docker-push IMG=docker.greymatter.io/internal/gm-operator:latest
+  ./scripts/build docker
+  docker push docker.greymatter.io/internal/gm-operator:latest
 }
 
 k_deploy() {
