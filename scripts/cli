@@ -1,0 +1,7 @@
+#!/bin/bash
+
+tarball="greymatter-v4.0.1-linux-amd64.tar.gz"
+wget --user=$USERNAME --password=$PASSWORD -q -c "https://nexus.greymatter.io/repository/raw/development/gm-cli/${tarball}"
+tar -xzf ${tarball} greymatter
+chmod +x greymatter
+rm $tarball

@@ -16,7 +16,10 @@ then
 else
   case $1 in 
   docker)
-    make docker-build VERSION=latest
+    docker build \
+      --build-arg username=$GREYMATTER_REGISTRY_USERNAME \
+      --build-arg password=$GREYMATTER_REGISTRY_PASSWORD \
+      -t docker.greymatter.io/internal/gm-operator:latest .
     ;;
   *) 
     echo "invalid argument $1"
