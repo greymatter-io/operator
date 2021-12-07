@@ -1,3 +1,5 @@
+package onesix
+
 proxy: {
   image: "docker.greymatter.io/release/gm-proxy:1.6.3"
 }

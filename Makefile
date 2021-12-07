@@ -55,7 +55,7 @@ test: generate manifests fmt vet ## Run tests.
 build: test ## Build operator binary.
 	go build -o bin/operator main.go
 	rm -rf bin/cue.mod/
-	cp -r pkg/version/cue.mod/ bin/cue.mod
+	cp -r pkg/cuedata/cue.mod/ bin/cue.mod
 
 ##@ Tools
 

@@ -280,7 +280,7 @@ func getEnvValue(container corev1.Container, key string) (string, bool) {
 }
 
 func loadVersion(t *testing.T, name string) Version {
-	versions, err := loadBaseWithVersions(nil)
+	versions, err := loadBaseWithVersions()
 	if err != nil {
 		cueutils.LogError(logger, err)
 		t.FailNow()

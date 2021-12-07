@@ -25,7 +25,7 @@ testbin/*
 *~
 
 vendor/
-pkg/version/cue.mod/gen/
+pkg/cuedata/cue.mod/gen/
 tmp.md
 tmp
 

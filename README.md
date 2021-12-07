@@ -81,9 +81,9 @@ directory of your `$GOPATH`.
 Go dependencies can be added with `GO111MODULE=on go mod vendor`. The Go dependencies will be
 downloaded to the gitignored `vendor` directory.
 
-Cue dependencies should be added inside of the `/pkg/version/cue.mod` directory by running `cue get
+Cue dependencies should be added inside of the `/pkg/cuedata/cue.mod` directory by running `cue get
 go k8s.io/api/...` inside of that directory. The Cue dependencies will be downloaded to the
-gitignored `/pkg/version/cue.mod/gen` directory.
+gitignored `/pkg/cuedata/cue.mod/gen` directory.
 
 ### Quickstart (Kubernetes)
 

@@ -1,3 +1,5 @@
+package oneseven
+
 proxy: {
   image: "docker.greymatter.io/development/gm-proxy:1.7.0-rc.4"
 }
