@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/installer"
 
 	admissionv1 "k8s.io/api/admission/v1"

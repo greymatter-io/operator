@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"cuelang.org/go/cue"
-	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
 	"github.com/tidwall/gjson"
 )

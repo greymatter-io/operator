@@ -20,7 +20,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/bootstrap"
 	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"

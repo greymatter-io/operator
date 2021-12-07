@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cueutils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"

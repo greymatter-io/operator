@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"cuelang.org/go/cue"
-	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"

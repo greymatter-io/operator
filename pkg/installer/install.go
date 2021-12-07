@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/version"
 
 	appsv1 "k8s.io/api/apps/v1"
