@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/greymatter-io/operator/pkg/cueutils"
+	"github.com/greymatter-io/operator/pkg/cuedata"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/encoding/gocode/gocodec"
@@ -89,20 +89,20 @@ func injectXDSCluster(xdsCluster string) cue.Value {
 
 	switch xdsCluster {
 	case "control":
-		return cueutils.FromStrings(fmt.Sprintf(`sidecar: {
+		return cuedata.FromStrings(fmt.Sprintf(`sidecar: {
 			xdsCluster: "%s"
 			node: "%s"
 			controlHost: "127.0.0.1"
 		}`, xdsCluster, node))
 
 	case "edge", "catalog", "jwt-security", "gm-redis":
-		return cueutils.FromStrings(fmt.Sprintf(`sidecar: {
+		return cuedata.FromStrings(fmt.Sprintf(`sidecar: {
 			xdsCluster: "%s"
 			node: "%s"
 		}`, xdsCluster, node))
 
 	default:
-		return cueutils.FromStrings(fmt.Sprintf(`sidecar: {
+		return cuedata.FromStrings(fmt.Sprintf(`sidecar: {
 			xdsCluster: "%s"
 		}`, xdsCluster))
 	}

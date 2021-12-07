@@ -1,3 +1,5 @@
+package fabric
+
 // catalogservice
 
 #CatalogService: {

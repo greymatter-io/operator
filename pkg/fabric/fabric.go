@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/greymatter-io/operator/pkg/cueutils"
+	"github.com/greymatter-io/operator/pkg/cuedata"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"cuelang.org/go/cue"
@@ -26,7 +26,7 @@ type Fabric struct {
 // New returns a new *Fabric instance. It receives mesh options
 // which are unified with base fabric object templates defined in cue/fabric.cue.
 func New(options []cue.Value) *Fabric {
-	v := *value
+	v := value
 	for _, o := range options {
 		v = v.Unify(o)
 	}
@@ -119,7 +119,7 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	tcpEgresses, _ = parseExternalEgressArgs(tcpEgresses, annotations["greymatter.io/egress-tcp-external"], tcpPort)
 
 	value := f.cue.Unify(
-		cueutils.FromStrings(fmt.Sprintf(`
+		cuedata.FromStrings(fmt.Sprintf(`
 			ServiceName: "%s"
 			HttpFilters: %s
 			NetworkFilters: %s
@@ -136,7 +136,7 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 		)),
 	)
 	if err := value.Err(); err != nil {
-		cueutils.LogError(logger, err)
+		cuedata.LogError(logger, err)
 		return Objects{}, err
 	}
 

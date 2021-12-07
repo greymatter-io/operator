@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/greymatter-io/operator/pkg/assert"
-	"github.com/greymatter-io/operator/pkg/cueutils"
+	"github.com/greymatter-io/operator/pkg/cuedata"
 
 	"cuelang.org/go/cue"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,7 +33,7 @@ func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
 	})
 
 	baseOptions := []cue.Value{
-		cueutils.Strings(map[string]string{
+		cuedata.Strings(map[string]string{
 			"MeshName":         "mymesh",
 			"ReleaseVersion":   v.name,
 			"InstallNamespace": "myns",
@@ -138,7 +138,7 @@ func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
 			vc := v.Copy()
 			vc.Unify(tc.options...)
 			if err := vc.cue.Err(); err != nil {
-				cueutils.LogError(logger, err)
+				cuedata.LogError(logger, err)
 				t.FailNow()
 			}
 			var sidecar Sidecar

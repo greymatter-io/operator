@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/greymatter-io/operator/pkg/api/v1alpha1"
-	"github.com/greymatter-io/operator/pkg/cueutils"
+	"github.com/greymatter-io/operator/pkg/cuedata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -900,8 +900,8 @@ func TestParseExternalEgressArgs(t *testing.T) {
 func loadMock(t *testing.T) *Fabric {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	if err := Init(); err != nil {
-		cueutils.LogError(logger, err)
+	if err := Load(); err != nil {
+		cuedata.LogError(logger, err)
 		t.FailNow()
 	}
 

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/greymatter-io/operator/pkg/cueutils"
+	"github.com/greymatter-io/operator/pkg/cuedata"
 	"github.com/greymatter-io/operator/pkg/version"
 
 	"cuelang.org/go/cue"
@@ -28,7 +28,7 @@ func (m Mesh) Options(clusterIngressDomain string) []cue.Value {
 	}
 
 	opts := []cue.Value{
-		cueutils.Strings(map[string]string{
+		cuedata.Strings(map[string]string{
 			"Environment":      environment,
 			"MeshName":         m.Name,
 			"ReleaseVersion":   m.Spec.ReleaseVersion,
@@ -36,7 +36,7 @@ func (m Mesh) Options(clusterIngressDomain string) []cue.Value {
 			"Zone":             m.Spec.Zone,
 			"IngressSubDomain": ingressSubDomain,
 		}),
-		cueutils.StringSlices(map[string][]string{
+		cuedata.StringSlices(map[string][]string{
 			"WatchNamespaces": append(m.Spec.WatchNamespaces, m.Spec.InstallNamespace),
 		}),
 		version.JWTSecrets(),

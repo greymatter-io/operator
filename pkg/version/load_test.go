@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/greymatter-io/operator/pkg/cueutils"
+	"github.com/greymatter-io/operator/pkg/cuedata"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -16,7 +16,7 @@ func TestLoad(t *testing.T) {
 
 	versions, err := loadBaseWithVersions()
 	if err != nil {
-		cueutils.LogError(logger, err)
+		cuedata.LogError(logger, err)
 		t.Fatal("failed to load versions")
 	}
 
@@ -31,7 +31,7 @@ func TestLoad(t *testing.T) {
 	for name, version := range versions {
 		t.Run(fmt.Sprintf("loads valid version %s", name), func(t *testing.T) {
 			if err := version.cue.Err(); err != nil {
-				cueutils.LogError(logger, err)
+				cuedata.LogError(logger, err)
 				t.Errorf("found invalid version %s", name)
 			}
 		})

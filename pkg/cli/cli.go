@@ -37,8 +37,8 @@ func New(ctx context.Context) (*CLI, error) {
 
 	logger.Info("Using greymatter CLI", "Version", v)
 
-	if err := fabric.Init(); err != nil {
-		logger.Error(err, "Failed to initialize Fabric templates")
+	if err := fabric.Load(); err != nil {
+		logger.Error(err, "Failed to load Fabric templates")
 		return nil, err
 	}
 

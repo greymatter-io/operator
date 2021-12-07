@@ -1,4 +1,4 @@
-package cueutils
+package cuedata
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func TestFromStrings(t *testing.T) {
+func TestStrings(t *testing.T) {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	for _, tc := range []struct {

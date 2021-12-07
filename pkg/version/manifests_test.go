@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/greymatter-io/operator/pkg/cueutils"
+	"github.com/greymatter-io/operator/pkg/cuedata"
 
 	"cuelang.org/go/cue"
 	corev1 "k8s.io/api/core/v1"
@@ -45,7 +45,7 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 	})
 
 	baseOptions := []cue.Value{
-		cueutils.Strings(map[string]string{
+		cuedata.Strings(map[string]string{
 			"MeshName":         "mymesh",
 			"ReleaseVersion":   v.name,
 			"InstallNamespace": "myns",
@@ -156,8 +156,8 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 		{
 			name: "StringSlices:WatchNamespaces",
 			options: []cue.Value{
-				cueutils.Strings(map[string]string{"InstallNamespace": "install"}),
-				cueutils.StringSlices(map[string][]string{"WatchNamespaces": {"apples", "oranges", "apples"}}),
+				cuedata.Strings(map[string]string{"InstallNamespace": "install"}),
+				cuedata.StringSlices(map[string][]string{"WatchNamespaces": {"apples", "oranges", "apples"}}),
 			},
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 				control := manifests[3].Deployment.Spec.Template.Spec.Containers[0]
@@ -183,7 +183,7 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 		{
 			name: "Interfaces",
 			options: []cue.Value{
-				cueutils.Interfaces(map[string]interface{}{
+				cuedata.Interfaces(map[string]interface{}{
 					"Spire": true,
 				}),
 			},
@@ -197,7 +197,7 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 		},
 		{
 			name:    "Redis internal",
-			options: []cue.Value{cueutils.Strings(map[string]string{"InstallNamespace": "myns"}), Redis("")},
+			options: []cue.Value{cuedata.Strings(map[string]string{"InstallNamespace": "myns"}), Redis("")},
 			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
 				// unimplemented
 				// check for expected values
@@ -239,7 +239,7 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 		{
 			name: "Ingress",
 			options: []cue.Value{
-				cueutils.Strings(map[string]string{
+				cuedata.Strings(map[string]string{
 					"InstallNamespace": "myns",
 					"IngressSubDomain": "myaddress.com",
 				}),
@@ -256,7 +256,7 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 			vc := v.Copy()
 			vc.Unify(tc.options...)
 			if err := vc.cue.Err(); err != nil {
-				cueutils.LogError(logger, err)
+				cuedata.LogError(logger, err)
 				t.FailNow()
 			}
 			manifests := vc.Manifests()
@@ -282,7 +282,7 @@ func getEnvValue(container corev1.Container, key string) (string, bool) {
 func loadVersion(t *testing.T, name string) Version {
 	versions, err := loadBaseWithVersions()
 	if err != nil {
-		cueutils.LogError(logger, err)
+		cuedata.LogError(logger, err)
 		t.FailNow()
 	}
 
@@ -292,7 +292,7 @@ func loadVersion(t *testing.T, name string) Version {
 	}
 
 	if err := v.cue.Err(); err != nil {
-		cueutils.LogError(logger, err)
+		cuedata.LogError(logger, err)
 		t.FailNow()
 	}
 
