@@ -4,13 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"cuelang.org/go/cue"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
-	"github.com/tidwall/gjson"
 )
 
 type client struct {
@@ -48,37 +46,23 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 			case <-ctx.Done():
 				return
 			default:
-				if r := (cmd{
-					// args: fmt.Sprintf("get zone --zone-key %s", mesh.Spec.Zone),
-					args: fmt.Sprintf("get zone %s", mesh.Spec.Zone),
-					log: func(args string, r result) {
-						if r.err != nil {
-							logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name)
-						}
-					},
-					and: cmdOpt{
-						cmd: &cmd{
-							args: fmt.Sprintf("edit zone %s", mesh.Spec.Zone),
-							log: func(args string, r result) {
-								if r.err != nil {
-									logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name)
-								} else {
-									logger.Info("Connected to Control API",
-										"Mesh", mesh.Name,
-										"Elapsed", time.Since(start).String())
-								}
-							},
-						},
-					},
-				}).run(cl.flags); r.err == nil {
-					break PING_CONTROL_LOOP
+				if _, err := (cmd{
+					args:  "apply -t zone -f -",
+					stdin: json.RawMessage(fmt.Sprintf(`{"name":"%s","zone_key":"%s"}`, mesh.Spec.Zone, mesh.Spec.Zone)),
+				}).run(cl.flags); err != nil {
+					logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name)
+					time.Sleep(time.Second * 10)
+					continue PING_CONTROL_LOOP
 				}
-				time.Sleep(time.Second * 10)
+				logger.Info("Connected to Control API",
+					"Mesh", mesh.Name,
+					"Elapsed", time.Since(start).String())
+				break PING_CONTROL_LOOP
 			}
 		}
 
 		// Configure edge domain, since it is a dependency for all sidecar routes.
-		mkApply("domain", cl.f.EdgeDomain()).run(cl.flags)
+		mkApply(mesh.Name, "domain", cl.f.EdgeDomain()).run(cl.flags)
 
 		// Then consume additional commands for control objects
 		for {
@@ -87,7 +71,8 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 				return
 			case c := <-controlCmds:
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
-				if r := c.run(cl.flags); r.err != nil && c.requeue {
+				if _, err := c.run(cl.flags); err != nil && c.requeue {
+					logger.Info("requeued failed command", "args", c.args)
 					controlCmds <- c
 				}
 			}
@@ -105,22 +90,17 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 			case <-ctx.Done():
 				return
 			default:
-				if r := (cmd{
-					// args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
-					args: fmt.Sprintf("get catalog-mesh %s", mesh.Name),
-					log: func(args string, r result) {
-						if r.err != nil {
-							logger.Info("Waiting to connect to Catalog API", "Mesh", mesh.Name)
-						} else {
-							logger.Info("Connected to Catalog API",
-								"Mesh", mesh.Name,
-								"Elapsed", time.Since(start).String())
-						}
-					},
-				}).run(cl.flags); r.err == nil {
-					break PING_CATALOG_LOOP
+				if _, err := (cmd{
+					args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
+				}).run(cl.flags); err != nil {
+					logger.Info("Waiting to connect to Catalog API", "Mesh", mesh.Name)
+					time.Sleep(time.Second * 10)
+					continue PING_CATALOG_LOOP
 				}
-				time.Sleep(time.Second * 10)
+				logger.Info("Connected to Catalog API",
+					"Mesh", mesh.Name,
+					"Elapsed", time.Since(start).String())
+				break PING_CATALOG_LOOP
 			}
 		}
 
@@ -131,7 +111,8 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 				return
 			case c := <-catalogCmds:
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
-				if r := c.run(cl.flags); r.err != nil && c.requeue {
+				if _, err := c.run(cl.flags); err != nil && c.requeue {
+					logger.Info("requeued failed command", "args", c.args)
 					catalogCmds <- c
 				}
 			}
@@ -139,70 +120,4 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 	}(cl.ctx, cl.catalogCmds)
 
 	return cl
-}
-
-func mkApply(kind string, data json.RawMessage) cmd {
-	kk := kindKey(kind)
-	return cmd{
-		args:    fmt.Sprintf("create %s", kind),
-		requeue: true,
-		stdin:   data,
-		reader:  values(kk),
-		log: func(args string, r result) {
-			if r.err == nil {
-				logger.Info(args, r.kvs...)
-			}
-		},
-		or: cmdOpt{
-			cmd: &cmd{
-				args:    fmt.Sprintf("edit %s %s", kind, objKey(kind, data)),
-				requeue: true,
-				stdin:   data,
-				reader:  values(kk),
-			},
-			when: func(out string) bool {
-				return strings.Contains(out, "duplicate") || strings.Contains(out, "exists")
-			},
-		},
-	}
-}
-
-func mkDelete(kind string, data json.RawMessage) cmd {
-	key := objKey(kind, data)
-	return cmd{args: fmt.Sprintf("delete %s %s", kind, key)}
-}
-
-func values(keys ...string) func(string) result {
-	return func(out string) result {
-		var kvs []interface{}
-		for _, key := range keys {
-			value := gjson.Get(out, key)
-			if value.Exists() {
-				// Add the gjson.Result without parsing its type.
-				kvs = append(kvs, key, value)
-			}
-		}
-		r := result{out, kvs, nil}
-		if len(kvs) == 0 {
-			r.err = fmt.Errorf("failed to get %v", keys)
-		}
-		return r
-	}
-}
-
-func objKey(kind string, data json.RawMessage) string {
-	result := values(kindKey(kind))(string(data))
-	if len(result.kvs) != 2 {
-		logger.Error(fmt.Errorf(kind), "no object key", "data", string(data))
-		return ""
-	}
-	// The key value is a gjson.Result, so just format into a string.
-	return fmt.Sprintf("%v", result.kvs[1])
-}
-
-func kindKey(kind string) string {
-	if kind == "catalog-service" {
-		return "service_id"
-	}
-	return fmt.Sprintf("%s_key", kind)
 }

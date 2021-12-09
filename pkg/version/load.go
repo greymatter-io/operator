@@ -22,7 +22,7 @@ var (
 func Load(pathElems ...string) (map[string]Version, error) {
 	versions, err := loadBaseWithVersions(pathElems)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load versioned install configurations: %w", err)
+		return nil, err
 	}
 	return versions, nil
 }

@@ -38,7 +38,7 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 	// Run all general tests for manifests
 	t.Run("without options", func(t *testing.T) {
 		m := v.Manifests()
-		y, _ := yaml.Marshal(m[0].Service)
+		y, _ := yaml.Marshal(m[0].Deployment)
 		fmt.Println(string(y))
 		// unimplemented
 		// all expected manifests exist
@@ -178,21 +178,6 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 						t.Errorf("Expected namespaces to contain %s: got %v", namespace, namespaces)
 					}
 				}
-			},
-		},
-		{
-			name: "Interfaces",
-			options: []cue.Value{
-				cueutils.Interfaces(map[string]interface{}{
-					"Spire": true,
-				}),
-			},
-			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-				t.Run("SPIRE", func(t *testing.T) {
-					if _, ok := getEnvValue(manifests[0].Deployment.Spec.Template.Spec.Containers[0], "SPIRE_PATH"); !ok {
-						t.Fatal("did not find 'SPIRE_PATH' env in edge container")
-					}
-				})
 			},
 		},
 		{

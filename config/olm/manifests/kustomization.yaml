@@ -5,3 +5,10 @@ resources:
 - ../../context/openshift
 - ../samples
 - ../scorecard
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: docker.greymatter.io/internal/gm-operator
+  newName: docker.greymatter.io/release/gm-operator
+  newTag: SEMVER_VERSION

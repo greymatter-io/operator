@@ -4,7 +4,6 @@
 MeshName: string
 ReleaseVersion: string
 Zone: string
-Spire: bool
 Redis: {...}
 
 // Values injected in fabric.Service
@@ -35,16 +34,12 @@ TCPEgresses: [...#EgressArgs]
 
 edgeDomain: #Domain & {
   domain_key: "edge"
-  zone_key: Zone
   name: "*"
   port: 10808
 }
 
 service: {
   catalogservice: #CatalogService & {
-    mesh_id: MeshName
-    service_id: ServiceName
-
     if ServiceName == "edge" {
       name: "Grey Matter Edge"
       description: "Handles north/south traffic flowing through the mesh."
@@ -80,19 +75,13 @@ service: {
 
   proxy: #Proxy & {
     name: ServiceName
-    zone_key: Zone
     domain_keys: [
       ServiceName,
       if len(HTTPEgresses) > 0 {
         "\(ServiceName)-egress-http",
       }
       for _, e in TCPEgresses {
-        if e.isExternal {
-          "\(ServiceName)-egress-tcp-to-external-\(e.cluster)"
-        }
-        if !e.isExternal {
-          "\(ServiceName)-egress-tcp-to-\(e.cluster)"
-        }
+        "\(ServiceName)-egress-tcp-to-\(e.cluster)"
       }
     ]
     listener_keys: [
@@ -101,25 +90,18 @@ service: {
         "\(ServiceName)-egress-http",
       }
       for _, e in TCPEgresses {
-        if e.isExternal {
-          "\(ServiceName)-egress-tcp-to-external-\(e.cluster)"
-        }
-        if !e.isExternal {
-          "\(ServiceName)-egress-tcp-to-\(e.cluster)"
-        }
+        "\(ServiceName)-egress-tcp-to-\(e.cluster)"
       }
     ]
   }
 
   domain: #Domain & {
     domain_key: ServiceName
-    zone_key: Zone
     name: "*"
     port: 10808
   }
   listener: #Listener & {
     name: ServiceName
-    zone_key: Zone
     port: domain.port
     domain_keys: [ServiceName]
     active_http_filters: [
@@ -162,10 +144,10 @@ service: {
     network_filters: {
       if NetworkFilters["envoy.tcp_proxy"] && len(Ingresses) == 1 {
         envoy_tcp_proxy: {
-          for k, v in Ingresses {
-            let key = "\(ServiceName):\(v)"
-            cluster: key
-            stat_prefix: key
+          for _, v in Ingresses {
+            _key: "\(ServiceName):\(v)"
+            cluster: _key
+            stat_prefix: _key
           }
         }
       }
@@ -175,7 +157,6 @@ service: {
   clusters: [...#Cluster] & [
     {
       name: ServiceName
-      zone_key: Zone
     }
   ]
 
@@ -184,7 +165,6 @@ service: {
       {
         route_key: ServiceName
         domain_key: "edge"
-        zone_key: Zone
         route_match: {
           path: "/services/\(ServiceName)/"
           match_type: "prefix"
@@ -215,7 +195,6 @@ service: {
       {
         route_key: ServiceName
         domain_key: "edge"
-        zone_key: Zone
         route_match: {
           path: "/"
           match_type: "prefix"
@@ -239,10 +218,8 @@ service: {
   ingresses: {
     clusters: [...#Cluster] & [
       for _, v in Ingresses if len(Ingresses) > 0 && ServiceName != "edge" {
-        let key = "\(ServiceName):\(v)"
         {
-          name: key
-          zone_key: Zone
+          name: "\(ServiceName):\(v)"
           instances: [
             {
               host: "127.0.0.1"
@@ -254,12 +231,11 @@ service: {
     ]
     routes: [...#Route] & [
       for k, v in Ingresses if len(Ingresses) > 0 && ServiceName != "edge" {
-        let key = "\(ServiceName):\(v)"
         if len(Ingresses) == 1 {
           {
-            route_key: key
+            _rk: "\(ServiceName):\(v)"
+            route_key: _rk
             domain_key: ServiceName
-            zone_key: Zone
             route_match: {
               path: "/"
               match_type: "prefix"
@@ -269,7 +245,7 @@ service: {
                 constraints: {
                   light: [
                     {
-                      cluster_key: key
+                      cluster_key: _rk
                       weight: 1
                     }
                   ]
@@ -280,9 +256,9 @@ service: {
         }
         if len(Ingresses) > 1 {
           {
-            route_key: key
+            _rk: "\(ServiceName):\(v)"
+            route_key: _rk
             domain_key: ServiceName
-            zone_key: Zone
             route_match: {
               path: "/\(k)/"
               match_type: "prefix"
@@ -300,7 +276,7 @@ service: {
                 constraints: {
                   light: [
                     {
-                      cluster_key: key
+                      cluster_key: _rk
                       weight: 1
                     }
                   ]
@@ -314,21 +290,19 @@ service: {
   }
 
   httpEgresses: {
+    _dk: "\(ServiceName)-egress-http"
     if len(HTTPEgresses) > 0 {
-      let key = "\(ServiceName)-egress-http"
       domain: #Domain & {
-        zone_key: Zone
-        domain_key: key
+        domain_key: _dk
         name: "*"
         port: 10909
       }
       listener: #Listener & {
-        name: key
-        zone_key: Zone
+        name: _dk
         port: 10909
-        domain_keys: [key]
+        domain_keys: [_dk]
 
-        // Temp kludge: Enable the metrics filter and receiver for gm-metrics.
+        // Temp kludge: Enable the metrics filter and receiver for gm-redis.
         // This is required here since we are mocking an http listener for the metrics_receiver.
         // If TCP is configured on a listener, no HTTP metrics filter is set :/
         if ServiceName == "gm-redis" && ReleaseVersion != "1.6" {
@@ -344,7 +318,7 @@ service: {
               metrics_key_function: "depth"
               metrics_key_depth: "3"
               metrics_receiver: {
-                redis_connection_string: "redis://:\(Redis.password)@127.0.0.1:10808"
+                redis_connection_string: "redis://:\(Redis.password)@127.0.0.1:6379"
                 push_interval_seconds: 10
               }
             }
@@ -352,30 +326,32 @@ service: {
         }
       }
       clusters: [...#Cluster] & [
-        for _, e in HTTPEgresses if e.isExternal {
-          {
-            name: "\(ServiceName)-to-external-\(e.cluster)"
-            zone_key: Zone
-            instances: [
-              {
-                host: e.host
-                port: e.port
-              }
-            ]
+        for _, e in HTTPEgresses {
+          if e.isExternal {
+            {
+              name: "\(ServiceName)-to-\(e.cluster)"
+              instances: [
+                {
+                  host: e.host
+                  port: e.port
+                }
+              ]
+            }
+          }
+          if !e.isExternal {
+            {
+              name: e.cluster
+              cluster_key: "\(ServiceName)-to-\(e.cluster)"
+            }
           }
         }
       ]
       routes: [...#Route] & [
         for _, e in HTTPEgresses {
           {
-            if e.isExternal {
-              route_key: "\(ServiceName)-to-external-\(e.cluster)"
-            }
-            if !e.isExternal {
-              route_key: "\(ServiceName)-to-\(e.cluster)"
-            }
-            domain_key: key
-            zone_key: Zone
+            _rk: "\(ServiceName)-to-\(e.cluster)"
+            route_key: _rk
+            domain_key: _dk
             route_match: {
               path: "/\(e.cluster)/"
               match_type: "prefix"
@@ -393,12 +369,7 @@ service: {
                 constraints: {
                   light: [
                     {
-                      if e.isExternal {
-                        cluster_key: "\(ServiceName)-to-external-\(e.cluster)"
-                      }
-                      if !e.isExternal {
-                        cluster_key: e.cluster
-                      }
+                      cluster_key: _rk
                       weight: 1
                     }
                   ]
@@ -413,45 +384,30 @@ service: {
 
   tcpEgresses: [
     for _, e in TCPEgresses {
-      _key: string
-      if e.isExternal {
-        _key: "\(ServiceName)-egress-tcp-to-external-\(e.cluster)"
-      }
-      if !e.isExternal {
-        _key: "\(ServiceName)-egress-tcp-to-\(e.cluster)"
-      }
+      _dk: "\(ServiceName)-egress-tcp-to-\(e.cluster)"
       domain: #Domain & {
-        zone_key: Zone
-        domain_key: _key
+        domain_key: _dk
         port: e.tcpPort
       }
       listener: #Listener & {
-        zone_key: Zone
-        name: _key
-        listener_key: _key
-        domain_keys: [_key]
+        name: _dk
+        domain_keys: [_dk]
         port: e.tcpPort
         active_network_filters: [
           "envoy.tcp_proxy"
         ]
         network_filters: {
           envoy_tcp_proxy: {
-            if e.isExternal {
-              cluster: "\(ServiceName)-to-external-\(e.cluster)"
-              stat_prefix: "\(ServiceName)-to-external-\(e.cluster)"
-            }
-            if !e.isExternal {
-              cluster: e.cluster
-              stat_prefix: e.cluster
-            }
+            cluster: e.cluster
+            stat_prefix: e.cluster
           }
         }
       }
       clusters: [...#Cluster] & [
-        if e.isExternal {
-          {
-            name: "\(ServiceName)-to-external-\(e.cluster)"
-            zone_key: Zone
+        {
+          name: e.cluster
+          cluster_key: "\(ServiceName)-to-\(e.cluster)"
+          if e.isExternal {
             instances: [
               {
                 host: e.host
@@ -463,14 +419,9 @@ service: {
       ]
       routes: [...#Route] & [
         {
-          if e.isExternal {
-            route_key: "\(ServiceName)-to-external-\(e.cluster)"
-          }
-          if !e.isExternal {
-            route_key: "\(ServiceName)-to-\(e.cluster)"
-          }
-          domain_key: _key
-          zone_key: Zone
+          _rk: "\(ServiceName)-to-\(e.cluster)"
+          route_key: _rk
+          domain_key: _dk
           route_match: {
             path: "/"
             match_type: "prefix"
@@ -480,12 +431,7 @@ service: {
               constraints: {
                 light: [
                   {
-                    if e.isExternal {
-                      cluster_key: "\(ServiceName)-to-external-\(e.cluster)"
-                    }
-                    if !e.isExternal {
-                      cluster_key: e.cluster
-                    }
+                    cluster_key: _rk
                     weight: 1
                   }
                 ]

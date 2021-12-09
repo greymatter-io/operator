@@ -11,8 +11,8 @@ short-form.
 
 It is assumed that you have kubectl installed with cluster administrator access.
 
-Next, ensure you have the following environment variables sourced: `GREYMATTER_DOCKER_USERNAME` and
-`GREYMATER_DOCKER_PASSWORD`. These require your credentials for pulling Grey Matter core service
+Next, ensure you have the following environment variables sourced: `GREYMATTER_REGISTRY_USERNAME` and
+`GREYMATTER_REGISTRY_PASSWORD`. These require your credentials for pulling Grey Matter core service
 Docker images from `docker.greymatter.io`.
 
 ## Quick Install
@@ -26,9 +26,9 @@ kubectl apply -k config/context/kubernetes
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
-  --docker-username=$GREYMATTER_DOCKER_USERNAME \
-  --docker-password=$GREYMATER_DOCKER_PASSWORD \
-  --docker-email=$GREYMATTER_DOCKER_USERNAME \
+  --docker-username=$GREYMATTER_REGISTRY_USERNAME \
+  --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
+  --docker-email=$GREYMATTER_REGISTRY_USERNAME \
   -n gm-operator
 ```
 
@@ -57,12 +57,11 @@ manifests that can be piped into a file after downloading kustomize, run
 
 ### Dependencies
 
-Grey Matter Operator is built with [Go 1.7](https://golang.org/dl/) using the [Operator
-SDK](https://sdk.operatorframework.io). As such, this project adheres to its conventions and
-recommended best practices.
+Grey Matter Operator is built with [Go 1.17](https://golang.org/dl/).
 
-Download the [Operator SDK CLI v1.12.0](https://sdk.operatorframework.io/docs/installation/) for
-maintaining the project API, manifests, and general project structure.
+It has been scaffolded using the [Operator SDK](https://sdk.operatorframework.io). Download the
+[Operator SDK CLI v1.12.0](https://sdk.operatorframework.io/docs/installation/) for maintaining the
+project API, manifests, and general project structure.
 
 It also uses [Cue](https://cuelang.org/docs/install/) for maintaining much of its internal API.
 
@@ -70,11 +69,6 @@ If building for
 [OpenShift](https://www.redhat.com/en/technologies/cloud-computing/openshift/container-platform),
 you'll also need the [OpenShift
 CLI](https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/).
-
-Lastly, while not absolutely necessary, you may need [cfssl](https://github.com/cloudflare/cfssl)
-for generating certs used by the operator's webhook server when developing against non-Openshift
-environments. Run `go get github.com/cloudflare/cfssl/cmd/...` to download all binaries to the `bin`
-directory of your `$GOPATH`.
 
 ### Setup
 

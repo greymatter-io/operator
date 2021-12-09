@@ -6,16 +6,16 @@ import (
 	"time"
 
 	"github.com/cloudflare/cfssl/csr"
+	"github.com/greymatter-io/operator/pkg/cfsslsrv"
 	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"
+	"github.com/greymatter-io/operator/pkg/k8sapi"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -28,44 +28,44 @@ type Loader struct {
 	client.Client
 	*installer.Installer
 	*cli.CLI
-	getServer      func() *webhook.Server
-	disableCertGen bool
-	caBundle       []byte
-	cert           []byte
-	key            []byte
+	*cfsslsrv.CFSSLServer
+	noCertGen bool
+	getServer func() *webhook.Server
+	caBundle  []byte
+	cert      []byte
+	key       []byte
 }
 
-func New(cl client.Client, i *installer.Installer, c *cli.CLI, get func() *webhook.Server, disableCertGen bool) (*Loader, error) {
-	wl := &Loader{Client: cl, Installer: i, CLI: c, getServer: get, disableCertGen: disableCertGen}
+func New(
+	cl client.Client,
+	i *installer.Installer,
+	c *cli.CLI,
+	cs *cfsslsrv.CFSSLServer,
+	noCertGen bool,
+	get func() *webhook.Server) (*Loader, error) {
 
-	if !wl.disableCertGen {
-		// Initialize and launch CFSSL server. This will eventualy move out of the webhooks package,
-		// but can stay here for now since we're just using it to issue our webhook certs.
-		cs, err := NewCFSSLServer(nil, nil)
-		if err != nil {
-			logger.Error(err, "Failed to configure CFSSL server")
-			return nil, err
-		}
+	wl := &Loader{Client: cl, Installer: i, CLI: c, CFSSLServer: cs, noCertGen: noCertGen, getServer: get}
 
-		if err := cs.Start(); err != nil {
-			logger.Error(err, "CFSSL server failed to start")
-			return nil, err
-		}
-
-		wl.caBundle = cs.GetCABundle()
-
-		wl.cert, wl.key, err = cs.RequestCert(csr.CertificateRequest{
-			CN:         "admission",
-			Hosts:      []string{"gm-webhook.gm-operator.svc"},
-			KeyRequest: &csr.KeyRequest{A: "rsa", S: 2048},
-		})
-		if err != nil {
-			logger.Error(err, "failed to retrieve certs for webhook server")
-			return nil, err
-		}
-
-		logger.Info("Retrieved signed certs from CFSSL server")
+	if wl.noCertGen {
+		logger.Info("webhook server cert generation disabled; expecting webhook server certs to be mounted from external source")
+		return wl, nil
 	}
+
+	var err error
+
+	wl.caBundle = wl.GetRootCA()
+
+	wl.cert, wl.key, err = wl.RequestCert(csr.CertificateRequest{
+		CN:         "admission",
+		Hosts:      []string{"gm-webhook.gm-operator.svc"},
+		KeyRequest: &csr.KeyRequest{A: "rsa", S: 2048},
+	})
+	if err != nil {
+		logger.Error(err, "failed to retrieve certs for webhook server")
+		return nil, err
+	}
+
+	logger.Info("Retrieved signed certs from CFSSL server")
 
 	return wl, nil
 }
@@ -73,7 +73,7 @@ func New(cl client.Client, i *installer.Installer, c *cli.CLI, get func() *webho
 func (wl *Loader) Start(ctx context.Context) error {
 
 	// If webhook cert generation is disabled, just register the webhook handlers and exit
-	if wl.disableCertGen {
+	if wl.noCertGen {
 		wl.register()
 		return nil
 	}
@@ -85,7 +85,7 @@ func (wl *Loader) Start(ctx context.Context) error {
 			Namespace: "gm-operator",
 		},
 	}
-	patch := func(obj client.Object) client.Object {
+	k8sapi.Apply(wl.Client, secret, nil, k8sapi.MkPatchAction(func(obj client.Object) client.Object {
 		s := obj.(*corev1.Secret)
 		if s.StringData == nil {
 			s.StringData = make(map[string]string)
@@ -93,76 +93,44 @@ func (wl *Loader) Start(ctx context.Context) error {
 		s.StringData["tls.crt"] = string(wl.cert)
 		s.StringData["tls.key"] = string(wl.key)
 		return s
-	}
-	if err := applyPatch(wl.Client, secret, patch); err != nil {
-		return err
-	}
+	}))
 
 	// Patch the mutatingwebhookconfiguration with our previously loaded cabundle
 	mwc := &admissionregistrationv1.MutatingWebhookConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: "gm-mutate-config"},
 	}
-	patch = func(obj client.Object) client.Object {
+	k8sapi.Apply(wl.Client, mwc, nil, k8sapi.MkPatchAction(func(obj client.Object) client.Object {
 		m := obj.(*admissionregistrationv1.MutatingWebhookConfiguration)
 		for i := range m.Webhooks {
 			m.Webhooks[i].ClientConfig.CABundle = wl.caBundle
 		}
 		return m
-	}
-	if err := applyPatch(wl.Client, mwc, patch); err != nil {
-		return err
-	}
+	}))
 
 	// Patch the validatingwebhookconfiguration with our previously loaded cabundle
 	vwc := &admissionregistrationv1.ValidatingWebhookConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: "gm-validate-config"},
 	}
-	patch = func(obj client.Object) client.Object {
+	k8sapi.Apply(wl.Client, vwc, nil, k8sapi.MkPatchAction(func(obj client.Object) client.Object {
 		v := obj.(*admissionregistrationv1.ValidatingWebhookConfiguration)
 		for i := range v.Webhooks {
 			v.Webhooks[i].ClientConfig.CABundle = wl.caBundle
 		}
 		return v
-	}
-	if err := applyPatch(wl.Client, vwc, patch); err != nil {
-		return err
-	}
+	}))
 
 	// Since we've just patched our webhook secret, check the mounted file for changes.
 	// This lets us wait for the certwatcher to identify cert "rotation" before registering webhooks.
-	logger.Info("Waiting for certwatcher to detect TLS certificate update")
+	logger.Info("Waiting for certwatcher to detect new webhook TLS certs")
+	start := time.Now()
 	var byteCount int64
 	for byteCount == 0 {
 		fileInfo, _ := os.Stat("/tmp/k8s-webhook-server/serving-certs/tls.crt")
 		byteCount = fileInfo.Size()
-		time.Sleep(time.Second * 3)
+		time.Sleep(time.Second * 2)
 	}
-
+	logger.Info("New webhook TLS certs detected", "Elapsed", time.Since(start).String())
 	wl.register()
-
-	return nil
-}
-
-func applyPatch(c client.Client, obj client.Object, patch func(client.Object) client.Object) error {
-	var kind string
-	if gvk, err := apiutil.GVKForObject(obj.(runtime.Object), c.Scheme()); err != nil {
-		kind = "Object"
-	} else {
-		kind = gvk.Kind
-	}
-
-	key := client.ObjectKeyFromObject(obj)
-	if err := c.Get(context.TODO(), key, obj); err != nil {
-		logger.Error(err, "get", "result", "fail", kind, key)
-	}
-
-	mp := client.MergeFrom(obj.DeepCopyObject().(client.Object))
-	obj = patch(obj)
-	if err := c.Patch(context.TODO(), obj, mp); err != nil {
-		logger.Error(err, "patch", "result", "fail", kind, key)
-	}
-
-	logger.Info("patch", "result", "success", kind, key)
 
 	return nil
 }

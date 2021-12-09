@@ -4,12 +4,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// Encapsulates all configurations for a single Grey Matter component (i.e. core service or dependency).
 #Component: {
   name: string
   annotations: [string]: string
   isStatefulset: *false | bool
   image: string
-  command: [...string]
+  command: *"" | string
   args: [...string]
   resources: corev1.#Resources
   ports: [string]: int32
@@ -31,14 +32,12 @@ proxy: #Component & {
     XDS_ZONE: Zone
     XDS_HOST: "control.\(InstallNamespace).svc.cluster.local"
     XDS_PORT: "50000"
+    SPIRE_PATH: "/run/spire/socket/agent.sock"
   }
-  if Spire {
-    env: SPIRE_PATH: "/run/spire/socket/agent.sock"
-    volumeMounts: "spire-socket": mountPath: "/run/spire/socket"
-    volumes: "spire-socket": hostPath: {
-      path: "/run/spire/socket"
-      type: "DirectoryOrCreate"
-    }
+  volumeMounts: "spire-socket": mountPath: "/run/spire/socket"
+  volumes: "spire-socket": hostPath: {
+    path: "/run/spire/socket"
+    type: "DirectoryOrCreate"
   }
 }
 
@@ -231,13 +230,13 @@ redis: #Component & {
     if ReleaseVersion != "1.6" {
       // http listener needed to launch metrics receiver
       "greymatter.io/egress-http-local": """
-        ["edge"]
+        ["control"]
       """
     }
   }
   isStatefulset: true
   image: =~"redis:"
-  command: ["redis-server"]
+  command: "redis-server"
   args: [
     "--appendonly",
     "yes",
@@ -271,7 +270,7 @@ prometheus: #Component & {
   name: "gm-prometheus"
   isStatefulset: true
   image: =~"^prom/prometheus:"
-  command: ["/bin/prometheus"]
+  command: "/bin/prometheus"
   args: [
     "--query.timeout=4m",
     "--query.max-samples=5000000000",

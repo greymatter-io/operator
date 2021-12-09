@@ -20,8 +20,6 @@ controlNamespaces: strings.Join([
   for i, ns in allWatchNamespaces if !list.Contains(list.Drop(allWatchNamespaces, i+1), ns) { ns }
 ], ",")
 
-Spire: *false | bool
-
 JWT: {
   userTokens: *"[]" | string
   apiKey: "" | string

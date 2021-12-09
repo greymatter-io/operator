@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
-const OperatorImageURL = "docker.greymatter.io/internal/gm-operator:latest"
+const OperatorImageURL = "docker.greymatter.io/development/gm-operator:latest"
 
 //go:embed *
 var configFS embed.FS
@@ -35,17 +35,15 @@ var kubernetesCommand = cli.Command{
 			Value:   OperatorImageURL,
 		},
 		&cli.StringFlag{
-			Name:     "username",
+			Name:     "registry-username",
 			Usage:    "The username for accessing the Grey Matter container image repository.",
-			Aliases:  []string{"u"},
-			EnvVars:  []string{"GREYMATTER_DOCKER_USERNAME"},
+			EnvVars:  []string{"GREYMATTER_REGISTRY_USERNAME"},
 			Required: true,
 		},
 		&cli.StringFlag{
-			Name:     "password",
+			Name:     "registry-password",
 			Usage:    "The password for accessing the Grey Matter container image repository.",
-			Aliases:  []string{"p"},
-			EnvVars:  []string{"GREYMATTER_DOCKER_PASSWORD"},
+			EnvVars:  []string{"GREYMATTER_REGISTRY_PASSWORD"},
 			Required: true,
 		},
 		&cli.BoolFlag{
@@ -62,8 +60,8 @@ var kubernetesCommand = cli.Command{
 	Action: func(c *cli.Context) error {
 		return loadManifests("context/kubernetes-options", manifestConfig{
 			DockerImageURL:               c.String("image"),
-			DockerUsername:               c.String("username"),
-			DockerPassword:               c.String("password"),
+			DockerUsername:               c.String("registry-username"),
+			DockerPassword:               c.String("registry-password"),
 			DisableWebhookCertGeneration: c.Bool("disable-internal-ca"),
 		})
 	},

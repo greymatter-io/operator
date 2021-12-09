@@ -13,13 +13,13 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	t.Skip() // only works locally in integrated env
+	t.Skip() // only test in dev, not in ci
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(false)))
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	c, err := New(ctx)
+	c, err := New(ctx, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,16 +27,19 @@ func TestNewClient(t *testing.T) {
 	mesh := &v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mesh"},
 		Spec: v1alpha1.MeshSpec{
-			Zone: "zone",
+			Zone:           "zone",
+			ReleaseVersion: "1.7",
 		},
 	}
 
 	c.configureMeshClient(
 		mesh,
 		mesh.Options(""),
-		"--api.host localhost:5555",
-		"--catalog.host localhost:8181",
-		"--catalog.mesh mesh",
+		"--base64-config", mkCLIConfig(
+			"http://localhost:5555",
+			"http://localhost:8181",
+			"mesh",
+		),
 	)
 
 	containers := []corev1.Container{
@@ -46,6 +49,7 @@ func TestNewClient(t *testing.T) {
 		}},
 	}
 
+	c.ConfigureService("mesh", "gm-redis", nil, containers)
 	c.ConfigureService("mesh", "mock", nil, containers)
 	c.RemoveService("mesh", "mock", nil, containers)
 
@@ -56,7 +60,7 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestCLIVersion(t *testing.T) {
-	t.Skip() // revisit when CLI 4.0 support has been added
+	t.Skip() // only test in dev, not in ci
 
 	v, err := cliversion()
 	if err != nil {

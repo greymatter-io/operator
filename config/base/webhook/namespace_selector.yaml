@@ -6,6 +6,6 @@ webhooks:
 - name: mutate-workload.greymatter.io
   namespaceSelector:
     matchExpressions:
-    - key: control-plane
+    - key: name
       operator: NotIn
-      values: ["gm-operator"]
+      values: ["gm-operator", "spire"]

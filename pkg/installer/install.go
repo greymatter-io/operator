@@ -5,17 +5,15 @@ import (
 	"time"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/k8sapi"
 	"github.com/greymatter-io/operator/pkg/version"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // ApplyMesh installs and updates Grey Matter core components and dependencies for a single mesh.
@@ -25,9 +23,6 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	} else {
 		logger.Info("Upgrading Mesh", "Name", mesh.Name)
 	}
-
-	// Obtain the scheme used by our client
-	scheme := i.client.Scheme()
 
 	// Get a copy of the version specified in the Mesh CR.
 	// Assume the value is valid since the CRD enumerates acceptable values for the apiserver.
@@ -45,12 +40,8 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	if prev == nil {
 		secret := i.imagePullSecret.DeepCopy()
 		secret.Namespace = mesh.Spec.InstallNamespace
-		apply(i.client, secret, mesh, scheme)
-		// If this is the first mesh, setup RBAC for control plane service accounts to view pods.
-		if len(i.sidecars) == 0 {
-			applyClusterRBAC(i.client, scheme)
-		}
-		applyServiceAccount(i.client, mesh, scheme)
+		k8sapi.Apply(i.client, secret, mesh, k8sapi.GetOrCreate)
+		applyServiceAccount(i.client, mesh, i.owner)
 	}
 
 	// Save this mesh's sidecar template to use later for sidecar injection
@@ -71,7 +62,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 				secret := i.imagePullSecret.DeepCopy()
 				secret.Name = "gm-docker-secret"
 				secret.Namespace = namespace
-				apply(i.client, secret, mesh, scheme)
+				k8sapi.Apply(i.client, secret, mesh, k8sapi.GetOrCreate)
 			}
 		}
 		// If the Mesh is being updated, clean up any removed watch namespaces.
@@ -95,7 +86,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 				deployment.Annotations = make(map[string]string)
 			}
 			deployment.Annotations["greymatter.io/last-applied"] = time.Now().String()
-			apply(i.client, &deployment, nil, scheme)
+			k8sapi.Apply(i.client, &deployment, nil, k8sapi.CreateOrUpdate)
 		}
 	}
 	statefulsets := &appsv1.StatefulSetList{}
@@ -106,7 +97,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 				statefulset.Annotations = make(map[string]string)
 			}
 			statefulset.Annotations["greymatter.io/last-applied"] = time.Now().String()
-			apply(i.client, &statefulset, nil, scheme)
+			k8sapi.Apply(i.client, &statefulset, nil, k8sapi.CreateOrUpdate)
 		}
 	}
 
@@ -120,109 +111,31 @@ MANIFEST_LOOP:
 			continue MANIFEST_LOOP
 		}
 
+		// These resources are applied with 'GetOrCreate' or 'CreateOrUpdate'.
+		// We should only use 'CreateOrUpdate' when we know values may have changed
+		// based on the parameters set in the Mesh CR.
 		for _, configMap := range group.ConfigMaps {
-			apply(i.client, configMap, mesh, scheme)
+			k8sapi.Apply(i.client, configMap, mesh, k8sapi.GetOrCreate)
 		}
 		for _, secret := range group.Secrets {
-			apply(i.client, secret, mesh, scheme)
+			k8sapi.Apply(i.client, secret, mesh, k8sapi.GetOrCreate)
 		}
 		if group.Deployment != nil {
-			apply(i.client, group.Deployment, mesh, scheme)
+			k8sapi.Apply(i.client, group.Deployment, mesh, k8sapi.CreateOrUpdate)
 		}
 		if group.StatefulSet != nil {
-			apply(i.client, group.StatefulSet, mesh, scheme)
+			k8sapi.Apply(i.client, group.StatefulSet, mesh, k8sapi.CreateOrUpdate)
 		}
 		if group.Service != nil {
-			apply(i.client, group.Service, mesh, scheme)
+			k8sapi.Apply(i.client, group.Service, mesh, k8sapi.GetOrCreate)
 		}
 		if group.Ingress != nil {
-			apply(i.client, group.Ingress, mesh, scheme)
+			k8sapi.Apply(i.client, group.Ingress, mesh, k8sapi.CreateOrUpdate)
 		}
 	}
 }
 
-func apply(c client.Client, obj, owner client.Object, scheme *runtime.Scheme) {
-	var kind string
-	if gvk, err := apiutil.GVKForObject(obj.(runtime.Object), scheme); err != nil {
-		kind = "Object"
-	} else {
-		kind = gvk.Kind
-	}
-
-	// Set an owner reference on the manifest for garbage collection if the mesh is deleted.
-	if owner != nil {
-		if err := controllerutil.SetOwnerReference(owner, obj, scheme); err != nil {
-			logger.Error(err, "SetOwnerReference", "result", "failed", "Owner", owner.GetName(), "Namespace", obj.GetNamespace(), kind, obj.GetName())
-			return
-		}
-	}
-
-	action, result, err := createOrUpdate(context.TODO(), c, obj)
-	if err != nil {
-		if owner != nil {
-			logger.Error(err, action, "result", "failed", "Owner", owner.GetName(), "Namespace", obj.GetNamespace(), kind, obj.GetName())
-		} else {
-			logger.Error(err, action, "result", "failed", "Namespace", obj.GetNamespace(), kind, obj.GetName())
-		}
-		return
-	}
-
-	if owner != nil {
-		logger.Info(action, "result", result, "Owner", owner.GetName(), "Namespace", obj.GetNamespace(), kind, obj.GetName())
-	} else {
-		logger.Info(action, "result", result, "Namespace", obj.GetNamespace(), kind, obj.GetName())
-	}
-}
-
-func createOrUpdate(ctx context.Context, c client.Client, obj client.Object) (string, string, error) {
-	key := client.ObjectKeyFromObject(obj)
-
-	// Make a pointer copy of the object so that our actual object is not modified by client.Get.
-	// This way, the object passed into client.Update still has our desired state.
-	existing := obj.DeepCopyObject()
-	if err := c.Get(ctx, key, existing.(client.Object)); err != nil {
-		if !errors.IsNotFound(err) {
-			return "create/update", "fail", err
-		}
-		if err := c.Create(ctx, obj); err != nil {
-			return "create", "fail", err
-		}
-		return "create", "success", nil
-	}
-
-	if err := c.Update(ctx, obj); err != nil {
-		return "update", "fail", err
-	}
-
-	return "update", "success", nil
-}
-
-func applyClusterRBAC(c client.Client, scheme *runtime.Scheme) {
-	cr := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{Name: "gm-control"},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{""},
-				Resources: []string{"pods"},
-				Verbs:     []string{"list"},
-			},
-		},
-	}
-	apply(c, cr, nil, scheme)
-
-	crb := &rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{Name: "gm-control"},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     "gm-control",
-		},
-		Subjects: []rbacv1.Subject{},
-	}
-	apply(c, crb, cr, scheme)
-}
-
-func applyServiceAccount(c client.Client, mesh *v1alpha1.Mesh, scheme *runtime.Scheme) {
+func applyServiceAccount(c client.Client, mesh *v1alpha1.Mesh, crd *extv1.CustomResourceDefinition) {
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "gm-control",
@@ -233,7 +146,7 @@ func applyServiceAccount(c client.Client, mesh *v1alpha1.Mesh, scheme *runtime.S
 			return &b
 		}(),
 	}
-	apply(c, sa, mesh, scheme)
+	k8sapi.Apply(c, sa, mesh, k8sapi.GetOrCreate)
 
 	crb := &rbacv1.ClusterRoleBinding{}
 	if err := c.Get(context.TODO(), client.ObjectKey{Name: "gm-control"}, crb); err != nil {
@@ -255,7 +168,7 @@ func applyServiceAccount(c client.Client, mesh *v1alpha1.Mesh, scheme *runtime.S
 		Namespace: sa.Namespace,
 	})
 
-	apply(c, crb, nil, scheme)
+	k8sapi.Apply(c, crb, crd, k8sapi.CreateOrUpdate)
 }
 
 // RemoveMesh removes all references to a deleted Mesh custom resource.
@@ -277,8 +190,6 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 	}
 	i.Unlock()
 
-	scheme := i.client.Scheme()
-
 	// Remove label for existing deployments and statefulsets
 	deployments := &appsv1.DeploymentList{}
 	i.client.List(context.TODO(), deployments)
@@ -290,7 +201,8 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 				}
 				if _, ok := deployment.Spec.Template.Labels["greymatter.io/cluster"]; ok {
 					delete(deployment.Spec.Template.Labels, "greymatter.io/cluster")
-					apply(i.client, &deployment, nil, scheme)
+					delete(deployment.Spec.Template.Labels, "greymatter.io/workload")
+					k8sapi.Apply(i.client, &deployment, nil, k8sapi.CreateOrUpdate)
 				}
 			}
 		}
@@ -306,7 +218,8 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 				}
 				if _, ok := statefulset.Spec.Template.Labels["greymatter.io/cluster"]; ok {
 					delete(statefulset.Spec.Template.Labels, "greymatter.io/cluster")
-					apply(i.client, &statefulset, nil, scheme)
+					delete(statefulset.Spec.Template.Labels, "greymatter.io/workload")
+					k8sapi.Apply(i.client, &statefulset, nil, k8sapi.CreateOrUpdate)
 				}
 			}
 		}

@@ -18,7 +18,7 @@
 }
 
 #SetCurrentClientCertDetails: {
-	uri?: true
+	uri: true
 }
 
 #SSLConfig: {

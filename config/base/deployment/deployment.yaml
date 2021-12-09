@@ -4,16 +4,16 @@ metadata:
   name: operator
   namespace: system
   labels:
-    control-plane: gm-operator
+    name: gm-operator
 spec:
   selector:
     matchLabels:
-      control-plane: gm-operator
+      name: gm-operator
   replicas: 1
   template:
     metadata:
       labels:
-        control-plane: gm-operator
+        name: gm-operator
     spec:
       securityContext:
         runAsNonRoot: true
@@ -24,7 +24,7 @@ spec:
         - /operator
         args:
         - --leader-elect
-        image: controller:latest
+        image: docker.greymatter.io/internal/gm-operator:latest
         imagePullPolicy: Always
         name: operator
         securityContext:

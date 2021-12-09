@@ -59,7 +59,7 @@ spec:
         app: fibonacci
     spec:
       containers:
-      - image: docker.greymatter.io/internal/fibonacci:latest
+      - image: docker.greymatter.io/internal/responder:egress-demo
         imagePullPolicy: Always
         name: fibonacci
         ports:
