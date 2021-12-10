@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 (December 10, 2021)
+
+### Changed
+
+- Upgraded Grey Matter CLI binary dependency from 3.0.0 to 4.0.1
+- Upgraded Grey Matter 1.7 image tags from release candidates to releases
+
 ## 0.1.2 (December 2, 2021)
 
 ### Changed
