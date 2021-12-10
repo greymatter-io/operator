@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Called by CI only
-set -e
+set -ex
 
 ## Test
 
@@ -73,18 +73,15 @@ _nexus_login() {
 }
 
 release_image() {
-  if [[ $BUILDKITE_BRANCH != "main" ]]; then
-    echo "skip release image"
-    exit 0
-  fi
+  if [[ "$BUILDKITE_BRANCH" == "main" ]]; then
+    local latest="docker.greymatter.io/development/gm-operator:latest"
+    _push_image $latest
 
-  local latest="docker.greymatter.io/development/gm-operator:latest"
-  _push_image $latest
-
-  if [[ -n "$BUILDKITE_TAG" ]]; then
-    local tagged="docker.greymatter.io/development/gm-operator:${BUILDKITE_TAG:1}"
-    _retag_image $latest $tagged
-    _push_image $tagged
+    if [[ -n "$BUILDKITE_TAG" ]]; then
+      local tagged="docker.greymatter.io/development/gm-operator:${BUILDKITE_TAG:1}"
+      _retag_image $latest $tagged
+      _push_image $tagged
+    fi
   fi
 }
 
@@ -99,11 +96,7 @@ _bundle() {
 }
 
 release_bundle() {
-  if [[ $BUILDKITE_BRANCH != "main" ]]; then
-    echo "skip release bundle"
-  fi
-
-  if [[ -n "$BUILDKITE_TAG" ]]; then
+  if [[ "$BUILDKITE_BRANCH" == "main" ]] && [[ -n "$BUILDKITE_TAG" ]]; then
     _bundle ${BUILDKITE_TAG:1}
   fi
 }
