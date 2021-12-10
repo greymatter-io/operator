@@ -64,7 +64,7 @@ func New(ctx context.Context) (*CLI, error) {
 // for reaching Control and Catalog for the given mesh and its configuration options.
 func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value) {
 	conf := mkCLIConfig(
-		fmt.Sprintf("http://edge.%s.svc.cluster.local:10707/control/v1.0", mesh.Spec.InstallNamespace),
+		fmt.Sprintf("http://edge.%s.svc.cluster.local:10707/control", mesh.Spec.InstallNamespace),
 		fmt.Sprintf("http://edge.%s.svc.cluster.local:10707/catalog", mesh.Spec.InstallNamespace),
 		mesh.Name,
 	)
