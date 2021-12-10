@@ -1,28 +1,28 @@
 proxy: {
-  image: "docker.greymatter.io/release/gm-proxy:1.7.0"
+  image: "docker.greymatter.io/development/gm-proxy:1.7.0-rc.4"
 }
 
 control: {
-  image: "docker.greymatter.io/release/gm-control:1.7.0"
+  image: "docker.greymatter.io/development/gm-control:1.7.0-rc.3"
 }
 
 control_api: {
-  image: "docker.greymatter.io/release/gm-control-api:1.7.0"
+  image: "docker.greymatter.io/development/gm-control-api:1.7.0-rc.3"
 }
 
 catalog: {
-  image: "docker.greymatter.io/release/gm-catalog:3.0.0"
+  image: "docker.greymatter.io/development/gm-catalog:3.0.0-rc.3"
 }
 
 dashboard: {
-  image: "docker.greymatter.io/release/gm-dashboard:6.0.0"
+  image: "docker.greymatter.io/development/gm-dashboard:6.0.0-rc.2"
   env: {
     CONFIG_SERVER: "/services/control/api/v1.0"
   }
 }
 
 jwt_security: {
-  image: "docker.greymatter.io/release/gm-jwt-security:1.3.0"
+  image: "docker.greymatter.io/development/gm-jwt-security:1.3.0"
 }
 
 redis: {
