@@ -73,7 +73,7 @@ _nexus_login() {
 }
 
 release_image() {
-  if [[ "$BUILDKITE_BRANCH" == "main" ]]; then
+  if [[ "$BUILDKITE_BRANCH" == "fix-cibuild" ]]; then
     local latest="docker.greymatter.io/development/gm-operator:latest"
     _push_image $latest
 
@@ -96,7 +96,7 @@ _bundle() {
 }
 
 release_bundle() {
-  if [[ "$BUILDKITE_BRANCH" == "main" ]] && [[ -n "$BUILDKITE_TAG" ]]; then
+  if [[ "$BUILDKITE_BRANCH" == "fix-cibuild" ]] && [[ -n "$BUILDKITE_TAG" ]]; then
     _bundle ${BUILDKITE_TAG:1}
   fi
 }
