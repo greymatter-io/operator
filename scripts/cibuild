@@ -73,15 +73,14 @@ _nexus_login() {
 }
 
 release_image() {
-  if [[ "$BUILDKITE_BRANCH" == "fix-cibuild" ]]; then
+  if [[ "$BUILDKITE_BRANCH" == "main" ]]; then
     local latest="docker.greymatter.io/development/gm-operator:latest"
     _push_image $latest
-
-    if [[ -n "$BUILDKITE_TAG" ]]; then
-      local tagged="docker.greymatter.io/development/gm-operator:${BUILDKITE_TAG:1}"
-      _retag_image $latest $tagged
-      _push_image $tagged
-    fi
+  fi
+  if [[ -n "$BUILDKITE_TAG" ]]; then
+    local tagged="docker.greymatter.io/development/gm-operator:${BUILDKITE_TAG:1}"
+    _retag_image $latest $tagged
+    _push_image $tagged
   fi
 }
 
@@ -96,7 +95,7 @@ _bundle() {
 }
 
 release_bundle() {
-  if [[ "$BUILDKITE_BRANCH" == "fix-cibuild" ]] && [[ -n "$BUILDKITE_TAG" ]]; then
+  if [[ -n "$BUILDKITE_TAG" ]]; then
     _bundle ${BUILDKITE_TAG:1}
   fi
 }
