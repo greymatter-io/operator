@@ -48,8 +48,9 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 				return
 			default:
 				if _, err := (cmd{
-					args:  "apply -t zone -f -",
-					stdin: json.RawMessage(fmt.Sprintf(`{"name": %s,"zone_key": %s}`, mesh.Spec.Zone, mesh.Spec.Zone)),
+					// Create a NOOP shared_rules object to ensure that we can write to Control.
+					// Using `greymatter create` is required because `greymatter apply` does not exit with an error code on failed actions.
+					args: fmt.Sprintf("create sharedrules --zone-key %s --shared-rules-key default2 --name default2", mesh.Spec.Zone),
 					log: func(err error) {
 						if err != nil {
 							logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name)
