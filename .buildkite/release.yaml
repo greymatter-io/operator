@@ -1,6 +1,7 @@
 steps:
   - label: ":shipit: push to nexus"
     commands:
+      - ./scripts/cibuild build
       - ./scripts/cibuild release
     key: trigger-nexus-push
     agents:
