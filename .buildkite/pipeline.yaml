@@ -1,7 +1,9 @@
 steps:
-  - label: ":shipit: default build"
+  - label: ":shipit: build and release"
     commands: 
       - ./scripts/cibuild test
       - ./scripts/cibuild build
+      - ./scripts/cibuild release
+    key: trigger-nexus-push
     agents:
       container_image: ubuntu-2104-ci
