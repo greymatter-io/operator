@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 (January 3, 2022)
+
+## Fixed
+
+- Prevent `greymatter apply` commands to Control API from running until it has connected to Redis.
+
 ## 0.2.0 (December 10, 2021)
 
 ### Changed

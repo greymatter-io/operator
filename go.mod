@@ -7,6 +7,7 @@ require (
 	github.com/cloudflare/cfssl v1.6.1
 	github.com/go-logr/logr v0.4.0
 	github.com/go-redis/redis/v8 v8.11.3
+	github.com/google/uuid v1.2.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/openshift/api v0.0.0-20210723150249-a6156965faae
 	github.com/tidwall/gjson v1.9.4
@@ -69,7 +70,6 @@ require (
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/google/uuid v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
