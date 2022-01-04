@@ -74,7 +74,7 @@ _nexus_login() {
 
 release_image() {
   local latest="docker.greymatter.io/development/gm-operator:latest"
-  if [[ "$BUILDKITE_BRANCH" == "build-and-release-container" ]]; then
+  if [[ "$BUILDKITE_BRANCH" == "main" ]]; then
     _push_image $latest
   fi
   if [[ -n "$BUILDKITE_TAG" ]]; then
