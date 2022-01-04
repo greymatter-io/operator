@@ -2,11 +2,11 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"cuelang.org/go/cue"
+	"github.com/google/uuid"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
 )
@@ -38,6 +38,9 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 	go func(ctx context.Context, controlCmds chan cmd) {
 		start := time.Now()
 
+		// Generate a random shared_rules object key to create a dummy object that ensures we can write to Control.
+		srKey := uuid.New().String()
+
 		// Ping Control every 5s until responsive by getting and editing the Mesh's zone.
 		// This ensures we can read and write from Control without any errors.
 	PING_CONTROL_LOOP:
@@ -47,8 +50,9 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 				return
 			default:
 				if _, err := (cmd{
-					args:  "apply -t zone -f -",
-					stdin: json.RawMessage(fmt.Sprintf(`{"name":"%s","zone_key":"%s"}`, mesh.Spec.Zone, mesh.Spec.Zone)),
+					// Create a NOOP shared_rules object to ensure that we can write to Control.
+					// Using `greymatter create` is required because `greymatter apply` does not exit with an error code on failed actions.
+					args: fmt.Sprintf("create sharedrules --zone-key %s --shared-rules-key %s --name %s", mesh.Spec.Zone, srKey, srKey),
 				}).run(cl.flags); err != nil {
 					logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name)
 					time.Sleep(time.Second * 10)

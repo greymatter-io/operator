@@ -73,14 +73,10 @@ _nexus_login() {
 }
 
 release_image() {
-  if [[ $BUILDKITE_BRANCH != "main" ]]; then
-    echo "skip release image"
-    exit 0
-  fi
-
   local latest="docker.greymatter.io/development/gm-operator:latest"
-  _push_image $latest
-
+  if [[ "$BUILDKITE_BRANCH" == "main" ]]; then
+    _push_image $latest
+  fi
   if [[ -n "$BUILDKITE_TAG" ]]; then
     local tagged="docker.greymatter.io/development/gm-operator:${BUILDKITE_TAG:1}"
     _retag_image $latest $tagged
@@ -99,10 +95,6 @@ _bundle() {
 }
 
 release_bundle() {
-  if [[ $BUILDKITE_BRANCH != "main" ]]; then
-    echo "skip release bundle"
-  fi
-
   if [[ -n "$BUILDKITE_TAG" ]]; then
     _bundle ${BUILDKITE_TAG:1}
   fi

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.1 (January 3, 2022)
+
+## Fixed
+
+- Prevent `greymatter apply` commands to Control API from running until it has connected to Redis.
+
+## 0.2.0 (December 10, 2021)
+
+### Changed
+
+- Upgrade Grey Matter CLI binary dependency from 3.0.0 to 4.0.1
+
 ## 0.1.2 (December 2, 2021)
 
 ### Changed
