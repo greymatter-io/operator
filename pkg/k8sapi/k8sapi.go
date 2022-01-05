@@ -15,16 +15,16 @@ var (
 	logger = ctrl.Log.WithName("k8sapi")
 )
 
-// Action is a type of function that makes a sequence of API calls to a K8s apiserver.
-// If any API call fails, the Action should return a string describing the failed call,
+// ActionFunc is a type of function that makes a sequence of API calls to a K8s apiserver.
+// If any API call fails, the ActionFunc should return a string describing the failed call,
 // plus the error returned by the sigs.k8s.io/controller-runtime/pkg/client.Client.
-// Otherwise, the Action should return a string describing its successful result, and a nil error.
-type Action func(client.Client, client.Object) (string, error)
+// Otherwise, the ActionFunc should return a string describing its successful result, and a nil error.
+type ActionFunc func(client.Client, client.Object) (string, error)
 
 // Apply is a functional interface for interacting with the K8s apiserver in a consistent way.
 // Each sigs.k8s.io/controller-runtime/pkg/client.Object argument must implement the necessary
 // Reader/Writer interfaces implemented by sigs.k8s.io/controller-runtime/pkg/client.Client.
-func Apply(c client.Client, obj, owner client.Object, action Action) {
+func Apply(c client.Client, obj, owner client.Object, action ActionFunc) {
 	scheme := c.Scheme()
 
 	var kind string
@@ -100,7 +100,7 @@ func GetOrCreate(c client.Client, obj client.Object) (string, error) {
 }
 
 // MkPatchAction returns an Action that applies the patch specified when called.
-func MkPatchAction(patch func(client.Object) client.Object) Action {
+func MkPatchAction(patch func(client.Object) client.Object) ActionFunc {
 	return func(c client.Client, obj client.Object) (string, error) {
 		key := client.ObjectKeyFromObject(obj)
 		if err := c.Get(context.TODO(), key, obj); err != nil {
