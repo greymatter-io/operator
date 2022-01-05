@@ -1,4 +1,4 @@
-package webhooks
+package cfsslsrv
 
 import (
 	"bytes"
@@ -24,35 +24,48 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
+var (
+	logger = ctrl.Log.WithName("cfssl")
+)
+
 // CFSSLServer exposes methods for launching an embedded CFSSL server,
 // retrieving its CA info, and requesting signed certs from it.
 type CFSSLServer struct {
 	ca    []byte
 	caKey []byte
+
+	remote client.Remote
 }
 
 // NewCFSSLServer constructs a CFSSLServer instance with the given configuration.
 // It takes an optional PEM-encoded CA and CA key used by the server.
 // If a CA and CA key are not provided, they will be generated and used to launch the server.
-func NewCFSSLServer(ca, caKey []byte) (*CFSSLServer, error) {
+func New(ca, caKey []byte) (*CFSSLServer, error) {
 
 	// Wrap CFSSL's logger in our custom implementation
-	log.SetLogger(&cfsslLogger{ctrl.Log.WithName("cfssl")})
+	log.SetLogger(&cfsslLogger{logger})
 	log.Level = log.LevelInfo
 
 	var err error
 
 	if len(ca) == 0 || len(caKey) == 0 {
-		logger.Info("CA and CA key not provided; initializing CA")
+		logger.Info("CA and CA key not provided; initializing CA", "CN", "Grey Matter Root CA")
 		ca, _, caKey, err = initca.New(&csr.CertificateRequest{
-			CN:         "greymatter.io",
-			Hosts:      []string{"greymatter.io"},
+			CN:         "Grey Matter Root CA",
 			KeyRequest: &csr.KeyRequest{A: "rsa", S: 2048},
-			CA:         &csr.CAConfig{Expiry: "8760h"},
+			Names: []csr.Name{
+				{C: "US", ST: "VA", L: "Alexandria", O: "Grey Matter"},
+			},
+			Hosts: []string{"greymatter.io"},
+			CA: &csr.CAConfig{
+				Expiry:     "8760h",
+				PathLength: 2,
+			},
 		})
 		if err != nil {
 			return nil, err
 		}
+
 	} else {
 		logger.Info("Using provided CA and CA key")
 	}
@@ -74,6 +87,7 @@ func NewCFSSLServer(ca, caKey []byte) (*CFSSLServer, error) {
 	}, nil
 }
 
+// Start launches the CFSSL server.
 func (cs *CFSSLServer) Start() error {
 	os.Setenv("CFSSL_CA", string(cs.ca))
 	os.Setenv("CFSSL_CA_KEY", string(cs.caKey))
@@ -85,19 +99,36 @@ func (cs *CFSSLServer) Start() error {
 			Port: 8888,
 			// Disable endpoints except the ones we use.
 			// ref: https://github.com/cloudflare/cfssl/blob/master/cli/serve/serve.go#L121
-			Disable:   "sign,authsign,crl,gencrl,bundle,newkey,init_ca,scan,scaninfo,certinfo,ocspsign,revoke,/,health,certadd",
+			Disable:   "init_ca,authsign,crl,gencrl,bundle,scan,scaninfo,certinfo,ocspsign,revoke,/,health,certadd",
 			CAFile:    "env:CFSSL_CA",
 			CAKeyFile: "env:CFSSL_CA_KEY",
 			CFG: &config.Config{
 				Signing: &config.Signing{
 					Default: &config.SigningProfile{
-						Usage: []string{
-							"signing",
-							"key encipherment",
-							"server auth",
-							"client auth",
-						},
 						Expiry: time.Hour * 8760,
+					},
+					Profiles: map[string]*config.SigningProfile{
+						"intermediate": {
+							Expiry: time.Hour * 8760,
+							Usage: []string{
+								"signing",
+								"key encipherment",
+								"cert sign",
+							},
+							CAConstraint: config.CAConstraint{
+								IsCA:       true,
+								MaxPathLen: 1,
+							},
+						},
+						"server": {
+							Expiry: time.Hour * 8760,
+							Usage: []string{
+								"signing",
+								"key encipherment",
+								"server auth",
+								"client auth",
+							},
+						},
 					},
 				},
 				OCSP: &ocspconfig.Config{},
@@ -110,8 +141,8 @@ func (cs *CFSSLServer) Start() error {
 
 	// Ensure our CFSSL server is running and able to issue certs.
 	// We assume it should take no longer than 5 seconds to initialize.
-	remote := client.NewServer("http://127.0.0.1:8888")
-	remote.SetRequestTimeout(time.Second)
+	cs.remote = client.NewServer("http://127.0.0.1:8888")
+	cs.remote.SetRequestTimeout(time.Second)
 	timer := time.NewTimer(time.Second * 5)
 	for {
 		select {
@@ -119,42 +150,88 @@ func (cs *CFSSLServer) Start() error {
 			logger.Error(context.DeadlineExceeded, "CFSSL server failed to initialize")
 			return context.DeadlineExceeded
 		default:
-			if _, err := remote.Info([]byte(`{}`)); err == nil {
+			if _, err := cs.remote.Info([]byte(`{}`)); err == nil {
 				return nil
 			}
 		}
 	}
 }
 
-func (cs *CFSSLServer) GetCABundle() []byte {
+// GetRootCA returns the root CA used by the CFSSL server.
+func (cs *CFSSLServer) GetRootCA() []byte {
 	return cs.ca
 }
 
+// RequestIntermediateCA returns a new intermediate CA signed by the CFSSL server.
+func (cs *CFSSLServer) RequestIntermediateCA(req csr.CertificateRequest) ([]byte, []byte, error) {
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	logger.Info("Requesting intermediate CA", "CN", req.CN)
+
+	c := http.Client{Timeout: time.Second * 3}
+
+	resp, err := getCFSSLResponse(c, "newkey", fmt.Sprintf(`{"request":%s}`, string(reqBytes)))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if !resp.Success {
+		return nil, nil, fmt.Errorf("server returned failure response: %+v", resp.Errors)
+	}
+
+	if len(resp.Result.Key) == 0 {
+		err := fmt.Errorf("server response did not contain private_key")
+		logger.Error(err, "failed to retrieve generated private_key")
+		return nil, nil, err
+	}
+
+	if len(resp.Result.CSR) == 0 {
+		err := fmt.Errorf("server response did not contain CSR")
+		logger.Error(err, "failed to retrieve generated CSR")
+		return nil, nil, err
+	}
+
+	signReq := fmt.Sprintf(`{"certificate_request":"%s","profile":"intermediate"}`, strings.Replace(resp.Result.CSR, "\n", "\\n", -1))
+	signed, err := cs.remote.Sign([]byte(signReq))
+	if err != nil {
+		logger.Error(err, "failed to retrieve signed CA")
+		return nil, nil, err
+	}
+
+	return signed, []byte(resp.Result.Key), nil
+}
+
+// RequestCert returns a new certificate signed by the CFSSL server.
 func (cs *CFSSLServer) RequestCert(req csr.CertificateRequest) ([]byte, []byte, error) {
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	logger.Info("Requesting certificate", "CN", req.CN)
+
 	c := http.Client{Timeout: time.Second * 3}
-	resp, err := getCFSSLResponse(c, "newcert", fmt.Sprintf(`{"request":%s}`, string(reqBytes)))
+	resp, err := getCFSSLResponse(c, "newcert", fmt.Sprintf(`{"request":%s,"profile":"server"}`, string(reqBytes)))
 	if err != nil {
 		return nil, nil, err
 	}
 
 	if !resp.Success {
-		return nil, nil, fmt.Errorf("server returned failure response")
+		return nil, nil, fmt.Errorf("server returned failure response: %+v", resp.Errors)
 	}
 
 	if len(resp.Result.Cert) == 0 {
 		err := fmt.Errorf("server response did not contain certificate")
-		logger.Error(err, "failed to retrieve cert")
+		logger.Error(err, "failed to retrieve generated cert")
 		return nil, nil, err
 	}
 
 	if len(resp.Result.Key) == 0 {
 		err := fmt.Errorf("server response did not contain private_key")
-		logger.Error(err, "failed to retrieve cert key")
+		logger.Error(err, "failed to retrieve generated cert key")
 		return nil, nil, err
 	}
 
@@ -167,7 +244,11 @@ type cfsslResponse struct {
 	Result  struct {
 		Cert string `json:"certificate"`
 		Key  string `json:"private_key"`
+		CSR  string `json:"certificate_request"`
 	} `json:"result"`
+	Errors []struct {
+		Message string `json:"message"`
+	} `json:"errors"`
 }
 
 func getCFSSLResponse(c http.Client, path, data string) (*cfsslResponse, error) {

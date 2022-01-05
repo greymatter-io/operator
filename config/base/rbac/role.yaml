@@ -6,6 +6,13 @@ metadata:
   name: operator-role
 rules:
 
+# The Mesh CRD. Acquired to assign as the resource owner when creating cluster-scoped resources.
+# When the CRD is deleted from the cluster, this ensures all cluster-scoped resources are also cleaned up.
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  resourceNames: ["meshes.greymatter.io"]
+  verbs: ["get"]
+
 # All Mesh ops.
 - apiGroups: ["greymatter.io"]
   resources: ["meshes"]
@@ -27,7 +34,6 @@ rules:
 
 # Apply mesh core service configurations.
 # Note: patch is needed for the webhook cert secret.
-# TODO: Replace all updates with patch in all API calls.
 - apiGroups: [""]
   resources: ["configmaps", "secrets", "serviceaccounts", "services"]
   verbs: ["get", "create", "update", "patch"]
@@ -36,7 +42,6 @@ rules:
 # which allows each mesh control plane to discover pods.
 - apiGroups: ["rbac.authorization.k8s.io"]
   resources: ["clusterrolebindings", "clusterroles"]
-  # resourceNames: ["gm-control"]
   verbs: ["get", "create", "update"]
 - apiGroups: [""]
   resources: ["pods"]
@@ -51,3 +56,29 @@ rules:
 - apiGroups: ["config.openshift.io"]
   resources: ["ingresses"]
   verbs: ["list"]
+
+# The remainder of permissions are SPIRE-specific.
+
+# Create the spire namesapce.
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "create"]
+# Create the SPIRE agent daemonset.
+- apiGroups: ["apps"]
+  resources: ["daemonsets"]
+  verbs: ["get", "create"]
+# Create the SPIRE server's role and rolebinding.
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["roles", "rolebindings"]
+  verbs: ["get", "create"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["list"]
+# These are granted to the clusterrole used by the SPIRE server.
+- apiGroups: ["authentication.k8s.io"]
+  resources: ["tokenreviews"]
+  verbs: ["get", "create"]
+# These are granted to clusterroles used by the SPIRE server and agent.
+- apiGroups: [""]
+  resources: ["nodes", "nodes/proxy", "pods"]
+  verbs: ["get", "list", "watch"]

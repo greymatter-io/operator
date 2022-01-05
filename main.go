@@ -18,10 +18,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/bootstrap"
+	"github.com/greymatter-io/operator/pkg/cfsslsrv"
 	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"
 	"github.com/greymatter-io/operator/pkg/webhooks"
@@ -31,6 +33,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	configv1 "github.com/openshift/api/config/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -45,7 +48,7 @@ import (
 
 var (
 	scheme = runtime.NewScheme()
-	logger = ctrl.Log.WithName("setup")
+	logger = ctrl.Log.WithName("init")
 
 	// Global config flags
 	configFile  string
@@ -64,11 +67,12 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	utilruntime.Must(extv1.AddToScheme(scheme))
 	utilruntime.Must(configv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
-func main() {
+func run() error {
 	flag.StringVar(&configFile, "config", "", "The operator will load its initial configuration from this file if defined.")
 	flag.BoolVar(&development, "development", false, "Run in development mode.")
 
@@ -96,8 +100,7 @@ func main() {
 	if configFile != "" {
 		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&cfg))
 		if err != nil {
-			logger.Error(err, "Unable to load bootstrap config", "path", configFile)
-			os.Exit(1)
+			return fmt.Errorf("failed to load bootstrap config at path %s: %w", configFile, err)
 		} else {
 			logger.Info("Loaded bootstrap config", "Path", configFile)
 		}
@@ -106,55 +109,71 @@ func main() {
 	// Create context for goroutine cleanup
 	ctx := ctrl.SetupSignalHandler()
 
-	// Initialize interface with greymatter CLI
-	gmcli, err := cli.New(ctx)
-	if err != nil {
-		os.Exit(1)
-	}
-
 	// Create a rest.Config that has settings for communicating with the K8s cluster.
 	restConfig := ctrl.GetConfigOrDie()
 
 	// Create a write+read client for making requests to the API server.
 	c, err := client.New(restConfig, client.Options{Scheme: scheme})
 	if err != nil {
-		logger.Error(err, "Unable to create initial client")
-	}
-
-	// Initialize installer
-	inst, err := installer.New(c, gmcli, cfg.ClusterIngressName)
-	if err != nil {
-		os.Exit(1)
+		return fmt.Errorf("failed to create initial client: %w", err)
 	}
 
 	// Initialize operator with configured options
 	mgr, err := ctrl.NewManager(restConfig, options)
 	if err != nil {
-		logger.Error(err, "unable to start operator")
-		os.Exit(1)
+		return fmt.Errorf("failed to initialize controller-manager: %w", err)
 	}
 
-	// Initialize the webhooks Loader and add it as a runnable process to the operator so that
-	// it patches our webhook configurations after the operator starts.
-	wl, err := webhooks.New(c, inst, gmcli, mgr.GetWebhookServer, cfg.DisableWebhookCertGeneration)
+	// Start up our CFSSL server for issuing two certs:
+	// 1) Webhook server certs (unless disabled in the bootstrap config)
+	// 2) SPIRE's intermediate CA for issuing identities to workloads
+	cs, err := cfsslsrv.New(nil, nil)
 	if err != nil {
-		os.Exit(1)
+		return fmt.Errorf("failed to configure CFSSL server: %w", err)
 	}
+	if err := cs.Start(); err != nil {
+		return fmt.Errorf("failed to start CFSSL server: %w", err)
+	}
+
+	// Initialize interface with greymatter CLI
+	// For now, mTLSEnabled is always true since we install SPIRE by default.
+	gmcli, err := cli.New(ctx, true)
+	if err != nil {
+		return err
+	}
+
+	// Initialize manifests installer.
+	inst := installer.New(c, gmcli, cs, cfg.ClusterIngressName)
+
+	// Initialize the webhooks loader.
+	wl, err := webhooks.New(c, inst, gmcli, cs, cfg.DisableWebhookCertGeneration, mgr.GetWebhookServer)
+	if err != nil {
+		return err
+	}
+
+	// Register our webhooks loader and manifests installer into the controller manager's start process queue.
 	mgr.Add(wl)
+	mgr.Add(inst)
 
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		logger.Error(err, "unable to set up health check")
-		os.Exit(1)
+		return fmt.Errorf("failed to set up healthz endpoint: %w", err)
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		logger.Error(err, "unable to set up ready check")
-		os.Exit(1)
+		return fmt.Errorf("failed to set up readyz endpoint: %w", err)
 	}
 
 	if err := mgr.Start(ctx); err != nil {
-		logger.Error(err, "problem running operator")
+		return fmt.Errorf("failed to start controller-manager: %w", err)
+	}
+
+	return nil
+}
+
+func main() {
+	if err := run(); err != nil {
+		logger.Error(err, "Failed to run operator")
 		os.Exit(1)
 	}
 }

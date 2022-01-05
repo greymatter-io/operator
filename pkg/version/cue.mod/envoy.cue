@@ -2,29 +2,38 @@ package base
 
 import "strconv"
 
-envoyEdge: envoy & {
+envoyEdge: #envoy & {
 	static_resources: {
 		clusters: [
-			envoyCluster & {
+			#envoyCluster & {
 				_name: "xds_cluster"
 				_host: "control.\(InstallNamespace).svc.cluster.local"
 				_port: 50000
 			},
-			envoyCluster & {
+			#envoyCluster & {
 				_name: "_control"
 				_alt: "control"
 				_host: "control.\(InstallNamespace).svc.cluster.local"
 				_port: 10707
+				_tlsContext: "spire"
+				_spireSecret: "edge"
+				_spireSubject: "control"
 			},
-			envoyCluster & {
+			#envoyCluster & {
 				_name: "_catalog"
 				_alt: "catalog"
 				_host: "catalog.\(InstallNamespace).svc.cluster.local"
 				_port: 10707
+				_tlsContext: "spire"
+				_spireSecret: "edge"
+				_spireSubject: "catalog"
+			},
+			#envoyCluster & {
+				_name: "spire_agent"
 			}
 		]
 		listeners: [
-			envoyHTTPListener & {
+			#envoyHTTPListener & {
 				_name: "bootstrap"
 				_port: 10707
 				_routes: [
@@ -56,35 +65,42 @@ envoyEdge: envoy & {
 	}
 }
 
-envoyMeshConfig: envoy & {
+envoyMeshConfig: #envoy & {
 	static_resources: {
 		clusters: [
-			envoyCluster & {
+			#envoyCluster & {
 				_name: "xds_cluster"
 				_host: sidecar.controlHost
 				_port: 50000
 			},
-			envoyCluster & {
+			#envoyCluster & {
 				_name: "gm-redis"
 				// This either points to the gm-redis sidecar or an external Redis.
 				_host: Redis.host
 				_port: strconv.Atoi(Redis.port)
+				// TODO: Only use this if talking to the gm-redis sidecar.
+				_tlsContext: "spire"
+				_spireSecret: sidecar.xdsCluster
+				_spireSubject: "gm-redis"
 			},
-			envoyCluster & {
+			#envoyCluster & {
 				_name: "bootstrap"
 				_alt: "\(sidecar.xdsCluster):\(sidecar.localPort)"
 				_host: "127.0.0.1"
 				_port: sidecar.localPort
+			},
+			#envoyCluster & {
+				_name: "spire_agent"
 			}
 		]
 		listeners: [
-			envoyTCPListener & {
+			#envoyTCPListener & {
 				_name: sidecar.xdsCluster
 				_port: 10910
 				_cluster: "gm-redis"
 			},
 			if sidecar.xdsCluster == "control" || sidecar.xdsCluster == "catalog" {
-				envoyHTTPListener & {
+				#envoyHTTPListener & {
 					_name: "bootstrap"
 					_port: 10707
 					_routes: [
@@ -99,50 +115,67 @@ envoyMeshConfig: envoy & {
 							}
 						}
 					]
+					_tlsContext: "spire"
+					_spireSecret: sidecar.xdsCluster
+					_spireSubjects: ["edge"]
 				}
 			}
 		]
 	}
 }
 
-envoyRedis: envoy & {
+envoyRedis: #envoy & {
 	static_resources: {
 		clusters: [
-			envoyCluster & {
+			#envoyCluster & {
 				_name: "xds_cluster"
 				_host: sidecar.controlHost
 				_port: 50000
 			},
-			envoyCluster & {
+			#envoyCluster & {
 				_name: "bootstrap"
 				_alt: "gm-redis:6379"
 				_host: "127.0.0.1"
 				_port: 6379
+			},
+			#envoyCluster & {
+				_name: "spire_agent"
 			}
 		]
 		listeners: [
-			envoyTCPListener & {
+			#envoyTCPListener & {
 				_name: "bootstrap"
 				_port: 10707
 				_cluster: "bootstrap"
+				_tlsContext: "spire"
+				_spireSecret: "gm-redis"
+				_spireSubjects: ["control", "catalog", "jwt-security"]
 			}
 		]
 	}
 }
 
-envoyCluster: {
+#envoyCluster: {
 	_name: string
 	_alt: *"" | string
 	_host: string
 	_port: int
+	_tlsContext: *"" | string
+	_spireSecret: string
+	_spireSubject: string
 
 	name: _name
 	if _alt != "" {
 		alt_stat_name: _alt
 	}
-	type: "STRICT_DNS"
+	if _name == "spire_agent" {
+		type: "STATIC"
+	}
+	if _name != "spire_agent" {
+		type: "STRICT_DNS"
+	}
 	connect_timeout: "5s"
-	if _name == "xds_cluster" {
+	if _name == "xds_cluster" || _name == "spire_agent" {
 		http2_protocol_options: {}
 	}
 	load_assignment: {
@@ -151,22 +184,66 @@ envoyCluster: {
 			{
 				lb_endpoints: [
 					{
-						endpoint: address: socket_address: {
-							address:    _host
-							port_value: _port
+						if _name == "spire_agent" {
+							endpoint: address: pipe: path: "/run/spire/socket/agent.sock"
+						}
+						if _name != "spire_agent" {
+							endpoint: address: socket_address: {
+								address:    _host
+								port_value: _port
+							}
 						}
 					}
 				]
 			}
 		]
 	}
+	if _tlsContext != "" {
+		transport_socket: {
+			name: "envoy.transport_sockets.tls"
+			typed_config: {
+				"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext"
+				common_tls_context: {
+					if _tlsContext == "spire" {
+						tls_params: ecdh_curves: ["X25519:P-256:P-521:P-384"]
+						tls_certificate_sds_secret_configs: [
+							{
+								name: "spiffe://greymatter.io/\(MeshName).\(_spireSecret)"
+								sds_config: {
+									resource_api_version: "V3"
+									api_config_source: #adsConfig & {
+										_name: "spire_agent"
+									}
+								}
+							}
+						]
+						combined_validation_context: {
+							default_validation_context: match_subject_alt_names: [
+								{ exact: "spiffe://greymatter.io/\(MeshName).\(_spireSubject)" }
+							]
+							validation_context_sds_secret_config: {
+								name: "spiffe://greymatter.io"
+								sds_config: {
+									resource_api_version: "V3"
+									api_config_source: #adsConfig & {
+										_name: "spire_agent"
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
-envoyHTTPListener: listener & {
+#envoyHTTPListener: #envoyListener & {
 	_name: string
 	_port: int
 	_routes: [...{...}]
 	_key: "\(_name)-\(_port)"
+	_tlsContext: string
 
 	filter_chains: [
 		{
@@ -177,6 +254,10 @@ envoyHTTPListener: listener & {
 						"@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
 						stat_prefix: _key
 						codec_type: "AUTO"
+						if _tlsContext != "" {
+							set_current_client_cert_details: uri: true
+							forward_client_cert_details: "APPEND_FORWARD"
+						}
 						route_config: {
 							name: "\(_name):\(_port)"
 							virtual_hosts: [
@@ -215,7 +296,7 @@ envoyHTTPListener: listener & {
 	]
 }
 
-envoyTCPListener: listener & {
+#envoyTCPListener: #envoyListener & {
 	_cluster: string
 
 	filter_chains: [
@@ -234,18 +315,75 @@ envoyTCPListener: listener & {
 	]
 }
 
-listener: {
+#envoyListener: {
 	_name: string
 	_port: int
+	_tlsContext: *"" | string
+	_spireSecret: string
+	_spireSubjects: [...string]
 
 	name: "\(_name):\(_port)"
 	address: socket_address: {
 		address:    "0.0.0.0"
 		port_value: _port
 	}
+	filter_chains: [...{...}]
+
+	if _tlsContext != "" {
+		filter_chains: [
+			{
+				transport_socket: {
+					name: "envoy.transport_sockets.tls"
+					typed_config: {
+						"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext"
+						require_client_certificate: true
+						common_tls_context: {
+							if _tlsContext == "spire" {
+								tls_params: ecdh_curves: ["X25519:P-256:P-521:P-384"]
+								tls_certificate_sds_secret_configs: [
+									{
+										name: "spiffe://greymatter.io/\(MeshName).\(_spireSecret)"
+										sds_config: {
+											resource_api_version: "V3"
+											api_config_source: #adsConfig & {
+												_name: "spire_agent"
+											}
+										}
+									}
+								]
+								combined_validation_context: {
+									default_validation_context: match_subject_alt_names: [
+										for _, subject in _spireSubjects {
+											{ exact: "spiffe://greymatter.io/\(MeshName).\(subject)" }
+										}
+									]
+									validation_context_sds_secret_config: {
+										name: "spiffe://greymatter.io"
+										sds_config: {
+											resource_api_version: "V3"
+											api_config_source: #adsConfig & {
+												_name: "spire_agent"
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		]
+	}
 }
 
-envoy: {
+#adsConfig: {
+	_name: string
+	api_type: "GRPC"
+	transport_api_version: "V3"
+	grpc_services: envoy_grpc: cluster_name: _name
+}
+
+#envoy: {
 	node: {
 		cluster: sidecar.xdsCluster
 		id:      sidecar.node
@@ -263,15 +401,13 @@ envoy: {
 			ads: {}
 			resource_api_version: "V3"
 		}
-		ads_config: {
-			api_type: "GRPC"
-			grpc_services: [
-				{
-					envoy_grpc: cluster_name: "xds_cluster"
-				}
-			]
-			transport_api_version: "V3"
+		ads_config: #adsConfig & {
+			_name: "xds_cluster"
 		}
+	}
+	static_resources: {
+		clusters: [...{...}]
+		listeners: [...{...}]
 	}
 	admin: {
 		access_log_path: "/dev/stdout"

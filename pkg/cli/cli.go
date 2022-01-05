@@ -23,12 +23,13 @@ var (
 // CLI exposes methods for configuring clients that execute greymatter CLI commands.
 type CLI struct {
 	*sync.RWMutex
-	clients map[string]*client
+	clients     map[string]*client
+	mTLSEnabled bool
 }
 
 // New returns a new *CLI instance.
 // It receives a context for cleaning up goroutines started by the *CLI.
-func New(ctx context.Context) (*CLI, error) {
+func New(ctx context.Context, mTLSEnabled bool) (*CLI, error) {
 	v, err := cliversion()
 	if err != nil {
 		logger.Error(err, "Failed to initialize greymatter CLI")
@@ -43,8 +44,9 @@ func New(ctx context.Context) (*CLI, error) {
 	}
 
 	gmcli := &CLI{
-		RWMutex: &sync.RWMutex{},
-		clients: make(map[string]*client),
+		RWMutex:     &sync.RWMutex{},
+		clients:     make(map[string]*client),
+		mTLSEnabled: mTLSEnabled,
 	}
 
 	// Cancel all client goroutines if package context is done.
@@ -89,10 +91,11 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value, flag
 
 	// Close an existing cmds channel if updating
 	if cl, ok := c.clients[mesh.Name]; ok {
+		logger.Info("Updating mesh client", "Mesh", mesh.Name)
 		cl.cancel()
+	} else {
+		logger.Info("Initializing mesh client", "Mesh", mesh.Name)
 	}
-
-	logger.Info("Initializing mesh client", "Mesh", mesh.Name)
 
 	c.clients[mesh.Name] = newClient(mesh, options, flags...)
 }
@@ -155,6 +158,7 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 	for _, route := range objects.Routes {
 		cl.controlCmds <- mkApply(mesh, "route", route)
 	}
+
 	if objects.Ingresses != nil && len(objects.Ingresses.Routes) > 0 {
 		for _, cluster := range objects.Ingresses.Clusters {
 			cl.controlCmds <- mkApply(mesh, "cluster", cluster)
@@ -163,6 +167,7 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 			cl.controlCmds <- mkApply(mesh, "route", route)
 		}
 	}
+
 	if objects.HTTPEgresses != nil && len(objects.HTTPEgresses.Routes) > 0 {
 		cl.controlCmds <- mkApply(mesh, "domain", objects.HTTPEgresses.Domain)
 		cl.controlCmds <- mkApply(mesh, "listener", objects.HTTPEgresses.Listener)
@@ -183,6 +188,13 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 			cl.controlCmds <- mkApply(mesh, "route", route)
 		}
 	}
+
+	if c.mTLSEnabled {
+		for _, listener := range objects.LocalEgresses {
+			cl.controlCmds <- mkInjectSVID(mesh, fmt.Sprintf("%s.%s", mesh, workload), listener)
+		}
+	}
+
 	cl.controlCmds <- mkApply(mesh, "proxy", objects.Proxy)
 	cl.catalogCmds <- mkApply(mesh, "catalogservice", objects.CatalogService)
 }

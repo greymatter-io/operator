@@ -13,8 +13,12 @@ type cmd struct {
 	stdin json.RawMessage
 	// Notifies the caller to requeue the cmd if it fails.
 	requeue bool
-	// A custom logger; if not used, the full result.cmdout will be logged.
-	log func(error)
+	// A custom logger; if not set, nothing is logged.
+	log func(string, error)
+	// If set, modifies the output before it is returned.
+	modify func([]byte) ([]byte, error)
+	// If set, is run with the stdout of a successful parent cmd piped in.
+	then *cmd
 }
 
 func (c cmd) run(flags []string) (string, error) {
@@ -36,9 +40,28 @@ func (c cmd) run(flags []string) (string, error) {
 		err = fmt.Errorf(outStr)
 	}
 
+	if err == nil {
+		// If cmd.modify is defined, call it on the output.
+		// If modify fails, capture the error string for logging.
+		if c.modify != nil {
+			out, err = c.modify(out)
+			if err != nil {
+				outStr = err.Error()
+			} else {
+				outStr = string(out)
+			}
+		}
+
+		// If cmd.then is defined, run it next.
+		if err == nil && c.then != nil {
+			c.then.stdin = out
+			return c.then.run(flags)
+		}
+	}
+
 	// If a log function is specified, call it
 	if c.log != nil {
-		c.log(err)
+		c.log(outStr, err)
 	}
 
 	return outStr, err

@@ -24,7 +24,6 @@ func JSONHasSubstrings(obj json.RawMessage, subs ...string) func(*testing.T) {
 	}
 }
 
-//lint:ignore U1000 print util
 func prettyPrintJSON(raws ...json.RawMessage) {
 	for _, raw := range raws {
 		b := new(bytes.Buffer)

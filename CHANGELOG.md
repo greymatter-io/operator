@@ -1,8 +1,12 @@
 # Changelog
 
-## 0.2.1 (January 3, 2022)
+## 0.3.0 (January 4, 2022)
 
-## Fixed
+### Added
+
+- Add SPIRE as SPIFFE implementation for mutual TLS between workloads
+
+### Fixed
 
 - Prevent `greymatter apply` commands to Control API from running until it has connected to Redis.
 

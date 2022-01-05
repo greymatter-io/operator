@@ -10,6 +10,7 @@ manifests: [...#ManifestGroup] & [
   { _c: [edge] }, 
   { _c: [redis] },
   { _c: [jwt_security] },
+  // Add Control and Control API into the same Deployment.
   { _c: [control, control_api] },
   { _c: [catalog] },
   { _c: [dashboard] },
@@ -39,13 +40,13 @@ manifests: [...#ManifestGroup] & [
     }
     spec: {
       selector: matchLabels: {
-        "greymatter.io/workload": _c[0].name
+        "greymatter.io/component": _c[0].name
       }
       template: {
         metadata: {
           namespace: InstallNamespace
           labels: {
-            "greymatter.io/workload": _c[0].name
+            "greymatter.io/component": _c[0].name
           }
         }
         spec: {
@@ -64,7 +65,9 @@ manifests: [...#ManifestGroup] & [
               {
                 name: c.name
                 image: c.image
-                command: c.command
+                if c.command != "" {
+                  command: [c.command]
+                }
                 args: c.args
                 ports: [
                   for k, v in c.ports {
@@ -151,7 +154,7 @@ manifests: [...#ManifestGroup] & [
       namespace: InstallNamespace
     }
     spec: {
-      selector: "greymatter.io/workload": _name
+      selector: "greymatter.io/component": _name
       // Make the edge service a LoadBalancer for ingress
       if _name == "edge" {
         type: "LoadBalancer"
@@ -270,7 +273,9 @@ sidecar: {
   container: corev1.#Container & {
     name: "sidecar"
     image: proxy.image
-    command: proxy.command
+    if proxy.command != "" {
+      command: [proxy.command]
+    }
     args: proxy.args
     ports: [
       for k, v in proxy.ports {

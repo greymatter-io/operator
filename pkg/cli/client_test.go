@@ -19,7 +19,7 @@ func TestNewClient(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	c, err := New(ctx)
+	c, err := New(ctx, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,6 +49,7 @@ func TestNewClient(t *testing.T) {
 		}},
 	}
 
+	c.ConfigureService("mesh", "gm-redis", nil, containers)
 	c.ConfigureService("mesh", "mock", nil, containers)
 	c.RemoveService("mesh", "mock", nil, containers)
 

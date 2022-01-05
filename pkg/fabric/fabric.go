@@ -51,7 +51,10 @@ type Objects struct {
 	// TCP egresses are served at 10910 and up (one listener each).
 	// Note that 10910 and 10911 are reserved for internal use by Redis and NATS,
 	// so any configured TCP egresses via annotations will start at 10912.
-	TCPEgresses    []Objects       `json:"tcpEgresses"`
+	TCPEgresses []Objects `json:"tcpEgresses"`
+	// A list of keys for all local egress clusters routed to from this service.
+	// Each egress's listener must be modified to reference this service's SVID in its subjects.
+	LocalEgresses  []string        `json:"localEgresses"`
 	CatalogService json.RawMessage `json:"catalogservice"`
 }
 

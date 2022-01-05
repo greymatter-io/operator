@@ -3,6 +3,7 @@ package webhooks
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -110,7 +111,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				deployment.Annotations = make(map[string]string)
 			}
 			deployment.Annotations["greymatter.io/last-applied"] = time.Now().String()
-			deployment.Spec.Template = addClusterLabel(deployment.Spec.Template, req.Name)
+			deployment.Spec.Template = addClusterLabels(deployment.Spec.Template, mesh, req.Name)
 			rawUpdate, err = json.Marshal(deployment)
 			if err != nil {
 				logger.Error(err, "Failed to add cluster label to Deployment", "Name", req.Name, "Namespace", req.Namespace)
@@ -132,7 +133,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				statefulset.Annotations = make(map[string]string)
 			}
 			statefulset.Annotations["greymatter.io/last-applied"] = time.Now().String()
-			statefulset.Spec.Template = addClusterLabel(statefulset.Spec.Template, req.Name)
+			statefulset.Spec.Template = addClusterLabels(statefulset.Spec.Template, mesh, req.Name)
 			rawUpdate, err = json.Marshal(statefulset)
 			if err != nil {
 				logger.Error(err, "Failed to add cluster label to StatefulSet", "Name", req.Name, "Namespace", req.Namespace)
@@ -150,10 +151,11 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 	return admission.PatchResponseFromRaw(req.Object.Raw, rawUpdate)
 }
 
-func addClusterLabel(tmpl corev1.PodTemplateSpec, name string) corev1.PodTemplateSpec {
+func addClusterLabels(tmpl corev1.PodTemplateSpec, mesh, name string) corev1.PodTemplateSpec {
 	if tmpl.Labels == nil {
 		tmpl.Labels = make(map[string]string)
 	}
 	tmpl.Labels["greymatter.io/cluster"] = name
+	tmpl.Labels["greymatter.io/workload"] = fmt.Sprintf("%s.%s", mesh, name)
 	return tmpl
 }

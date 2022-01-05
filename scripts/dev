@@ -25,8 +25,6 @@ oc_deploy() {
 
 oc_cleanup() {
   operator-sdk cleanup -n gm-operator gm-operator
-  oc delete secret gm-docker-secret -n gm-operator
-  oc delete clusterrole gm-control
   oc delete pvc gm-redis-append-dir-gm-redis-0 -n gm-operator-test2
 }
 
@@ -53,7 +51,6 @@ k8s_deploy() {
 
 k8s_cleanup() {
   kubectl delete -k config/context/kubernetes
-  kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
 
@@ -81,7 +78,6 @@ k3d_deploy() {
 
 k3d_cleanup() {
   kubectl delete -k config/context/kubernetes
-  kubectl delete clusterrole gm-control
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
 

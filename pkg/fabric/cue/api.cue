@@ -1,8 +1,8 @@
 // catalogservice
 
 #CatalogService: {
-  mesh_id: string
-  service_id: string
+  mesh_id: *MeshName | string
+  service_id: *ServiceName | string
 	name: *ServiceName | string
 	api_endpoint?: string
 	api_spec_endpoint?: string
@@ -15,8 +15,8 @@
 
 #Cluster: {
 	name:        string
-	cluster_key: name
-	zone_key:    string
+	cluster_key: *name | string
+	zone_key:    *Zone | string
 	require_tls?: true
 	instances?: [...#Instance]
 	health_checks?: [...#HealthCheck]
@@ -149,7 +149,7 @@
 #Route: {
 	route_key:  string
 	domain_key: string
-	zone_key:   string
+	zone_key:   *Zone | string
 	prefix_rewrite?:    string | *""
 	cohort_seed?:       string | *""
 	high_priority?:    true
@@ -282,7 +282,7 @@
 
 #Domain: {
 	domain_key:  string
-	zone_key:    string
+	zone_key:    *Zone | string
 	name:        string | *"*"
 	port:        int32
 	force_https?: true
@@ -314,7 +314,7 @@
 #Listener: {
 	name:         string
 	listener_key: name
-	zone_key:     string
+	zone_key:    	*Zone | string
 	ip:           "0.0.0.0"
 	port:         int32
 	protocol:			"http_auto"
@@ -410,7 +410,7 @@
 #Proxy: {
 	name:      string
 	proxy_key: name
-	zone_key:  string
+	zone_key:  *Zone | string
 	domain_keys: [...string]
 	listener_keys: [...string]
 	upgrades?: string
