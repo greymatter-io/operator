@@ -196,7 +196,11 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 	}
 
 	cl.controlCmds <- mkApply(mesh, "proxy", objects.Proxy)
-	cl.catalogCmds <- mkApply(mesh, "catalogservice", objects.CatalogService)
+
+	// Some services should not have a corresponding Catalog service entry
+	if len(objects.CatalogService) != 0 {
+		cl.catalogCmds <- mkApply(mesh, "catalogservice", objects.CatalogService)
+	}
 }
 
 // RemoveService removes fabric objects, disconnecting the workload from the mesh specified,
