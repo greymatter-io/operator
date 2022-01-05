@@ -15,9 +15,16 @@ var (
 	logger = ctrl.Log.WithName("k8sapi")
 )
 
+// Action is a type of function that makes a sequence of API calls to a K8s apiserver.
+// If any API call fails, the Action should return a string describing the failed call,
+// plus the error returned by the sigs.k8s.io/controller-runtime/pkg/client.Client.
+// Otherwise, the Action should return a string describing its successful result, and a nil error.
+type Action func(client.Client, client.Object) (string, error)
+
 // Apply is a functional interface for interacting with the K8s apiserver in a consistent way.
-// Each client.Object argument must implement the necessary interfaces for Reader/Writer interfaces implemented by client.Client.
-func Apply(c client.Client, obj, owner client.Object, action func(client.Client, client.Object) (string, error)) {
+// Each sigs.k8s.io/controller-runtime/pkg/client.Object argument must implement the necessary
+// Reader/Writer interfaces implemented by sigs.k8s.io/controller-runtime/pkg/client.Client.
+func Apply(c client.Client, obj, owner client.Object, action Action) {
 	scheme := c.Scheme()
 
 	var kind string
@@ -32,7 +39,7 @@ func Apply(c client.Client, obj, owner client.Object, action func(client.Client,
 	if owner != nil {
 		ownerName = client.ObjectKeyFromObject(owner).Name
 		if err := controllerutil.SetOwnerReference(owner, obj, scheme); err != nil {
-			logger.Error(err, "SetOwnerReference", "Owner", ownerName, kind, client.ObjectKeyFromObject(obj))
+			logger.Error(err, "Failed to set owner reference", "Owner", ownerName, kind, client.ObjectKeyFromObject(obj))
 			return
 		}
 	}
@@ -54,7 +61,7 @@ func Apply(c client.Client, obj, owner client.Object, action func(client.Client,
 	}
 }
 
-// CreateOrUpdate applies a resource in the K8s apiserver.
+// CreateOrUpdate is an Action that applies a resource in the K8s apiserver.
 func CreateOrUpdate(c client.Client, obj client.Object) (string, error) {
 	key := client.ObjectKeyFromObject(obj)
 
@@ -78,7 +85,7 @@ func CreateOrUpdate(c client.Client, obj client.Object) (string, error) {
 	return "update", nil
 }
 
-// GetOrCreate ensures a resource exists in the K8s apiserver.
+// GetOrCreate is an Action that ensures a resource exists in the K8s apiserver.
 func GetOrCreate(c client.Client, obj client.Object) (string, error) {
 	key := client.ObjectKeyFromObject(obj)
 
@@ -92,8 +99,8 @@ func GetOrCreate(c client.Client, obj client.Object) (string, error) {
 	return "get", nil
 }
 
-// MkPatchAction returns a function that applies the patch specified when called.
-func MkPatchAction(patch func(client.Object) client.Object) func(client.Client, client.Object) (string, error) {
+// MkPatchAction returns an Action that applies the patch specified when called.
+func MkPatchAction(patch func(client.Object) client.Object) Action {
 	return func(c client.Client, obj client.Object) (string, error) {
 		key := client.ObjectKeyFromObject(obj)
 		if err := c.Get(context.TODO(), key, obj); err != nil {
