@@ -101,16 +101,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		}
 	}
 
-MANIFEST_LOOP:
 	for _, group := range v.Manifests() {
-		// If an external Redis server is configured, don't install an internal Redis.
-		if group.StatefulSet != nil &&
-			group.StatefulSet.Name == "gm-redis" &&
-			mesh.Spec.ExternalRedis != nil &&
-			mesh.Spec.ExternalRedis.URL != "" {
-			continue MANIFEST_LOOP
-		}
-
 		// These resources are applied with 'GetOrCreate' or 'CreateOrUpdate'.
 		// We should only use 'CreateOrUpdate' when we know values may have changed
 		// based on the parameters set in the Mesh CR.

@@ -1,7 +1,5 @@
 package base
 
-import "strconv"
-
 envoyEdge: #envoy & {
 	static_resources: {
 		clusters: [
@@ -75,10 +73,8 @@ envoyMeshConfig: #envoy & {
 			},
 			#envoyCluster & {
 				_name: "gm-redis"
-				// This either points to the gm-redis sidecar or an external Redis.
-				_host: Redis.host
-				_port: strconv.Atoi(Redis.port)
-				// TODO: Only use this if talking to the gm-redis sidecar.
+				_host: "gm-redis.\(InstallNamespace).svc.cluster.local"
+				_port: 10707
 				_tlsContext: "spire"
 				_spireSecret: sidecar.xdsCluster
 				_spireSubject: "gm-redis"

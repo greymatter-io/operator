@@ -51,17 +51,6 @@ spec:
                 description: Namespace where mesh core components and dependencies
                   should be installed.
                 type: string
-              redis:
-                description: Adds an external Redis provider for caching Grey Matter
-                  configuration state.
-                properties:
-                  cert_secret_name:
-                    type: string
-                  url:
-                    type: string
-                required:
-                - url
-                type: object
               release_version:
                 default: "1.7"
                 description: The version of Grey Matter to install for this mesh.
