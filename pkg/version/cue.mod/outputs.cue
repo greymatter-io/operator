@@ -186,39 +186,6 @@ manifests: [...#ManifestGroup] & [
             targetPort: 10707
           },
         }
-
-        // if _name == "control" {
-        //   {
-        //     name: "api"
-        //     protocol: "TCP"
-        //     port: 5555
-        //     targetPort: 5555
-        //   },
-        // }
-        // if _name == "control" {
-        //   {
-        //     name: "xds"
-        //     protocol: "TCP"
-        //     port: 50000
-        //     targetPort: 50000
-        //   },
-        // }
-        // if _name == "catalog" {
-        //   {
-        //     name: "api"
-        //     protocol: "TCP"
-        //     port: 8080
-        //     targetPort: 8080
-        //   },
-        // }
-        // if _name == "gm-redis" {
-        //   {
-        //     name: "gm-redis"
-        //     protocol: "TCP"
-        //     port: 6379
-        //     targetPort: 6379
-        //   },
-        // }
       ]
     }
   }
