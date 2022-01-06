@@ -4,11 +4,18 @@
 
 ### Added
 
-- Add SPIRE as SPIFFE implementation for mutual TLS between workloads
+- SPIRE as SPIFFE implementation for mutual TLS between workloads
 
 ### Fixed
 
 - Prevent `greymatter apply` commands to Control API from running until it has connected to Redis.
+
+### Removed
+
+- Support for an external Redis cache for mesh configurations, opting for an internally-managed one
+  secured by mutual TLS (via SPIRE).
+- Catalog entry for Redis
+- JWT Security service's Redis dependency
 
 ## 0.2.0 (December 10, 2021)
 

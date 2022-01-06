@@ -166,7 +166,7 @@ manifests: [...#ManifestGroup] & [
           port: 10808
           targetPort: 10808
         },
-        if _name == "edge" || _name == "control" || _name == "catalog" || _name == "jwt-security" || _name == "gm-redis" {
+        if _name == "edge" || _name == "control" || _name == "catalog" || _name == "gm-redis" {
           {
             name: "bootstrap"
             protocol: "TCP"
@@ -262,10 +262,6 @@ sidecar: {
   if xdsCluster == "catalog" {
     staticConfig: envoyMeshConfig
     localPort: 8080
-  }
-  if xdsCluster == "jwt-security" {
-    staticConfig: envoyMeshConfig
-    localPort: 3000
   }
   if xdsCluster == "gm-redis" {
     staticConfig: envoyRedis
