@@ -16,6 +16,7 @@
   secured by mutual TLS (via SPIRE).
 - Catalog entry for Redis
 - JWT Security service's Redis dependency
+- Listeners using port 10707 for initial boootstrapping of mesh configuration
 
 ## 0.2.0 (December 10, 2021)
 
