@@ -24,6 +24,10 @@ var (
 	logger = ctrl.Log.WithName("webhooks")
 )
 
+const (
+	defaultCSRHost = "gm-webhook.gm-operator.svc"
+)
+
 type Loader struct {
 	client.Client
 	*installer.Installer
@@ -57,7 +61,7 @@ func New(
 
 	wl.cert, wl.key, err = wl.RequestCert(csr.CertificateRequest{
 		CN:         "admission",
-		Hosts:      []string{"gm-webhook.gm-operator.svc"},
+		Hosts:      []string{defaultCSRHost},
 		KeyRequest: &csr.KeyRequest{A: "rsa", S: 2048},
 	})
 	if err != nil {
