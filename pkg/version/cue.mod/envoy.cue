@@ -95,26 +95,24 @@ envoyMeshConfig: #envoy & {
 				_port: 10910
 				_cluster: "gm-redis"
 			},
-			if sidecar.xdsCluster == "control" || sidecar.xdsCluster == "catalog" {
-				#envoyHTTPListener & {
-					_name: "bootstrap"
-					_port: 10707
-					_routes: [
-						{
-							match: {
-								prefix: "/"
-								case_sensitive: false
-							}
-							route: {
-								cluster: "bootstrap"
-								timeout: "5s"
-							}
+			#envoyHTTPListener & {
+				_name: "bootstrap"
+				_port: 10707
+				_routes: [
+					{
+						match: {
+							prefix: "/"
+							case_sensitive: false
 						}
-					]
-					_tlsContext: "spire"
-					_spireSecret: sidecar.xdsCluster
-					_spireSubjects: ["edge"]
-				}
+						route: {
+							cluster: "bootstrap"
+							timeout: "5s"
+						}
+					}
+				]
+				_tlsContext: "spire"
+				_spireSecret: sidecar.xdsCluster
+				_spireSubjects: ["edge"]
 			}
 		]
 	}
@@ -145,7 +143,7 @@ envoyRedis: #envoy & {
 				_cluster: "bootstrap"
 				_tlsContext: "spire"
 				_spireSecret: "gm-redis"
-				_spireSubjects: ["control", "catalog", "jwt-security"]
+				_spireSubjects: ["control", "catalog"]
 			}
 		]
 	}
