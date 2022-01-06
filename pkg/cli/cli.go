@@ -66,8 +66,8 @@ func New(ctx context.Context, mTLSEnabled bool) (*CLI, error) {
 // for reaching Control and Catalog for the given mesh and its configuration options.
 func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value) {
 	conf := mkCLIConfig(
-		fmt.Sprintf("http://edge.%s.svc.cluster.local:10707/control", mesh.Spec.InstallNamespace),
-		fmt.Sprintf("http://edge.%s.svc.cluster.local:10707/catalog", mesh.Spec.InstallNamespace),
+		fmt.Sprintf("http://control.%s.svc.cluster.local:5555", mesh.Spec.InstallNamespace),
+		fmt.Sprintf("http://catalog.%s.svc.cluster.local:8080", mesh.Spec.InstallNamespace),
 		mesh.Name,
 	)
 	flags := []string{"--base64-config", conf}

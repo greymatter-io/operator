@@ -166,7 +166,19 @@ manifests: [...#ManifestGroup] & [
           port: 10808
           targetPort: 10808
         },
-        if _name == "edge" || _name == "control" || _name == "catalog" || _name == "gm-redis" {
+
+        for _, c in _c if _c[0].name == "control" || _c[0].name == "catalog" {
+          for k, v in c.ports {
+            {
+              name: k
+              protocol: "TCP"
+              port: v
+              targetPort: v
+            },
+          }
+        }
+
+        if _name == "gm-redis" {
           {
             name: "bootstrap"
             protocol: "TCP"
@@ -174,14 +186,39 @@ manifests: [...#ManifestGroup] & [
             targetPort: 10707
           },
         }
-        if _name == "control" {
-          {
-            name: "control"
-            protocol: "TCP"
-            port: 50000
-            targetPort: 50000
-          }
-        }
+
+        // if _name == "control" {
+        //   {
+        //     name: "api"
+        //     protocol: "TCP"
+        //     port: 5555
+        //     targetPort: 5555
+        //   },
+        // }
+        // if _name == "control" {
+        //   {
+        //     name: "xds"
+        //     protocol: "TCP"
+        //     port: 50000
+        //     targetPort: 50000
+        //   },
+        // }
+        // if _name == "catalog" {
+        //   {
+        //     name: "api"
+        //     protocol: "TCP"
+        //     port: 8080
+        //     targetPort: 8080
+        //   },
+        // }
+        // if _name == "gm-redis" {
+        //   {
+        //     name: "gm-redis"
+        //     protocol: "TCP"
+        //     port: 6379
+        //     targetPort: 6379
+        //   },
+        // }
       ]
     }
   }
@@ -252,9 +289,6 @@ sidecar: {
   // localPort: *10808 | int32
   node: *"" | string
   controlHost: *"control.\(InstallNamespace).svc.cluster.local" | string
-  if xdsCluster == "edge" {
-    staticConfig: envoyEdge
-  }
   if xdsCluster == "control" {
     staticConfig: envoyMeshConfig
     localPort: 5555
