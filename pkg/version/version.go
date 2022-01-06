@@ -2,16 +2,12 @@ package version
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/greymatter-io/operator/pkg/cueutils"
 
 	"cuelang.org/go/cue"
-	"github.com/go-redis/redis/v8"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -36,37 +32,6 @@ func (v *Version) Unify(ws ...cue.Value) {
 	for _, w := range ws {
 		v.cue = v.cue.Unify(w)
 	}
-}
-
-// Redis returns a cue.Value with Redis configuration for either an external Redis server
-// (if the string is not empty) or otherwise an internal Redis deployment.
-func Redis(externalURL string) cue.Value {
-	// NOTE: Generation happens each time as this option is applied, which will cause a service restart to update envs.
-	if externalURL == "" {
-		b := make([]byte, 10)
-		rand.Read(b)
-		password := strings.TrimSuffix(base64.URLEncoding.EncodeToString(b), "==")
-		return cueutils.FromStrings(fmt.Sprintf(`Redis: password: "%s"`, password))
-	}
-
-	// TODO: In the Mesh validating webhook, ensure the user provided URL is parseable.
-	// This actually might be OBE if we require the user to supply values separately rather than as a URL.
-	// It makes more sense to do it that way so that the user can store the Redis password in a secret that we reference.
-	redisOptions, _ := redis.ParseURL(externalURL)
-	hostPort := redisOptions.Addr
-	split := strings.Split(hostPort, ":")
-	host, port := split[0], split[1]
-	password := redisOptions.Password
-	db := fmt.Sprintf("%d", redisOptions.DB)
-
-	return cueutils.FromStrings(fmt.Sprintf(`
-		Redis: {
-			host: "%s"
-			port: "%s"
-			password: "%s"
-			db: "%s"
-		}`, host, port, password, db),
-	)
 }
 
 // UserTokens returns a cue.Value for injecting user tokens to be added to JWT Security.

@@ -42,12 +42,6 @@ func (m Mesh) Options(clusterIngressDomain string) []cue.Value {
 		version.JWTSecrets(),
 	}
 
-	if m.Spec.ExternalRedis != nil {
-		opts = append(opts, version.Redis(m.Spec.ExternalRedis.URL))
-	} else {
-		opts = append(opts, version.Redis(""))
-	}
-
 	if len(m.Spec.UserTokens) > 0 {
 		users, err := json.Marshal(m.Spec.UserTokens)
 		if err != nil {

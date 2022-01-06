@@ -45,10 +45,6 @@ type MeshSpec struct {
 	// Add user tokens to the JWT Security Service.
 	// +optional
 	UserTokens []UserToken `json:"user_tokens,omitempty"`
-
-	// Adds an external Redis provider for caching Grey Matter configuration state.
-	// +optional
-	ExternalRedis *ExternalRedisConfig `json:"redis,omitempty"`
 }
 
 // MeshStatus describes the observed state of a Grey Matter mesh.

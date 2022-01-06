@@ -37,9 +37,9 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 
 	// Run all general tests for manifests
 	t.Run("without options", func(t *testing.T) {
-		m := v.Manifests()
-		y, _ := yaml.Marshal(m[0].Deployment)
-		fmt.Println(string(y))
+		// m := v.Manifests()
+		// y, _ := yaml.Marshal(m[2].Deployment)
+		// fmt.Println(string(y))
 		// unimplemented
 		// all expected manifests exist
 	})
@@ -51,7 +51,6 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 			"InstallNamespace": "myns",
 			"Zone":             "myzone",
 		}),
-		Redis(""),
 	}
 
 	// Run tests with testOptions for settings available in all versions,
@@ -178,22 +177,6 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 						t.Errorf("Expected namespaces to contain %s: got %v", namespace, namespaces)
 					}
 				}
-			},
-		},
-		{
-			name:    "Redis internal",
-			options: []cue.Value{cueutils.Strings(map[string]string{"InstallNamespace": "myns"}), Redis("")},
-			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-				// unimplemented
-				// check for expected values
-			},
-		},
-		{
-			name:    "Redis external",
-			options: []cue.Value{Redis("redis://:pass@extserver:6379/2")},
-			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-				// unimplemented
-				// check for expected values
 			},
 		},
 		{

@@ -83,13 +83,7 @@ control_api: #Component & {
     // The local cluster behind 10910 will point either to our own gm-redis or an externally provided one.
     GM_CONTROL_API_REDIS_HOST: "127.0.0.1"
     GM_CONTROL_API_REDIS_PORT: "10910"
-    GM_CONTROL_API_REDIS_DB: Redis.db
-  }
-  envFrom: GM_CONTROL_API_REDIS_PASS: {
-    secretKeyRef: {
-      name: "gm-redis-password"
-      key: "password"
-    }
+    GM_CONTROL_API_REDIS_DB: "0"
   }
 }
 
@@ -105,13 +99,7 @@ catalog: #Component & {
     REDIS_RETRY_DELAY: "5s"
     REDIS_HOST: "127.0.0.1"
     REDIS_PORT: "10910"
-    REDIS_DB: Redis.db
-  }
-  envFrom: REDIS_PASS: {
-    secretKeyRef: {
-      name: "gm-redis-password"
-      key: "password"
-    }
+    REDIS_DB: "0"
   }
   volumeMounts: "catalog-seed": {
     mountPath: "/app/seed"
@@ -136,7 +124,7 @@ catalog: #Component & {
           sessions:
             redis_example:
               client_type: redis
-              connection_string: redis://:\(Redis.password)@127.0.0.1:10910
+              connection_string: redis://127.0.0.1:10910
     """
 }
 
@@ -178,18 +166,9 @@ jwt_security: #Component & {
   ports: api: 3000
   env: {
     HTTP_PORT: "3000"
-    REDIS_HOST: "127.0.0.1"
-    REDIS_PORT: "10910"
-    REDIS_DB: Redis.db
-    ENABLE_TLS: "false" // TEMP!
+    ENABLE_TLS: "false"
   }
   envFrom: {
-    REDIS_PASS: {
-      secretKeyRef: {
-        name: "gm-redis-password"
-        key: "password"
-      }
-    }
     JWT_API_KEY: {
       secretKeyRef: {
         name: "jwt-keys"
@@ -227,12 +206,6 @@ redis: #Component & {
     "greymatter.io/network-filters": """
       ["envoy.tcp_proxy"]
     """
-    if ReleaseVersion != "1.6" {
-      // http listener needed to launch metrics receiver
-      "greymatter.io/egress-http-local": """
-        ["control"]
-      """
-    }
   }
   isStatefulset: true
   image: =~"redis:"
@@ -240,21 +213,12 @@ redis: #Component & {
   args: [
     "--appendonly",
     "yes",
-    "--requirepass",
-    "$(REDIS_PASSWORD)",
     "--dir",
     "/data",
     "--logLevel",
     "verbose"
   ]
   ports: redis: 6379
-  envFrom: REDIS_PASSWORD: {
-    secretKeyRef: {
-      name: "gm-redis-password"
-      key: "password"
-    }
-  }
-  secrets: "gm-redis-password": "password": Redis.password
   volumeMounts: "gm-redis-append-dir": {
     mountPath: "/data"
   }

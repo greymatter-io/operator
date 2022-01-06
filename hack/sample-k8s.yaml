@@ -5,11 +5,16 @@ metadata:
 spec:
   release_version: '1.7'
   zone: default-zone
-  install_namespace: default
+  install_namespace: greymatter
   watch_namespaces:
-  - gm-operator-watched
+  - services
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: gm-operator-watched
+  name: greymatter
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: services

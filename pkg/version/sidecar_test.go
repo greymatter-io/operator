@@ -39,7 +39,6 @@ func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
 			"InstallNamespace": "myns",
 			"Zone":             "myzone",
 		}),
-		Redis(""),
 	}
 
 	// Run tests with testOptions for settings available in all versions,
@@ -73,8 +72,8 @@ func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
 				if len(sidecar.StaticConfig) == 0 {
 					t.Fatal("no StaticConfig was set")
 				}
-				y, _ := yaml.Marshal(sidecar.StaticConfig)
-				fmt.Println(string(y))
+				// y, _ := yaml.Marshal(sidecar.StaticConfig)
+				// fmt.Println(string(y))
 				t.Run("StaticConfig discovers from control.<namespace>.svc.cluster.local",
 					assert.JSONHasSubstrings(sidecar.StaticConfig,
 						`"address":"control.myns.svc.cluster.local","port_value":50000`,
@@ -90,8 +89,8 @@ func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
 				if len(sidecar.StaticConfig) == 0 {
 					t.Fatal("no StaticConfig was set")
 				}
-				y, _ := yaml.Marshal(sidecar.StaticConfig)
-				fmt.Println(string(y))
+				// y, _ := yaml.Marshal(sidecar.StaticConfig)
+				// fmt.Println(string(y))
 				t.Run("StaticConfig discovers from localhost",
 					assert.JSONHasSubstrings(sidecar.StaticConfig,
 						`"address":"127.0.0.1","port_value":50000`,
@@ -107,8 +106,8 @@ func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
 				if len(sidecar.StaticConfig) == 0 {
 					t.Fatal("no StaticConfig was set")
 				}
-				y, _ := yaml.Marshal(sidecar.StaticConfig)
-				fmt.Println(string(y))
+				// y, _ := yaml.Marshal(sidecar.StaticConfig)
+				// fmt.Println(string(y))
 				t.Run("StaticConfig discovers from control.<namespace>.svc.cluster.local",
 					assert.JSONHasSubstrings(sidecar.StaticConfig,
 						`"address":"control.myns.svc.cluster.local","port_value":50000`,
@@ -124,8 +123,8 @@ func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
 				if len(sidecar.StaticConfig) == 0 {
 					t.Fatal("no StaticConfig was set")
 				}
-				y, _ := yaml.Marshal(sidecar.StaticConfig)
-				fmt.Println(string(y))
+				// y, _ := yaml.Marshal(sidecar.StaticConfig)
+				// fmt.Println(string(y))
 				t.Run("StaticConfig's gm-redis goes to localhost",
 					assert.JSONHasSubstrings(sidecar.StaticConfig,
 						`"address":"127.0.0.1","port_value":6379`,

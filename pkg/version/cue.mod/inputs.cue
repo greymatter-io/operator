@@ -25,10 +25,3 @@ JWT: {
   apiKey: "" | string
   privateKey: "" | string
 }
-
-Redis: {
-  host: *"gm-redis.\(InstallNamespace).svc.cluster.local" | string
-  port: *"10707" | string
-  password: "" | string
-  db: *"0" | string
-}

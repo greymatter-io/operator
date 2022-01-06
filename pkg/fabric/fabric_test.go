@@ -51,7 +51,7 @@ func TestService(t *testing.T) {
 		`"active_http_filters":["gm.metrics"]`,
 		`"http_filters":{"gm_metrics":{`,
 		`"metrics_key_depth":"3"`,
-		`"redis_connection_string":"redis://:`,
+		`"redis_connection_string":"redis://`,
 		`"secret_name":"spiffe://greymatter.io/mymesh.example"`,
 		`"subject_names":["spiffe://greymatter.io/mymesh.edge"]`,
 	))
@@ -151,7 +151,6 @@ func TestServiceGMRedis(t *testing.T) {
 		`"zone_key":"myzone"`,
 		`"domain_keys":["gm-redis"]`,
 		`"port":10808`,
-		`"active_http_filters":[]`,
 	))
 	t.Run("Proxy", assert.JSONHasSubstrings(service.Proxy,
 		`"name":"gm-redis"`,
@@ -340,40 +339,6 @@ func TestServiceOneHTTPLocalEgress(t *testing.T) {
 	if !strings.Contains(strings.Join(service.LocalEgresses, "|"), "othercluster") {
 		t.Errorf("expected 'othercluster' to be a local egress, but got %v", service.LocalEgresses)
 	}
-}
-
-func TestServiceOneHTTPLocalEgressFromGMRedis(t *testing.T) {
-	f := loadMock(t)
-
-	service, err := f.Service("gm-redis",
-		map[string]string{
-			"greymatter.io/egress-http-local": `["othercluster"]`,
-		}, nil,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// gm-redis has an egress HTTP listener just so it can configure a metrics receiver.
-	// This is because the metrics receiver capability was only added to the HTTP metrics filter.
-	t.Run("Proxy", assert.JSONHasSubstrings(service.Proxy,
-		`"domain_keys":["gm-redis","gm-redis-egress-http"]`,
-		`"listener_keys":["gm-redis","gm-redis-egress-http"]`,
-	))
-
-	// The HTTP gm.metrics filter is only configured on egress for gm-redis.
-	// It sends directly to 6379 since 10808 won't have gm-redis in its trusted SVIDs.
-	t.Run("Listener", assert.JSONHasSubstrings(service.HTTPEgresses.Listener,
-		`"listener_key":"gm-redis-egress-http"`,
-		`"zone_key":"myzone"`,
-		`"domain_keys":["gm-redis-egress-http"]`,
-		`"port":10909`,
-		`"active_http_filters":["gm.metrics"]`,
-		`"http_filters":{"gm_metrics":{`,
-		`"metrics_key_depth":"3"`,
-		`"redis_connection_string":"redis://:`,
-		`127.0.0.1:6379","push_interval_seconds`,
-	))
 }
 
 func TestServiceMultipleHTTPLocalEgresses(t *testing.T) {

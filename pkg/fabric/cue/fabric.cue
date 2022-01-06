@@ -102,13 +102,12 @@ service: {
     name: ServiceName
     port: domain.port
     domain_keys: [ServiceName]
-    active_http_filters: [
-      if ServiceName != "gm-redis" {
+
+    if ServiceName != "gm-redis" {
+      active_http_filters: [
         "gm.metrics"
-      }
-    ]
-    http_filters: {
-      if ServiceName != "gm-redis" {
+      ]
+      http_filters: {
         gm_metrics: {
           metrics_host: "0.0.0.0"
           metrics_port: 8081
@@ -125,22 +124,19 @@ service: {
           }
           if ReleaseVersion != "1.6" {
             metrics_receiver: {
-              // TODO: Use NATS for the metrics_receiver universally instead of Redis.
-              // No external NATS option is required since it's an event bus, not a DB.
-              redis_connection_string: "redis://:\(Redis.password)@127.0.0.1:10910"
+              redis_connection_string: "redis://127.0.0.1:10910"
               push_interval_seconds: 10
             }
           }
         }
       }
     }
-    active_network_filters: [
-      if NetworkFilters["envoy.tcp_proxy"] && len(Ingresses) == 1 {
+
+    if NetworkFilters["envoy.tcp_proxy"] && len(Ingresses) == 1 {
+      active_network_filters: [
         "envoy.tcp_proxy"
-      }
-    ]
-    network_filters: {
-      if NetworkFilters["envoy.tcp_proxy"] && len(Ingresses) == 1 {
+      ]
+      network_filters: {
         envoy_tcp_proxy: {
           for _, v in Ingresses {
             _key: "\(ServiceName):\(v)"
@@ -299,29 +295,6 @@ service: {
         name: _dk
         port: 10909
         domain_keys: [_dk]
-
-        // Temp kludge: Enable the metrics filter and receiver for gm-redis.
-        // This is required here since we are mocking an http listener for the metrics_receiver.
-        // If TCP is configured on a listener, no HTTP metrics filter is set :/
-        if ServiceName == "gm-redis" && ReleaseVersion != "1.6" {
-          active_http_filters: ["gm.metrics"]
-          http_filters: {
-            gm_metrics: {
-              metrics_host: "0.0.0.0"
-              metrics_port: 8081
-              metrics_dashboard_uri_path: "/metrics"
-              metrics_prometheus_uri_path: "prometheus"
-              metrics_ring_buffer_size: 4096
-              prometheus_system_metrics_interval_seconds: 15
-              metrics_key_function: "depth"
-              metrics_key_depth: "3"
-              metrics_receiver: {
-                redis_connection_string: "redis://:\(Redis.password)@127.0.0.1:6379"
-                push_interval_seconds: 10
-              }
-            }
-          }
-        }
       }
       clusters: [...#Cluster] & [
         for _, e in HTTPEgresses {
