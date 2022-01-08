@@ -202,11 +202,6 @@ jwt_security: #Component & {
 
 redis: #Component & {
   name: "gm-redis"
-  annotations: {
-    "greymatter.io/network-filters": """
-      ["envoy.tcp_proxy"]
-    """
-  }
   isStatefulset: true
   image: =~"redis:"
   command: "redis-server"

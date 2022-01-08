@@ -8,19 +8,9 @@ Redis: {...}
 
 // Values injected in fabric.Service
 ServiceName: string
-HttpFilters: #EnabledHttpFilters
-NetworkFilters: #EnabledNetworkFilters
 Ingresses: [string]: int32
 HTTPEgresses: [...#EgressArgs]
 TCPEgresses: [...#EgressArgs]
-
-#EnabledHttpFilters: {
-  "gm.metrics": true
-}
-
-#EnabledNetworkFilters: {
-  "envoy.tcp_proxy": *false | bool
-}
 
 #EgressArgs: {
   isExternal: bool
@@ -106,6 +96,9 @@ service: {
     if ServiceName != "gm-redis" {
       active_http_filters: [
         "gm.metrics"
+        if ServiceName != "edge" {
+          "gm.observables"
+        }
       ]
       http_filters: {
         gm_metrics: {
@@ -129,10 +122,15 @@ service: {
             }
           }
         }
+        if ServiceName != "edge" {
+          gm_observables: {
+            topic: ServiceName
+          }
+        }
       }
     }
 
-    if NetworkFilters["envoy.tcp_proxy"] && len(Ingresses) == 1 {
+    if ServiceName == "gm-redis" {
       active_network_filters: [
         "envoy.tcp_proxy"
       ]

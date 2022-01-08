@@ -353,6 +353,9 @@
 			push_interval_seconds: int
 		}
 	}
+	gm_observables?: {
+		topic: string
+	}
 }
 
 #NetworkFilters: {

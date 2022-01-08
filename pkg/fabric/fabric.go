@@ -97,10 +97,6 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 		annotations = make(map[string]string)
 	}
 
-	// Filter names are passed as comma-delimited strings, but transformed into lookup tables for Cue.
-	httpFilters := parseFilters(annotations["greymatter.io/http-filters"])
-	networkFilters := parseFilters(annotations["greymatter.io/network-filters"])
-
 	// All HTTP egress routes use 10909. They can be local (in-mesh) or external.
 	// Array literals are used here so that they are parsed as non-nil arrays in Cue.
 	httpEgresses, _ := parseLocalEgressArgs([]EgressArgs{}, annotations["greymatter.io/egress-http-local"], 0)
@@ -124,15 +120,11 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	value := f.cue.Unify(
 		cueutils.FromStrings(fmt.Sprintf(`
 			ServiceName: "%s"
-			HttpFilters: %s
-			NetworkFilters: %s
 			Ingresses: %s
 			HTTPEgresses: %s
 			TCPEgresses: %s
 		`,
 			name,
-			mustMarshal(httpFilters, `{}`),
-			mustMarshal(networkFilters, `{}`),
 			mustMarshal(ingresses, `[]`),
 			mustMarshal(httpEgresses, `[]`),
 			mustMarshal(tcpEgresses, `[]`),
@@ -150,25 +142,6 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	}
 	codec.Encode(value, &s)
 	return s.Service, nil
-}
-
-func parseFilters(s string) map[string]bool {
-	filters := make(map[string]bool)
-	if len(s) == 0 {
-		return filters
-	}
-	var slice []string
-	if err := json.Unmarshal([]byte(s), &slice); err != nil {
-		logger.Error(err, "failed to unmarshal", "filters", s)
-		return filters
-	}
-	for _, filter := range slice {
-		trimmed := strings.TrimSpace(filter)
-		if trimmed != "" {
-			filters[trimmed] = true
-		}
-	}
-	return filters
 }
 
 func parseLocalEgressArgs(args []EgressArgs, s string, tcpPort int32) ([]EgressArgs, int32) {

@@ -48,7 +48,7 @@ func TestService(t *testing.T) {
 		`"zone_key":"myzone"`,
 		`"domain_keys":["example"]`,
 		`"port":10808`,
-		`"active_http_filters":["gm.metrics"]`,
+		`"active_http_filters":["gm.metrics","gm.observables"]`,
 		`"http_filters":{"gm_metrics":{`,
 		`"metrics_key_depth":"3"`,
 		`"redis_connection_string":"redis://`,
@@ -691,42 +691,6 @@ func TestServiceMultipleTCPExternalEgresses(t *testing.T) {
 			fmt.Sprintf(`"cluster_key":"example-to-%s"`, e.cluster),
 			`"route_match":{"path":"/"`,
 		))
-	}
-}
-
-func TestParseFilters(t *testing.T) {
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-	for _, tc := range []struct {
-		input    string
-		expected map[string]bool
-	}{
-		{
-			input:    "",
-			expected: map[string]bool{},
-		},
-		{
-			input:    `["one"]`,
-			expected: map[string]bool{"one": true},
-		},
-		{
-			input:    `["one","two"]`,
-			expected: map[string]bool{"one": true, "two": true},
-		},
-		{
-			input:    `[" one"," two"]`,
-			expected: map[string]bool{"one": true, "two": true},
-		},
-		{
-			input:    `["one","","two"]`,
-			expected: map[string]bool{"one": true, "two": true},
-		},
-	} {
-		t.Run(tc.input, func(t *testing.T) {
-			output := parseFilters(tc.input)
-			if !reflect.DeepEqual(output, tc.expected) {
-				t.Errorf("expected %v but got %v", tc.expected, output)
-			}
-		})
 	}
 }
 

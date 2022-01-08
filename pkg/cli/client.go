@@ -74,6 +74,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 			case <-ctx.Done():
 				return
 			case c := <-controlCmds:
+				logger.Info("run", "args", c.args)
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
 				if _, err := c.run(cl.flags); err != nil && c.requeue {
 					logger.Info("requeued failed command", "args", c.args)

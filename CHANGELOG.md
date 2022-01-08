@@ -5,6 +5,7 @@
 ### Added
 
 - SPIRE as SPIFFE implementation for mutual TLS between workloads
+- Observables filter enabled for all sidecars except edge
 
 ### Fixed
 
@@ -17,6 +18,7 @@
 - Catalog entry for Redis
 - JWT Security service's Redis dependency
 - Listeners using port 10707 for initial boootstrapping of mesh configuration
+- Ability to select HTTP and network filters via annotation, in favor of sensible defaults
 
 ## 0.2.0 (December 10, 2021)
 
