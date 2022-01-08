@@ -19,7 +19,7 @@ var (
 func Init() error {
 	var data []string
 
-	for _, file := range []string{"api", "common", "fabric", "spire"} {
+	for _, file := range []string{"api", "fabric", "spire"} {
 		contents, err := filesystem.ReadFile(fmt.Sprintf("cue/%s.cue", file))
 		if err != nil {
 			return fmt.Errorf("failed to load fabric template file %s: %w", file, err)
