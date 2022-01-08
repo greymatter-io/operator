@@ -30,6 +30,24 @@ TCPEgresses: [...#EgressArgs]
   tcpPort: int
 }
 
+// Identify core service versions for each Grey Matter release
+ServiceVersions: {
+  if ReleaseVersion == "1.7" {
+    edge: "1.7.0"
+    control: "1.7.0"
+    catalog: "3.0.0"
+    dashboard: "6.0.0"
+    jwtsecurity: "1.3.0"
+  }
+  if ReleaseVersion == "1.6" {
+    edge: "1.6.3"
+    control: "1.6.5"
+    catalog: "2.0.1"
+    dashboard: "5.1.1"
+    jwtsecurity: "1.3.0"
+  }
+}
+
 // Outputs
 
 edgeDomain: #Domain & {
@@ -43,30 +61,40 @@ service: {
     catalogservice: #CatalogService & {
       if ServiceName == "edge" {
         name: "Grey Matter Edge"
+        version: ServiceVersions.edge
         description: "Handles north/south traffic flowing through the mesh."
         api_endpoint: "/"
-      }
-      if ServiceName == "jwt-security" {
-        name: "Grey Matter JWT Security"
-        description: "A JWT token generation and retrieval service."
-        api_endpoint: "/services/jwt-security/"
-        api_spec_endpoint: "/services/jwt-security/"
+        business_impact: "critical"
       }
       if ServiceName == "control" {
         name: "Grey Matter Control"
+        version: ServiceVersions.control
         description: "Manages the configuration of the Grey Matter data plane."
-        api_endpoint: "/services/control/api/"
+        api_endpoint: "/services/control/api/v1.0/"
         api_spec_endpoint: "/services/control/api/"
+        business_impact: "critical"
       }
       if ServiceName == "catalog" {
         name: "Grey Matter Catalog"
+        version: ServiceVersions.catalog
         description: "Interfaces with the control plane to expose the current state of the mesh."
         api_endpoint: "/services/catalog/"
         api_spec_endpoint: "/services/catalog/"
+        business_impact: "high"
       }
       if ServiceName == "dashboard" {
         name: "Grey Matter Dashboard"
+        version: ServiceVersions.dashboard
         description: "A user dashboard that paints a high-level picture of the mesh."
+        business_impact: "high"
+      }
+      if ServiceName == "jwt-security" {
+        name: "Grey Matter JWT Security"
+        version: ServiceVersions.jwtsecurity
+        description: "A JWT token generation and retrieval service."
+        api_endpoint: "/services/jwt-security/"
+        api_spec_endpoint: "/services/jwt-security/"
+        business_impact: "high"
       }
     }
   }
