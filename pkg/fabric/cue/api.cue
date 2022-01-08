@@ -4,9 +4,11 @@
   mesh_id: *MeshName | string
   service_id: *ServiceName | string
 	name: *ServiceName | string
+	version?: string
 	api_endpoint?: string
 	api_spec_endpoint?: string
 	description?: string
+	business_impact?: string
 	enable_instance_metrics: true
 	enable_historical_metrics: *false | bool
 }
