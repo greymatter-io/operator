@@ -202,6 +202,10 @@ jwt_security: #Component & {
 
 redis: #Component & {
   name: "gm-redis"
+  annotations: {
+    // Distinguissh gm-redis as requiring TCP only
+    "greymatter.io/ingress-tcp-port-name": "redis"
+  }
   isStatefulset: true
   image: =~"redis:"
   command: "redis-server"

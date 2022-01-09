@@ -9,6 +9,7 @@ Redis: {...}
 // Values injected in fabric.Service
 ServiceName: string
 Ingresses: [string]: int32
+IngressTCPPortName: string
 HTTPEgresses: [...#EgressArgs]
 TCPEgresses: [...#EgressArgs]
 
@@ -93,11 +94,12 @@ service: {
     port: domain.port
     domain_keys: [ServiceName]
 
-    if ServiceName != "gm-redis" {
+    // Only configure HTTP filters for HTTP services.
+    if IngressTCPPortName == "" {
       active_http_filters: [
-        "gm.metrics"
+        "gm.metrics",
         if ServiceName != "edge" {
-          "gm.observables"
+          "gm.observables",
         }
       ]
       http_filters: {
@@ -130,100 +132,108 @@ service: {
       }
     }
 
-    if ServiceName == "gm-redis" {
+    // If a TCP port name is specified in annotations, configure the TCP proxy filter.
+    if IngressTCPPortName != "" {
       active_network_filters: [
         "envoy.tcp_proxy"
       ]
       network_filters: {
         envoy_tcp_proxy: {
-          for _, v in Ingresses {
-            _key: "\(ServiceName):\(v)"
-            cluster: _key
-            stat_prefix: _key
-          }
+          _key: "\(ServiceName):\(Ingresses[IngressTCPPortName])"
+          cluster: _key
+          stat_prefix: _key
         }
       }
     }
   }
 
-  clusters: [...#Cluster] & [
-    {
-      name: ServiceName
-    }
-  ]
-
-  routes: [...#Route] & [
-    if ServiceName != "dashboard" && ServiceName != "edge" {
-      {
-        route_key: ServiceName
-        domain_key: "edge"
-        route_match: {
-          path: "/services/\(ServiceName)/"
-          match_type: "prefix"
-        }
-        redirects: [
-          {
-            from: "^/services/\(ServiceName)$"
-            to: route_match.path
-            redirect_type: "permanent"
-          }
-        ]
-        prefix_rewrite: "/"
-        rules: [
-          {
-            constraints: {
-              light: [
-                {
-                  cluster_key: ServiceName
-                  weight: 1
-                }
-              ]
-            }
-          }
-        ]
-      }
-    }
-    if ServiceName == "dashboard" {
-      {
-        route_key: ServiceName
-        domain_key: "edge"
-        route_match: {
-          path: "/"
-          match_type: "prefix"
-        }
-        rules: [
-          {
-            constraints: {
-              light: [
-                {
-                  cluster_key: ServiceName
-                  weight: 1
-                }
-              ]
-            }
-          }
-        ]
-      }
-    }
-  ]
-
-  ingresses: {
+  // TCP listeners are not edge routable
+  if IngressTCPPortName == "" {
     clusters: [...#Cluster] & [
-      for _, v in Ingresses if len(Ingresses) > 0 && ServiceName != "edge" {
+      {
+        name: ServiceName
+      }
+    ]
+
+    routes: [...#Route] & [
+      if ServiceName != "dashboard" && ServiceName != "edge" {
         {
-          name: "\(ServiceName):\(v)"
-          instances: [
+          route_key: ServiceName
+          domain_key: "edge"
+          route_match: {
+            path: "/services/\(ServiceName)/"
+            match_type: "prefix"
+          }
+          redirects: [
             {
-              host: "127.0.0.1"
-              port: v
+              from: "^/services/\(ServiceName)$"
+              to: route_match.path
+              redirect_type: "permanent"
+            }
+          ]
+          prefix_rewrite: "/"
+          rules: [
+            {
+              constraints: {
+                light: [
+                  {
+                    cluster_key: ServiceName
+                    weight: 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+      if ServiceName == "dashboard" {
+        {
+          route_key: ServiceName
+          domain_key: "edge"
+          route_match: {
+            path: "/"
+            match_type: "prefix"
+          }
+          rules: [
+            {
+              constraints: {
+                light: [
+                  {
+                    cluster_key: ServiceName
+                    weight: 1
+                  }
+                ]
+              }
             }
           ]
         }
       }
     ]
+  }
+
+  ingresses: {
+    clusters: [...#Cluster] & [
+      for k, v in Ingresses if len(Ingresses) > 0 && ServiceName != "edge" {
+        // If this is an HTTP service, configure all container ports as ingresses.
+        // If this is a TCP service, configure the named container port as a single ingress.
+        if IngressTCPPortName == "" || IngressTCPPortName == k {
+          {
+            name: "\(ServiceName):\(v)"
+            instances: [
+              {
+                host: "127.0.0.1"
+                port: v
+              }
+            ]
+          }
+        }
+      }
+    ]
     routes: [...#Route] & [
       for k, v in Ingresses if len(Ingresses) > 0 && ServiceName != "edge" {
-        if len(Ingresses) == 1 {
+        // If this is an HTTP service with a single container port
+        // or a TCP service, configure a single route to it at the root of the listener.
+        if len(Ingresses) == 1 || (IngressTCPPortName != "" && IngressTCPPortName == k) {
           {
             _rk: "\(ServiceName):\(v)"
             route_key: _rk
@@ -246,7 +256,8 @@ service: {
             ]
           }
         }
-        if len(Ingresses) > 1 {
+        // If this is an HTTP service with multiple container ports, make edge-routable.
+        if len(Ingresses) > 1 && IngressTCPPortName == "" {
           {
             _rk: "\(ServiceName):\(v)"
             route_key: _rk

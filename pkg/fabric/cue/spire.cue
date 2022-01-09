@@ -1,5 +1,6 @@
 MeshName: string
 ServiceName: string
+IngressTCPPortName: string
 HTTPEgresses: [...#args]
 TCPEgresses: [...#args]
 
@@ -22,11 +23,14 @@ TCPEgresses: [...#args]
 }
 
 service: clusters: [
-  {
-    require_tls: true
-    secret: #secret & {
-      _name: "edge"
-      _subject: ServiceName
+  // If not empty, this is a non-HTTP service, not routable from edge.
+  if IngressTCPPortName == "" {
+    {
+      require_tls: true
+      secret: #secret & {
+        _name: "edge"
+        _subject: ServiceName
+      }
     }
   }
 ]

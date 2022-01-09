@@ -6,6 +6,8 @@
 
 - SPIRE as SPIFFE implementation for mutual TLS between workloads
 - Observables filter enabled for all sidecars except edge
+- `greymatter.io/ingress-tcp-port-name` annotation option for non-HTTP services. When specified,
+  requests to a sidecar's `10808` port will proxy to the service over raw TCP.
 
 ### Fixed
 

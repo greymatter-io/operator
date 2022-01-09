@@ -87,7 +87,6 @@ type EgressArgs struct {
 func (f *Fabric) Service(name string, annotations map[string]string, ingresses map[string]int32) (Objects, error) {
 
 	// All ingress routes use 10808. They are defined from named container ports.
-	// There may only be one ingress if TCP (via the envoy.tcp_proxy filter).
 	if ingresses == nil {
 		ingresses = make(map[string]int32)
 	}
@@ -95,6 +94,17 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	// Annotations are used for setting filters and creating egress routes.
 	if annotations == nil {
 		annotations = make(map[string]string)
+	}
+
+	// If TCP ingress is intended, specify target container port name to proxy TCP requests to (only one for now)
+	ingressTCPPortName := annotations["greymatter.io/ingress-tcp-port-name"]
+	if !validIngressTCPPortName(ingressTCPPortName, ingresses) {
+		logger.Info(
+			"warn: invalid greymatter.io/ingress-tcp-port-name; expected valid container port name",
+			"value", ingressTCPPortName,
+			"workload", name,
+		)
+		ingressTCPPortName = ""
 	}
 
 	// All HTTP egress routes use 10909. They can be local (in-mesh) or external.
@@ -121,11 +131,13 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 		cueutils.FromStrings(fmt.Sprintf(`
 			ServiceName: "%s"
 			Ingresses: %s
+			IngressTCPPortName: "%s"
 			HTTPEgresses: %s
 			TCPEgresses: %s
 		`,
 			name,
 			mustMarshal(ingresses, `[]`),
+			ingressTCPPortName,
 			mustMarshal(httpEgresses, `[]`),
 			mustMarshal(tcpEgresses, `[]`),
 		)),
@@ -142,6 +154,11 @@ func (f *Fabric) Service(name string, annotations map[string]string, ingresses m
 	}
 	codec.Encode(value, &s)
 	return s.Service, nil
+}
+
+func validIngressTCPPortName(s string, ingresses map[string]int32) bool {
+	_, ok := ingresses[s]
+	return ok || s == ""
 }
 
 func parseLocalEgressArgs(args []EgressArgs, s string, tcpPort int32) ([]EgressArgs, int32) {

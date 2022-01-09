@@ -141,7 +141,10 @@ func TestServiceEdge(t *testing.T) {
 func TestServiceGMRedis(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("gm-redis", nil, nil)
+	service, err := f.Service("gm-redis",
+		map[string]string{"greymatter.io/ingress-tcp-port-name": "redis"},
+		map[string]int32{"redis": 6379},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,6 +154,8 @@ func TestServiceGMRedis(t *testing.T) {
 		`"zone_key":"myzone"`,
 		`"domain_keys":["gm-redis"]`,
 		`"port":10808`,
+		`"active_network_filters":["envoy.tcp_proxy"]`,
+		`"network_filters":{"envoy_tcp_proxy":{"cluster":"gm-redis:6379"`,
 	))
 	t.Run("Proxy", assert.JSONHasSubstrings(service.Proxy,
 		`"name":"gm-redis"`,
@@ -159,28 +164,47 @@ func TestServiceGMRedis(t *testing.T) {
 		`"domain_keys":["gm-redis"]`,
 		`"listener_keys":["gm-redis"]`,
 	))
-	t.Run("Route", assert.JSONHasSubstrings(service.Routes[0],
-		`"route_key":"gm-redis"`,
-		`"domain_key":"edge"`,
-		`"zone_key":"myzone"`,
-		`"cluster_key":"gm-redis"`,
-		`"route_match":{"path":"/services/gm-redis/"`,
-		`"redirects":[{"from":"^/services/gm-redis$","to":"/services/gm-redis/"`,
+	t.Run("Domain", assert.JSONHasSubstrings(service.Domain,
+		`"domain_key":"gm-redis"`,
+		`"name":"*"`,
+		`"port":10808`,
 	))
 
-	if service.HTTPEgresses == nil {
-		t.Fatal("HTTPEgresses is nil")
+	if count := len(service.Routes); count != 0 {
+		t.Errorf("Expected 0 routes from edge but got %d", count)
+	}
+	if count := len(service.Clusters); count != 0 {
+		t.Errorf("Expected 0 clusters from edge but got %d", count)
 	}
 
-	// No TCP egress is expected since none is needed to connect to gm-redis.
+	t.Run("Ingresses.Routes[0]", assert.JSONHasSubstrings(service.Ingresses.Routes[0],
+		`"domain_key":"gm-redis"`,
+		`"cluster_key":"gm-redis:6379"`,
+	))
+
+	t.Run("Ingresses.Clusters[0]", assert.JSONHasSubstrings(service.Ingresses.Clusters[0],
+		`"cluster_key":"gm-redis:6379"`,
+		`"host":"127.0.0.1"`,
+	))
+
+	// No TCP egress is expected for GM Redis.
 	if count := len(service.TCPEgresses); count != 0 {
 		t.Errorf("Expected 0 TCP egress but got %d", count)
 	}
-
-	if count := len(service.LocalEgresses); count != 0 {
-		t.Errorf("expected 0 local egresses but got %d", count)
-	}
 }
+
+// func TestIngressTCPPortName(t *testing.T) {
+// 	f := loadMock(t)
+
+// 	service, err := f.Service("tcp-svc",
+// 		map[string]string{"greymatter.io/ingress-tcp-port-name": "svc"},
+// 		map[string]int32{"svc": 9200},
+// 	)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+
+// }
 
 func TestServiceNoIngress(t *testing.T) {
 	f := loadMock(t)
