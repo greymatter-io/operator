@@ -1,6 +1,6 @@
 # Changelog
 
-## vNEXT
+## 0.3.0 (January 10, 2022)
 
 ### Added
 
