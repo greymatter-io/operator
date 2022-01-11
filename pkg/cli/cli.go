@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"sync"
 
 	"cuelang.org/go/cue"
@@ -133,9 +134,11 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 
 	ingresses := make(map[string]int32)
 	for _, container := range containers {
-		for _, port := range container.Ports {
-			if port.Name != "" || len(container.Ports) == 1 {
-				ingresses[port.Name] = port.ContainerPort
+		if !strings.Contains(container.Image, "gm-proxy") {
+			for _, port := range container.Ports {
+				if port.Name != "" || len(container.Ports) == 1 {
+					ingresses[port.Name] = port.ContainerPort
+				}
 			}
 		}
 	}

@@ -54,24 +54,35 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 	if !ok {
 		return admission.ValidationResponse(true, "allowed")
 	}
-	// Check for an existing proxy port; if found, this pod already has a sidecar.
-	for _, container := range pod.Spec.Containers {
-		for _, p := range container.Ports {
-			if p.Name == "proxy" {
-				return admission.ValidationResponse(true, "allowed")
-			}
-		}
-	}
 
 	// Get the sidecar container and any volumes to add to the Pod.
 	sidecar, ok := wd.Sidecar(req.Namespace, xdsCluster)
 	if !ok {
+		logger.Error(fmt.Errorf("failed to inject sidecar"), "failed to compile container config", "Pod", pod.GenerateName+"*")
 		return admission.ValidationResponse(true, "allowed")
 	}
 
-	pod.Spec.Containers = append(pod.Spec.Containers, sidecar.Container)
+	// Check for an existing proxy port; if found, this pod already has a sidecar.
+	sidecarContainerIdx := -1
+	for i, container := range pod.Spec.Containers {
+		for _, p := range container.Ports {
+			if p.Name == "proxy" && p.ContainerPort == 10808 {
+				sidecarContainerIdx = i
+			}
+		}
+	}
+
+	// If a sidecar already exists, just ensure its container config is valid. Otherwise, inject one.
+	if sidecarContainerIdx > -1 {
+		pod.Spec.Containers[sidecarContainerIdx] = sidecar.Container
+		logger.Info("configured sidecar", "kind", "Pod", "generateName", pod.GenerateName+"*", "namespace", req.Namespace)
+	} else {
+		pod.Spec.Containers = append(pod.Spec.Containers, sidecar.Container)
+		logger.Info("injected sidecar", "kind", "Pod", "generateName", pod.GenerateName+"*", "namespace", req.Namespace)
+	}
+
+	// Inject volumes to mount in the sidecar
 	pod.Spec.Volumes = append(pod.Spec.Volumes, sidecar.Volumes...)
-	logger.Info("injected sidecar", "kind", "Pod", "generateName", pod.GenerateName+"*", "namespace", req.Namespace)
 
 	// Inject a reference to the image pull secret
 	var hasImagePullSecret bool
@@ -117,7 +128,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				logger.Error(err, "Failed to add cluster label to Deployment", "Name", req.Name, "Namespace", req.Namespace)
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
-			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
+			logger.Info("added/found cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
 			go wd.ConfigureService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
 		} else {
 			wd.DecodeRaw(req.OldObject, deployment)
@@ -139,7 +150,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				logger.Error(err, "Failed to add cluster label to StatefulSet", "Name", req.Name, "Namespace", req.Namespace)
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
-			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
+			logger.Info("added/found cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
 			go wd.ConfigureService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
 		} else {
 			wd.DecodeRaw(req.OldObject, statefulset)
