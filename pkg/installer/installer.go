@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cfsslsrv"
 	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/k8sapi"
@@ -101,6 +102,42 @@ func (i *Installer) Start(ctx context.Context) error {
 		// If no supported ingress types are found, just assume the user will configure ingress on their own.
 		logger.Info("Identified OpenShift cluster domain name", "Domain", clusterIngressDomain)
 		i.clusterIngressDomain = clusterIngressDomain
+	}
+
+	// Load existing meshes in the cluster
+	if err := i.SyncMeshes(); err != nil {
+		logger.Error(err, "Failed to sync existing meshes in cluster")
+		return err
+	}
+
+	return nil
+}
+
+// SyncMeshes retrieves the list of existing meshes in the cluster,
+// caches their sidecar templates and namespaces, and configures mesh clients.
+// This essentially registers an existing mesh with the current (leader) pod.
+func (i *Installer) SyncMeshes() error {
+	meshList := &v1alpha1.MeshList{}
+	if err := i.client.List(context.TODO(), meshList); err != nil {
+		return err
+	}
+
+	for _, mesh := range meshList.Items {
+		options := mesh.Options(i.clusterIngressDomain)
+
+		i.Lock()
+		{
+			v := i.versions[mesh.Spec.ReleaseVersion].Copy()
+			v.Unify(options...)
+			i.sidecars[mesh.Name] = v.SidecarTemplate()
+			i.namespaces[mesh.Spec.InstallNamespace] = mesh.Name
+			for _, namespace := range mesh.Spec.WatchNamespaces {
+				i.namespaces[namespace] = mesh.Name
+			}
+		}
+		i.Unlock()
+
+		go i.ConfigureMeshClient(&mesh, options)
 	}
 
 	return nil
