@@ -49,6 +49,11 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
+	// Ensure the pod exists in a namespace watched by the operator.
+	if wd.WatchedBy(req.Namespace) == "" {
+		return admission.ValidationResponse(true, "allowed")
+	}
+
 	// Check for a cluster label; if not found, this pod does not belong to a Mesh.
 	xdsCluster, ok := pod.Labels["greymatter.io/cluster"]
 	if !ok {
