@@ -82,7 +82,15 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 	}
 
 	// Inject volumes to mount in the sidecar
-	pod.Spec.Volumes = append(pod.Spec.Volumes, sidecar.Volumes...)
+	volumes := make(map[string]struct{})
+	for _, vol := range pod.Spec.Volumes {
+		volumes[vol.Name] = struct{}{}
+	}
+	for _, vol := range sidecar.Volumes {
+		if _, ok := volumes[vol.Name]; !ok {
+			pod.Spec.Volumes = append(pod.Spec.Volumes, vol)
+		}
+	}
 
 	// Inject a reference to the image pull secret
 	var hasImagePullSecret bool
