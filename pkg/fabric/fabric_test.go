@@ -193,19 +193,6 @@ func TestServiceGMRedis(t *testing.T) {
 	}
 }
 
-// func TestIngressTCPPortName(t *testing.T) {
-// 	f := loadMock(t)
-
-// 	service, err := f.Service("tcp-svc",
-// 		map[string]string{"greymatter.io/ingress-tcp-port-name": "svc"},
-// 		map[string]int32{"svc": 9200},
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// }
-
 func TestServiceNoIngress(t *testing.T) {
 	f := loadMock(t)
 

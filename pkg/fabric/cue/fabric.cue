@@ -1,10 +1,11 @@
+package fabric
+
 // Inputs
 
 // Values pre-defined from version.Version
 MeshName: string
 ReleaseVersion: string
 Zone: string
-Redis: {...}
 
 // Values injected in fabric.Service
 ServiceName: string

@@ -3,6 +3,7 @@ package fabric
 import (
 	"embed"
 	"fmt"
+	"strings"
 
 	"cuelang.org/go/cue"
 	"github.com/greymatter-io/operator/pkg/cueutils"
@@ -24,7 +25,11 @@ func Init() error {
 		if err != nil {
 			return fmt.Errorf("failed to load fabric template file %s: %w", file, err)
 		}
-		data = append(data, string(contents))
+		// Remove the package declaration from each file (the first line).
+		// Otherwise, CUE's API won't be able to unify the files into a single value.
+		contentsStr := string(contents)
+		contentsStr = contentsStr[strings.Index(contentsStr, "\n"):]
+		data = append(data, contentsStr)
 	}
 
 	v := cueutils.FromStrings(data...)

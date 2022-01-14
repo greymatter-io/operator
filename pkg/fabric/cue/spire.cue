@@ -1,3 +1,5 @@
+package fabric
+
 MeshName: string
 ServiceName: string
 IngressTCPPortName: string
