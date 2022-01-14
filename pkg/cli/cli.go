@@ -129,9 +129,11 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 		return
 	}
 
-	// TODO: Handle removals of containers and annotations.
+	// TODO: Handle removals of containers and annotations by deleting the resulting mesh configs (e.g. ingress, egress).
 	// We'll need to be able to pass previous annotations and containers, or even a diff with actions for what to add/edit/remove.
 
+	// Identify named container ports in the Pod template for specifying ingress from 10808 -> {port}.
+	// The only exception here is if the container image contains "gm-proxy", which signals to us that this should be a standalone data plane.
 	ingresses := make(map[string]int32)
 	for _, container := range containers {
 		if !strings.Contains(container.Image, "gm-proxy") {

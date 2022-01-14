@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/greymatter-io/operator/pkg/cli"
@@ -40,44 +41,44 @@ func (wd *workloadDefaulter) Handle(ctx context.Context, req admission.Request) 
 }
 
 func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response {
-	if req.Operation == admissionv1.Delete {
+
+	// If a Pod is being deleted, or the Pod's namespace does not belong to a Mesh, skip.
+	if req.Operation == admissionv1.Delete || wd.WatchedBy(req.Namespace) == "" {
 		return admission.ValidationResponse(true, "allowed")
 	}
 
+	// Decode the inlined Pod object in the request.
+	// This should never error since the Kubelet has already validated the object as a Pod.
 	pod := &corev1.Pod{}
 	if err := wd.Decode(req, pod); err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	// Ensure the pod exists in a namespace watched by the operator.
-	if wd.WatchedBy(req.Namespace) == "" {
-		return admission.ValidationResponse(true, "allowed")
-	}
-
-	// Check for a cluster label; if not found, this pod does not belong to a Mesh.
+	// Check the Pod for a cluster label. If not found, this pod does not belong to a Mesh.
 	xdsCluster, ok := pod.Labels["greymatter.io/cluster"]
 	if !ok {
 		return admission.ValidationResponse(true, "allowed")
 	}
 
-	// Get the sidecar container and any volumes to add to the Pod.
+	// Get the Mesh-specific sidecar container manifest and any volumes which should be injected in the Pod.
 	sidecar, ok := wd.Sidecar(req.Namespace, xdsCluster)
 	if !ok {
 		logger.Error(fmt.Errorf("failed to inject sidecar"), "failed to compile container config", "Pod", pod.GenerateName+"*")
 		return admission.ValidationResponse(true, "allowed")
 	}
 
-	// Check for an existing proxy port; if found, this pod already has a sidecar.
+	// Determine whether the incoming Pod spec already has a container with an image that has "gm-proxy"  in it.
+	// If it does, it has a sidecar and we want to identify its index in the slice of containers.
 	sidecarContainerIdx := -1
 	for i, container := range pod.Spec.Containers {
-		for _, p := range container.Ports {
-			if p.Name == "proxy" && p.ContainerPort == 10808 {
-				sidecarContainerIdx = i
-			}
+		if strings.Contains(container.Image, "gm-proxy") {
+			sidecarContainerIdx = i
 		}
 	}
 
-	// If a sidecar already exists, just ensure its container config is valid. Otherwise, inject one.
+	// If a sidecar container already exists in the Pod spec, populate its config. Otherwise, inject a sidecar container.
+	// Note that this overwrite means users cannot manually configure the sidecar container in a Pod spec/template.
+	// We can change this implementation later if we want some values to be configurable (e.g. env vars, volumeMount).
 	if sidecarContainerIdx > -1 {
 		pod.Spec.Containers[sidecarContainerIdx] = sidecar.Container
 		logger.Info("configured sidecar", "kind", "Pod", "generateName", pod.GenerateName+"*", "namespace", req.Namespace)
@@ -86,7 +87,10 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 		logger.Info("injected sidecar", "kind", "Pod", "generateName", pod.GenerateName+"*", "namespace", req.Namespace)
 	}
 
-	// Inject volumes to mount in the sidecar
+	// Inject sidecar volumes into the Pod spec.
+	// In order to avoid duplicate volumes, make a set of volume names.
+	// Any user-defined volumes will be added to the standard list of sidecar volumes.
+	// Note that users can also override volumes that share the same name if they choose.
 	volumes := make(map[string]struct{})
 	for _, vol := range pod.Spec.Volumes {
 		volumes[vol.Name] = struct{}{}
