@@ -122,7 +122,7 @@ catalog: #Component & {
       extensions:
         metrics:
           sessions:
-            redis_example:
+            redis:
               client_type: redis
               connection_string: redis://127.0.0.1:10910
     """
@@ -135,8 +135,7 @@ dashboard: #Component & {
   env: {
     BASE_URL: "/services/dashboard/"
     FABRIC_SERVER: "/services/catalog/"
-    CONFIG_SERVER: =~"^/services/control/api/"
-    PROMETHEUS_SERVER: "/services/prometheus/api/v1/"
+    CONFIG_SERVER: "/services/control/api/v1.0"
     REQUEST_TIMEOUT: "15000"
     USE_PROMETHEUS: "false"
     DISABLE_PROMETHEUS_ROUTES_UI: "true"
@@ -227,24 +226,4 @@ redis: #Component & {
     resources: requests: storage: "40Gi"
     volumeMode: "Filesystem"
   }
-}
-
-// TODO: Not currently being installed
-prometheus: #Component & {
-  name: "gm-prometheus"
-  isStatefulset: true
-  image: =~"^prom/prometheus:"
-  command: "/bin/prometheus"
-  args: [
-    "--query.timeout=4m",
-    "--query.max-samples=5000000000",
-    "--storage.tsdb.path=/var/lib/prometheus/data/data",
-    "--config.file=/etc/prometheus/prometheus.yaml",
-    "--web.console.libraries=/usr/share/prometheus/console_libraries",
-    "--web.console.templates=/usr/share/prometheus/consoles",
-    "--web.enable-admin-api",
-    "--web.external-url=http://anything/services/prometheus/latest", // TODO
-    "--web.route-prefix=/"
-  ]
-  ports: prom: 9090
 }

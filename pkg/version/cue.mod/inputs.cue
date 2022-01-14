@@ -22,6 +22,6 @@ controlNamespaces: strings.Join([
 
 JWT: {
   userTokens: *"[]" | string
-  apiKey: "" | string
-  privateKey: "" | string
+  apiKey: *"" | string
+  privateKey: *"" | string
 }

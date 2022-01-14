@@ -14,7 +14,6 @@ manifests: [...#ManifestGroup] & [
   { _c: [control, control_api] },
   { _c: [catalog] },
   { _c: [dashboard] },
-  // { _c: [prometheus] }, // TODO
 ]
 
 #ManifestGroup: {

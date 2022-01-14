@@ -16,9 +16,6 @@ catalog: {
 
 dashboard: {
   image: "docker.greymatter.io/development/gm-dashboard:6.0.0-rc.2"
-  env: {
-    CONFIG_SERVER: "/services/control/api/v1.0"
-  }
 }
 
 jwt_security: {

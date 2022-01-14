@@ -8,7 +8,7 @@
 	api_spec_endpoint?: string
 	description?: string
 	enable_instance_metrics: true
-	enable_historical_metrics: *false | bool
+	enable_historical_metrics: false
 }
 
 // Cluster
@@ -342,7 +342,7 @@
 		metrics_host: string
 		metrics_port: int
     metrics_dashboard_uri_path: string
-    metrics_prometheus_uri_path: string
+    metrics_prometheus_uri_path: *"" | string
     metrics_ring_buffer_size: int
     prometheus_system_metrics_interval_seconds: int
     metrics_key_function: string

@@ -16,12 +16,6 @@ catalog: {
 
 dashboard: {
   image: "docker.greymatter.io/release/gm-dashboard:5.1.1"
-  env: {
-    BASE_URL: "/services/dashboard/"
-    FABRIC_SERVER: "/services/catalog/"
-    CONFIG_SERVER: "/services/control/api/v1.0"
-    PROMETHEUS_SERVER: "/services/prometheus/api/v1/"
-  }
 }
 
 jwt_security: {
