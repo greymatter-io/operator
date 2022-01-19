@@ -1,5 +1,12 @@
 # Changelog
 
+## NEXT
+
+### Added
+
+- [greymatter-cue](https://github.com/greymatter-io/greymatter-cue) Git submodule for importing
+  Grey Matter CUE schemas.
+
 ## 0.3.0 (January 10, 2022)
 
 ### Added
