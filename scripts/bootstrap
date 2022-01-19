@@ -2,7 +2,7 @@
 
 set -e
 
-for dependency in go greymatter operator-sdk kustomize cue staticcheck
+for dependency in go greymatter operator-sdk kustomize cue staticcheck git
 do
     if ! which $dependency &> /dev/null; then
         echo "$dependency is missing from your \$PATH"
@@ -12,5 +12,7 @@ do
         go mod vendor
     elif [ "$dependency" == "cue" ]; then
         (cd ./pkg/version/cue.mod; cue get go k8s.io/api/...)
+    elif [ "$dependency" == "git" ]; then
+        git submodule update --init --recursive --remote
     fi
 done
