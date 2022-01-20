@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cueutils"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -23,14 +24,16 @@ type Fabric struct {
 	cue cue.Value
 }
 
-// New returns a new *Fabric instance. It receives mesh options
-// which are unified with base fabric object templates defined in cue/fabric.cue.
-func New(options []cue.Value) *Fabric {
+// New returns a new *Fabric instance. It receives a MeshSpec...
+func New(mesh *v1alpha1.Mesh) (*Fabric, error) {
 	v := *value
-	for _, o := range options {
-		v = v.Unify(o)
+
+	m, err := cueutils.FromStruct("mesh", mesh)
+	if err != nil {
+		return nil, err
 	}
-	return &Fabric{cue: v}
+
+	return &Fabric{cue: v.Unify(m)}, nil
 }
 
 // Objects contains all fabric objects to apply for adding a workload to a mesh.

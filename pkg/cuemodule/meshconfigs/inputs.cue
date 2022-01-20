@@ -1,8 +1,12 @@
 package meshconfigs
 
-MeshName: string
-ReleaseVersion: string
-Zone:           string
+import "github.com/greymatter-io/operator/api/v1alpha1"
+
+mesh: v1alpha1.#Mesh
+
+// MeshName: string
+// ReleaseVersion: string
+// Zone:           string
 
 ServiceName:    string
 Ingresses: [string]: int32

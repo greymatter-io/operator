@@ -3,7 +3,7 @@ package meshconfigs
 // CatalogService is the schema for a Catalog API service entry
 // It is added here since it isn't defined in greymatter-cue
 #CatalogService: {
-	mesh_id:                   MeshName
+	mesh_id:                   mesh.metadata.name
 	service_id:                ServiceName
 	name:                      *ServiceName | string
 	version?:                  string

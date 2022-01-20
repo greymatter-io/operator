@@ -8,6 +8,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
+	"cuelang.org/go/encoding/gocode/gocodec"
 	"github.com/go-logr/logr"
 	"github.com/kylelemons/godebug/diff"
 )
@@ -51,6 +52,13 @@ func Interfaces(kvs map[string]interface{}) cue.Value {
 // FromStrings creates a cue.Value from string arguments.
 func FromStrings(ss ...string) cue.Value {
 	return cuecontext.New().CompileString(strings.Join(ss, "\n"))
+}
+
+// FromStruct creates a cue.Value from a Go struct.
+func FromStruct(name string, s interface{}) (cue.Value, error) {
+	//lint:ignore SA1019 will update to Context in next Cue version
+	codec := gocodec.New(&cue.Runtime{}, nil)
+	return codec.Decode(map[string]interface{}{name: s})
 }
 
 // LogError logs errors that may or may not contain a list of cue/errors.Error.

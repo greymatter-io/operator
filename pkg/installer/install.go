@@ -34,7 +34,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	options := mesh.Options(i.clusterIngressDomain)
 	v.Unify(options...)
 
-	go i.ConfigureMeshClient(mesh, options)
+	go i.ConfigureMeshClient(mesh)
 
 	// Create a Docker image pull secret and service account in this namespace if this Mesh is new.
 	if prev == nil {

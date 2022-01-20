@@ -12,6 +12,7 @@ do
         go mod vendor
     elif [ "$dependency" == "cue" ]; then
         (cd ./pkg/version/cue.mod; cue get go k8s.io/api/...)
+        (cd ./pkg/cuemodule/cue.mod; cue get go github.com/greymatter-io/operator/api/...)
     elif [ "$dependency" == "git" ]; then
         git submodule update --init --recursive --remote
     fi

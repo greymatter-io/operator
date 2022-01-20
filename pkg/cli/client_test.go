@@ -34,7 +34,6 @@ func TestNewClient(t *testing.T) {
 
 	c.configureMeshClient(
 		mesh,
-		mesh.Options(""),
 		"--base64-config", mkCLIConfig(
 			"http://localhost:5555",
 			"http://localhost:8181",
