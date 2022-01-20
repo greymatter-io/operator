@@ -9,6 +9,16 @@ Environment: *"kubernetes" | string
 MeshName: string
 ReleaseVersion: string
 Zone: *"default-zone" | string
+
+
+// This will probably need some work I don't think its right: TODO: alec
+Images: string: {
+  PullSecret: string
+}
+PullSecrets: string: {
+  Secret_Names: [...string]
+}
+
 IngressSubDomain: *"" | string
 
 InstallNamespace: string

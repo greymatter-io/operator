@@ -24,7 +24,6 @@ import (
 }
 
 proxy: #Component & {
-  image: =~"^docker.greymatter.io/(release|development)/gm-proxy:" & !~"latest$"
   ports: proxy: 10808
   env: {
     ENVOY_ADMIN_LOG_PATH: "/dev/stdout",
@@ -48,7 +47,6 @@ edge: #Component & proxy & {
 
 control: #Component & {
   name: "control"
-  image: =~"^docker.greymatter.io/(release|development)/gm-control:" & !~"latest$"
   ports: xds: 50000
   env: {
     GM_CONTROL_CMD: "kubernetes"
@@ -68,7 +66,6 @@ control: #Component & {
 
 control_api: #Component & {
   name: "control-api"
-  image: =~"^docker.greymatter.io/(release|development)/gm-control-api:" & !~"latest$"
   ports: api: 5555
   env: {
     GM_CONTROL_API_ADDRESS: "0.0.0.0:5555"
@@ -89,7 +86,6 @@ control_api: #Component & {
 
 catalog: #Component & {
   name: "catalog"
-  image: =~"^docker.greymatter.io/(release|development)/gm-catalog:" & !~"latest$"
   ports: api: 8080
   env: {
     SEED_FILE_PATH: "/app/seed/seed.yaml"
@@ -130,7 +126,6 @@ catalog: #Component & {
 
 dashboard: #Component & {
   name: "dashboard"
-  image: =~"^docker.greymatter.io/(release|development)/gm-dashboard:" & !~"latest$"
   ports: app: 1337
   env: {
     BASE_URL: "/services/dashboard/"
@@ -162,7 +157,6 @@ dashboard: #Component & {
 
 jwt_security: #Component & {
   name: "jwt-security"
-  image: =~"^docker.greymatter.io/(release|development)/gm-jwt-security:" & !~"latest$"
   ports: api: 3000
   env: {
     HTTP_PORT: "3000"

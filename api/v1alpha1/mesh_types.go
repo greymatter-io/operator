@@ -27,9 +27,18 @@ import (
 // MeshSpec defines the desired state of a Grey Matter mesh.
 type MeshSpec struct {
 	// The version of Grey Matter to install for this mesh.
-	// +kubebuilder:validation:Enum="1.6";"1.7"
-	// +kubebuilder:default="1.7"
+	// +kubebuilder:validation:Enum="1.6";"1.7";"latest"
+	// +kubebuilder:default="latest"
 	ReleaseVersion string `json:"release_version"`
+
+	// A list of OCI image strings and their respective pull secret names.
+	// These are treated as overrides to the specified "release_version".
+	// +optional
+	Images map[string]string `json:"images"`
+
+	// A map of pull secrets grouped by namespaces.
+	// +optional
+	PullSecrets map[string][]string `json:"image_pull_secrets_ref"`
 
 	// Label this mesh as belonging to a particular zone.
 	// +kubebuilder:default=default-zone

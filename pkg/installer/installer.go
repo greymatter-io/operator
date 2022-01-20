@@ -42,8 +42,6 @@ type Installer struct {
 	imagePullSecret *corev1.Secret
 	// The name of a configured cluster ingress name for OpenShift environments.
 	clusterIngressName string
-	// A map of Grey Matter version (v*.*) -> Version read from the filesystem.
-	versions map[string]version.Version
 	// A map of namespaces -> mesh name.
 	namespaces map[string]string
 	// A map of mesh -> function that returns a sidecar (given an xdsCluster name), used for sidecar injection
@@ -68,22 +66,14 @@ func New(c client.Client, gmcli *cli.CLI, cs *cfsslsrv.CFSSLServer, clusterIngre
 // Start initializes resources and configurations after controller-manager has launched.
 // It implements the controller-runtime Runnable interface.
 func (i *Installer) Start(ctx context.Context) error {
-
-	// Load versioned install configurations
-	var err error
-	i.versions, err = version.Load()
-	if err != nil {
-		logger.Error(err, "Failed to load versioned install configurations:")
-		return err
-	}
-
 	// Copy the image pull secret from the apiserver (block until it's retrieved).
 	// This secret will be re-created in each install namespace where our core services are pulled.
+	// This secret will now be default and a fallback if no image override is specified.
 	i.imagePullSecret = getImagePullSecret(i.client)
 
 	// Get our Mesh CRD to set as an owner for cluster-scoped resources
 	i.owner = &extv1.CustomResourceDefinition{}
-	err = i.client.Get(ctx, client.ObjectKey{Name: "meshes.greymatter.io"}, i.owner)
+	err := i.client.Get(ctx, client.ObjectKey{Name: "meshes.greymatter.io"}, i.owner)
 	if err != nil {
 		logger.Error(err, "Failed to get CustomResourceDefinition meshes.greymatter.io")
 		return err

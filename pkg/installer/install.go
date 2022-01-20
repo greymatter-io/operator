@@ -27,7 +27,8 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	// Get a copy of the version specified in the Mesh CR.
 	// Assume the value is valid since the CRD enumerates acceptable values for the apiserver.
 	i.RLock()
-	v := i.versions[mesh.Spec.ReleaseVersion].Copy()
+
+	// v := i.versions[mesh.Spec.ReleaseVersion].Copy()
 	i.RUnlock()
 
 	// Apply options for mutating the version copy's internal Cue value.

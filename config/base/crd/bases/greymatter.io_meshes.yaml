@@ -47,16 +47,30 @@ spec:
           spec:
             description: MeshSpec defines the desired state of a Grey Matter mesh.
             properties:
+              image_pull_secrets_ref:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                description: A map of pull secrets grouped by namespaces.
+                type: object
+              images:
+                additionalProperties:
+                  type: string
+                description: A list of OCI image strings and their respective pull
+                  secret names. These are treated as overrides to the specified "release_version".
+                type: object
               install_namespace:
                 description: Namespace where mesh core components and dependencies
                   should be installed.
                 type: string
               release_version:
-                default: "1.7"
+                default: latest
                 description: The version of Grey Matter to install for this mesh.
                 enum:
                 - "1.6"
                 - "1.7"
+                - latest
                 type: string
               user_tokens:
                 description: Add user tokens to the JWT Security Service.
