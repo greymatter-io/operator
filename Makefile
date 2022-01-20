@@ -33,6 +33,7 @@ help: ## Display this help.
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt",year="2022" paths="./..."
+	cd pkg/cuemodule/cue.mod && cue get go github.com/greymatter-io/operator/api/...
 
 manifests: controller-gen ## Generate CRD objects. These work back to Kubernetes 1.11.
 	$(CONTROLLER_GEN) crd:trivialVersions=true,preserveUnknownFields=false paths="./..." output:crd:artifacts:config=config/base/crd/bases
