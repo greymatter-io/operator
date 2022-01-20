@@ -7,8 +7,8 @@ package meshconfigs
 	forward_client_cert_details?: string
 
 	secret_validation_name: "spiffe://greymatter.io"
-	secret_name:            "spiffe://greymatter.io/\(MeshName).\(_name)"
-	subject_names: ["spiffe://greymatter.io/\(MeshName).\(_subject)"]
+	secret_name:            "spiffe://greymatter.io/\(mesh.metadata.name).\(_name)"
+	subject_names: ["spiffe://greymatter.io/\(mesh.metadata.name).\(_subject)"]
 	ecdh_curves: ["X25519:P-256:P-521:P-384"]
 }
 

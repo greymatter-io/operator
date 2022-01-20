@@ -137,7 +137,7 @@ func (i *Installer) SyncMeshes() error {
 		}
 		i.Unlock()
 
-		go i.ConfigureMeshClient(&mesh, options)
+		go i.ConfigureMeshClient(&mesh)
 	}
 
 	return nil

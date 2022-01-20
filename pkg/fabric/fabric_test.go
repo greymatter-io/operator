@@ -941,11 +941,15 @@ func loadMock(t *testing.T) *Fabric {
 		t.FailNow()
 	}
 
-	return New((&v1alpha1.Mesh{
+	f, _ := New(&v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mymesh"},
 		Spec: v1alpha1.MeshSpec{
 			Zone:           "myzone",
 			ReleaseVersion: "1.7",
 		},
-	}).Options(""))
+	})
+
+	fmt.Println(f.cue)
+
+	return f
 }

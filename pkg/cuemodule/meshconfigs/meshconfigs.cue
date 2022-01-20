@@ -98,7 +98,7 @@ service: {
 					if ServiceName != "edge" {
 						metrics_key_depth: "3"
 					}
-					if ReleaseVersion != "1.6" {
+					if mesh.spec.release_version != "1.6" {
 						metrics_receiver: {
 							redis_connection_string: "redis://127.0.0.1:10910"
 							push_interval_seconds:   10

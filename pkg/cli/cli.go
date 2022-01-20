@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"sync"
 
-	"cuelang.org/go/cue"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
 	corev1 "k8s.io/api/core/v1"
@@ -63,8 +62,8 @@ func New(ctx context.Context, mTLSEnabled bool) (*CLI, error) {
 }
 
 // ConfigureMeshClient initializes or updates a client with flags specifying connection options
-// for reaching Control and Catalog for the given mesh and its configuration options.
-func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value) {
+// for reaching Control and Catalog for the given Mesh CR.
+func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
 	conf := mkCLIConfig(
 		fmt.Sprintf("http://control.%s.svc.cluster.local:5555", mesh.Spec.InstallNamespace),
 		fmt.Sprintf("http://catalog.%s.svc.cluster.local:8080", mesh.Spec.InstallNamespace),
@@ -72,7 +71,7 @@ func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value) {
 	)
 	flags := []string{"--base64-config", conf}
 
-	c.configureMeshClient(mesh, options, flags...)
+	c.configureMeshClient(mesh, flags...)
 }
 
 func mkCLIConfig(apiHost, catalogHost, catalogMesh string) string {
@@ -85,7 +84,7 @@ func mkCLIConfig(apiHost, catalogHost, catalogMesh string) string {
 	`, apiHost, catalogHost, catalogMesh)))
 }
 
-func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) {
+func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -97,7 +96,7 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, options []cue.Value, flag
 		logger.Info("Initializing mesh client", "Mesh", mesh.Name)
 	}
 
-	c.clients[mesh.Name] = newClient(mesh, options, flags...)
+	c.clients[mesh.Name] = newClient(mesh, flags...)
 }
 
 // RemoveMeshClient cleans up a client's goroutines before removing it from the *CLI.

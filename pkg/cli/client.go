@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"cuelang.org/go/cue"
 	"github.com/google/uuid"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
@@ -21,8 +20,10 @@ type client struct {
 	f           *fabric.Fabric
 }
 
-func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *client {
+func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 	ctxt, cancel := context.WithCancel(context.Background())
+
+	f, _ := fabric.New(mesh)
 
 	cl := &client{
 		mesh:        mesh.Name,
@@ -31,7 +32,7 @@ func newClient(mesh *v1alpha1.Mesh, options []cue.Value, flags ...string) *clien
 		catalogCmds: make(chan cmd),
 		ctx:         ctxt,
 		cancel:      cancel,
-		f:           fabric.New(options),
+		f:           f,
 	}
 
 	// Consume commands to send to Control
