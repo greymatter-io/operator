@@ -54,15 +54,6 @@ func (m Mesh) Options(clusterIngressDomain string) []cue.Value {
 	return opts
 }
 
-// ExternalRedisConfig instructs core services to use an external Redis server for caching.
-// TODO: Instead of `url`, require host, port, password, dbs. No username option.
-type ExternalRedisConfig struct {
-	// +kubebuilder:validation:Required
-	URL string `json:"url"`
-	// +optional
-	CertSecretName string `json:"cert_secret_name"`
-}
-
 type UserToken struct {
 	Label  string              `json:"label"`
 	Values map[string][]string `json:"values"`
