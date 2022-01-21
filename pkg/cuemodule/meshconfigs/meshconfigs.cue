@@ -6,16 +6,16 @@ edgeDomain: {
 }
 
 service: {
-	if ServiceName != "gm-redis" {
+	if workload.metadata.name != "gm-redis" {
 		catalogservice: #CatalogService & {
-			if ServiceName == "edge" {
+			if workload.metadata.name == "edge" {
 				name:            "Grey Matter Edge"
 				version:         _ServiceVersions.edge
 				description:     "Handles north/south traffic flowing through the mesh."
 				api_endpoint:    "/"
 				business_impact: "critical"
 			}
-			if ServiceName == "control" {
+			if workload.metadata.name == "control" {
 				name:              "Grey Matter Control"
 				version:           _ServiceVersions.control
 				description:       "Manages the configuration of the Grey Matter data plane."
@@ -23,7 +23,7 @@ service: {
 				api_spec_endpoint: "/services/control/api/"
 				business_impact:   "critical"
 			}
-			if ServiceName == "catalog" {
+			if workload.metadata.name == "catalog" {
 				name:              "Grey Matter Catalog"
 				version:           _ServiceVersions.catalog
 				description:       "Interfaces with the control plane to expose the current state of the mesh."
@@ -31,13 +31,13 @@ service: {
 				api_spec_endpoint: "/services/catalog/"
 				business_impact:   "high"
 			}
-			if ServiceName == "dashboard" {
+			if workload.metadata.name == "dashboard" {
 				name:            "Grey Matter Dashboard"
 				version:         _ServiceVersions.dashboard
 				description:     "A user dashboard that paints a high-level picture of the mesh."
 				business_impact: "high"
 			}
-			if ServiceName == "jwt-security" {
+			if workload.metadata.name == "jwt-security" {
 				name:              "Grey Matter JWT Security"
 				version:           _ServiceVersions.jwtsecurity
 				description:       "A JWT token generation and retrieval service."
@@ -50,36 +50,36 @@ service: {
 
 	proxy: {
 		domain_keys: [
-			ServiceName,
+			workload.metadata.name,
 			if len(HTTPEgresses) > 0 {
-				"\(ServiceName)-egress-http"
+				"\(workload.metadata.name)-egress-http"
 			},
-			for _, e in TCPEgresses {
-				"\(ServiceName)-egress-tcp-to-\(e.cluster)"
+			for k, _ in TCPEgresses {
+				"\(workload.metadata.name)-egress-tcp-to-\(k)"
 			},
 		]
 		listener_keys: [
-			ServiceName,
+			workload.metadata.name,
 			if len(HTTPEgresses) > 0 {
-				"\(ServiceName)-egress-http"
+				"\(workload.metadata.name)-egress-http"
 			},
-			for _, e in TCPEgresses {
-				"\(ServiceName)-egress-tcp-to-\(e.cluster)"
+			for k, _ in TCPEgresses {
+				"\(workload.metadata.name)-egress-tcp-to-\(k)"
 			},
 		]
 	}
 
 	domain: {
-		domain_key: ServiceName
+		domain_key: workload.metadata.name
 		port:       10808
 	}
 
 	listener: {
-		listener_key: ServiceName
-		port: domain.port
-		domain_keys: [ServiceName]
+		listener_key: workload.metadata.name
+		port:         domain.port
+		domain_keys: [workload.metadata.name]
 
-		if ServiceName != "gm-redis" {
+		if workload.metadata.name != "gm-redis" {
 			active_http_filters: [
 				"gm.metrics",
 			]
@@ -92,10 +92,10 @@ service: {
 					metrics_ring_buffer_size:                   4096
 					prometheus_system_metrics_interval_seconds: 15
 					metrics_key_function:                       "depth"
-					if ServiceName == "edge" {
+					if workload.metadata.name == "edge" {
 						metrics_key_depth: "1"
 					}
-					if ServiceName != "edge" {
+					if workload.metadata.name != "edge" {
 						metrics_key_depth: "3"
 					}
 					if mesh.spec.release_version != "1.6" {
@@ -114,8 +114,8 @@ service: {
 			]
 			network_filters: {
 				envoy_tcp_proxy: {
-					for _, v in Ingresses {
-						_key:        "\(ServiceName):\(v)"
+					for v in Ingresses {
+						_key:        "\(workload.metadata.name):\(v)"
 						cluster:     _key
 						stat_prefix: _key
 					}
@@ -126,22 +126,22 @@ service: {
 
 	clusters: [
 		{
-			cluster_key: ServiceName
+			cluster_key: workload.metadata.name
 		},
 	]
 
 	routes: [
-		if ServiceName != "dashboard" && ServiceName != "edge" {
+		if workload.metadata.name != "dashboard" && workload.metadata.name != "edge" {
 			{
-				route_key:  ServiceName
+				route_key:  workload.metadata.name
 				domain_key: "edge"
 				route_match: {
-					path:       "/services/\(ServiceName)/"
+					path:       "/services/\(workload.metadata.name)/"
 					match_type: "prefix"
 				}
 				redirects: [
 					{
-						from:          "^/services/\(ServiceName)$"
+						from:          "^/services/\(workload.metadata.name)$"
 						to:            route_match.path
 						redirect_type: "permanent"
 					},
@@ -152,7 +152,7 @@ service: {
 						constraints: {
 							light: [
 								{
-									cluster_key: ServiceName
+									cluster_key: workload.metadata.name
 									weight:      1
 								},
 							]
@@ -161,9 +161,9 @@ service: {
 				]
 			}
 		},
-		if ServiceName == "dashboard" {
+		if workload.metadata.name == "dashboard" {
 			{
-				route_key:  ServiceName
+				route_key:  workload.metadata.name
 				domain_key: "edge"
 				route_match: {
 					path:       "/"
@@ -174,7 +174,7 @@ service: {
 						constraints: {
 							light: [
 								{
-									cluster_key: ServiceName
+									cluster_key: workload.metadata.name
 									weight:      1
 								},
 							]
@@ -187,9 +187,9 @@ service: {
 
 	ingresses: {
 		clusters: [
-			for _, v in Ingresses if len(Ingresses) > 0 && ServiceName != "edge" {
+			for v in Ingresses if len(Ingresses) > 0 && workload.metadata.name != "edge" {
 				{
-					cluster_key: "\(ServiceName):\(v)"
+					cluster_key: "\(workload.metadata.name):\(v)"
 					instances: [
 						{
 							host: "127.0.0.1"
@@ -200,12 +200,12 @@ service: {
 			},
 		]
 		routes: [
-			for k, v in Ingresses if len(Ingresses) > 0 && ServiceName != "edge" {
+			for k, v in Ingresses if len(Ingresses) > 0 && workload.metadata.name != "edge" {
 				if len(Ingresses) == 1 {
 					{
-						_rk:        "\(ServiceName):\(v)"
+						_rk:        "\(workload.metadata.name):\(v)"
 						route_key:  _rk
-						domain_key: ServiceName
+						domain_key: workload.metadata.name
 						route_match: {
 							path:       "/"
 							match_type: "prefix"
@@ -226,9 +226,9 @@ service: {
 				}
 				if len(Ingresses) > 1 {
 					{
-						_rk:        "\(ServiceName):\(v)"
+						_rk:        "\(workload.metadata.name):\(v)"
 						route_key:  _rk
-						domain_key: ServiceName
+						domain_key: workload.metadata.name
 						route_match: {
 							path:       "/\(k)/"
 							match_type: "prefix"
@@ -261,104 +261,104 @@ service: {
 
 	if len(HTTPEgresses) > 0 {
 		httpEgresses: {
-			_dk: "\(ServiceName)-egress-http"
-				domain: {
-					domain_key: _dk
-					port:       10909
-				}
-				listener: {
-					listener_key: _dk
-					port: 10909
-					domain_keys: [_dk]
-				}
-				clusters: [
-					for _, e in HTTPEgresses {
-						if e.isExternal {
-							{
-								cluster_key: "\(ServiceName)-to-\(e.cluster)"
-								instances: [
-									{
-										host: e.host
-										port: e.port
-									},
-								]
-							}
-						}
-						if !e.isExternal {
-							{
-								cluster_key: "\(ServiceName)-to-\(e.cluster)"
-								name:        e.cluster
-							}
-						}
-					},
-				]
-				routes: [
-					for _, e in HTTPEgresses {
-						{
-							_rk:        "\(ServiceName)-to-\(e.cluster)"
-							route_key:  _rk
-							domain_key: _dk
-							route_match: {
-								path:       "/\(e.cluster)/"
-								match_type: "prefix"
-							}
-							redirects: [
-								{
-									from:          "^/\(e.cluster)$"
-									to:            route_match.path
-									redirect_type: "permanent"
-								},
-							]
-							prefix_rewrite: "/"
-							rules: [
-								{
-									constraints: {
-										light: [
-											{
-												cluster_key: _rk
-												weight:      1
-											},
-										]
-									}
-								},
-							]
-						}
-					},
-				]
+			_dk: "\(workload.metadata.name)-egress-http"
+			domain: {
+				domain_key: _dk
+				port:       10909
 			}
+			listener: {
+				listener_key: _dk
+				port:         10909
+				domain_keys: [_dk]
+			}
+			clusters: [
+				for k, v in HTTPEgresses {
+					if v.isExternal {
+						{
+							cluster_key: "\(workload.metadata.name)-to-\(k)"
+							instances: [
+								{
+									host: v.host
+									port: v.port
+								},
+							]
+						}
+					}
+					if !v.isExternal {
+						{
+							cluster_key: "\(workload.metadata.name)-to-\(k)"
+							name:        k
+						}
+					}
+				},
+			]
+			routes: [
+				for k, v in HTTPEgresses {
+					{
+						_rk:        "\(workload.metadata.name)-to-\(k)"
+						route_key:  _rk
+						domain_key: _dk
+						route_match: {
+							path:       "/\(k)/"
+							match_type: "prefix"
+						}
+						redirects: [
+							{
+								from:          "^/\(k)$"
+								to:            route_match.path
+								redirect_type: "permanent"
+							},
+						]
+						prefix_rewrite: "/"
+						rules: [
+							{
+								constraints: {
+									light: [
+										{
+											cluster_key: _rk
+											weight:      1
+										},
+									]
+								}
+							},
+						]
+					}
+				},
+			]
+		}
 	}
 
 	tcpEgresses: [
-		for _, e in TCPEgresses {
-			_dk: "\(ServiceName)-egress-tcp-to-\(e.cluster)"
+		for k, v in TCPEgresses {
+			_dk: "\(workload.metadata.name)-egress-tcp-to-\(k)"
 			{
 				domain: {
 					domain_key: _dk
-					port:       e.tcpPort
+					port:       v.tcpPort
 				}
 				listener: {
 					listener_key: _dk
 					domain_keys: [_dk]
-					port: e.tcpPort
+					port: v.tcpPort
 					active_network_filters: [
 						"envoy.tcp_proxy",
 					]
 					network_filters: {
 						envoy_tcp_proxy: {
-							cluster:     e.cluster
-							stat_prefix: e.cluster
+							cluster:     k
+							stat_prefix: k
 						}
 					}
 				}
 				clusters: [
 					{
-						cluster_key: "\(ServiceName)-to-\(e.cluster)"
-						name:        e.cluster
-						if e.isExternal {
+						cluster_key: "\(workload.metadata.name)-to-\(k)"
+						name:        k
+						if v.isExternal {
 							instances: [
 								{
-									host: e.host
-									port: e.port
+									host: v.host
+									port: v.port
 								},
 							]
 						}
@@ -366,7 +366,7 @@ service: {
 				]
 				routes: [
 					{
-						_rk:        "\(ServiceName)-to-\(e.cluster)"
+						_rk:        "\(workload.metadata.name)-to-\(k)"
 						route_key:  _rk
 						domain_key: _dk
 						route_match: {

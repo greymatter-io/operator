@@ -11,7 +11,7 @@ import (
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
-	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -71,7 +71,9 @@ func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
 	)
 	flags := []string{"--base64-config", conf}
 
-	c.configureMeshClient(mesh, flags...)
+	if err := c.configureMeshClient(mesh, flags...); err != nil {
+		logger.Error(err, "failed to configure client", "Mesh", mesh.Name)
+	}
 }
 
 func mkCLIConfig(apiHost, catalogHost, catalogMesh string) string {
@@ -84,7 +86,7 @@ func mkCLIConfig(apiHost, catalogHost, catalogMesh string) string {
 	`, apiHost, catalogHost, catalogMesh)))
 }
 
-func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) {
+func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -96,7 +98,14 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) {
 		logger.Info("Initializing mesh client", "Mesh", mesh.Name)
 	}
 
-	c.clients[mesh.Name] = newClient(mesh, flags...)
+	cl, err := newClient(mesh, flags...)
+	if err != nil {
+		return err
+	}
+
+	c.clients[mesh.Name] = cl
+
+	return nil
 }
 
 // RemoveMeshClient cleans up a client's goroutines before removing it from the *CLI.
@@ -117,7 +126,7 @@ func (c *CLI) RemoveMeshClient(name string) {
 
 // ConfigureService applies fabric objects that add a workload to the mesh specified
 // given the workload's annotations and a list of its corev1.Containers.
-func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]string, containers []corev1.Container) {
+func (c *CLI) ConfigureService(mesh, workload string, obj runtime.Object) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -130,16 +139,7 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 	// TODO: Handle removals of containers and annotations.
 	// We'll need to be able to pass previous annotations and containers, or even a diff with actions for what to add/edit/remove.
 
-	ingresses := make(map[string]int32)
-	for _, container := range containers {
-		for _, port := range container.Ports {
-			if port.Name != "" || len(container.Ports) == 1 {
-				ingresses[port.Name] = port.ContainerPort
-			}
-		}
-	}
-
-	objects, err := cl.f.Service(workload, annotations, ingresses)
+	objects, err := cl.f.Service(workload, obj)
 	if err != nil {
 		logger.Error(err, "failed to configure fabric objects for workload", "Mesh", mesh, "Workload", workload)
 		return
@@ -204,7 +204,7 @@ func (c *CLI) ConfigureService(mesh, workload string, annotations map[string]str
 
 // RemoveService removes fabric objects, disconnecting the workload from the mesh specified,
 // along with all ingress and egress cluster routes derived from the given annotations and containers.
-func (c *CLI) RemoveService(mesh, workload string, annotations map[string]string, containers []corev1.Container) {
+func (c *CLI) RemoveService(mesh, workload string, obj runtime.Object) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -213,16 +213,7 @@ func (c *CLI) RemoveService(mesh, workload string, annotations map[string]string
 		logger.Error(fmt.Errorf("unknown mesh"), "failed to remove fabric objects for workload", "Mesh", mesh, "Workload", workload)
 	}
 
-	ingresses := make(map[string]int32)
-	for _, container := range containers {
-		for _, port := range container.Ports {
-			if port.Name != "" || len(container.Ports) == 1 {
-				ingresses[port.Name] = port.ContainerPort
-			}
-		}
-	}
-
-	objects, err := cl.f.Service(workload, annotations, ingresses)
+	objects, err := cl.f.Service(workload, obj)
 	if err != nil {
 		logger.Error(err, "failed to configure fabric objects for workload", "Mesh", mesh, "Workload", workload)
 		return

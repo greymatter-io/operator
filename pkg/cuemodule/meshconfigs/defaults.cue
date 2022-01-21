@@ -27,20 +27,20 @@ _ServiceVersions: {
 
 #Proxy: greymatter.#Proxy & {
 	zone_key:  mesh.spec.zone
-  proxy_key: ServiceName
-	name: proxy_key
+	proxy_key: workload.metadata.name
+	name:      proxy_key
 }
 
 #Listener: greymatter.#Listener & {
-  listener_key: string
-	name:     listener_key
-	zone_key: mesh.spec.zone
-	ip:       "0.0.0.0"
-	protocol: "http_auto"
+	listener_key: string
+	name:         listener_key
+	zone_key:     mesh.spec.zone
+	ip:           "0.0.0.0"
+	protocol:     "http_auto"
 }
 
 #Cluster: greymatter.#Cluster & {
-  cluster_key: string
+	cluster_key: string
 	name:        *cluster_key | string
 	zone_key:    mesh.spec.zone
 	require_tls: true
@@ -54,8 +54,8 @@ edgeDomain: #Domain
 
 service: {
 	proxy:    #Proxy
-	domain:   #Domain & {domain_key:     ServiceName}
-	listener: #Listener & {listener_key: ServiceName}
+	domain:   #Domain & {domain_key:     workload.metadata.name}
+	listener: #Listener & {listener_key: workload.metadata.name}
 	clusters: [...#Cluster]
 	routes: [...#Route]
 
@@ -64,14 +64,14 @@ service: {
 		routes: [...#Route]
 	}
 
-  if len(HTTPEgresses) > 0 {
-    httpEgresses: {
-        domain:   #Domain
-        listener: #Listener
-        clusters: [...#Cluster]
-        routes: [...#Route]
-    }
-  }
+	if len(HTTPEgresses) > 0 {
+		httpEgresses: {
+			domain:   #Domain
+			listener: #Listener
+			clusters: [...#Cluster]
+			routes: [...#Route]
+		}
+	}
 
 	tcpEgresses: [...{
 		domain:   #Domain

@@ -20,10 +20,13 @@ type client struct {
 	f           *fabric.Fabric
 }
 
-func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
-	ctxt, cancel := context.WithCancel(context.Background())
+func newClient(mesh *v1alpha1.Mesh, flags ...string) (*client, error) {
+	f, err := fabric.New(mesh)
+	if err != nil {
+		return nil, err
+	}
 
-	f, _ := fabric.New(mesh)
+	ctxt, cancel := context.WithCancel(context.Background())
 
 	cl := &client{
 		mesh:        mesh.Name,
@@ -124,5 +127,5 @@ func newClient(mesh *v1alpha1.Mesh, flags ...string) *client {
 		}
 	}(cl.ctx, cl.catalogCmds)
 
-	return cl
+	return cl, nil
 }
