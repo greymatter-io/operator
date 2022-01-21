@@ -2,7 +2,7 @@
 
 set -e
 
-for dependency in go greymatter operator-sdk kustomize cue staticcheck git
+for dependency in go greymatter operator-sdk cue staticcheck git
 do
     if ! which $dependency &> /dev/null; then
         echo "$dependency is missing from your \$PATH"
