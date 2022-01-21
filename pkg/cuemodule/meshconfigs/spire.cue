@@ -13,75 +13,75 @@ package meshconfigs
 }
 
 service: {
-  clusters: [
-    {
-      require_tls: true
-      secret:      #secret & {
-        _name:    "edge"
-        _subject: ServiceName
-      }
-    },
-  ]
+	clusters: [
+		{
+			require_tls: true
+			secret:      #secret & {
+				_name:    "edge"
+				_subject: workload.metadata.name
+			}
+		},
+	]
 
-  listener: {
-    if ServiceName != "edge" {
-      secret: #secret & {
-        _name:    ServiceName
-        _subject: "edge"
-        set_current_client_cert_details: uri: true
-        forward_client_cert_details: "APPEND_FORWARD"
-      }
-    }
-  }
+	listener: {
+		if workload.metadata.name != "edge" {
+			secret: #secret & {
+				_name:    workload.metadata.name
+				_subject: "edge"
+				set_current_client_cert_details: uri: true
+				forward_client_cert_details: "APPEND_FORWARD"
+			}
+		}
+	}
 
-  httpEgresses: {
-    if len(HTTPEgresses) > 0 {
-      clusters: [
-        for i, e in HTTPEgresses {
-          if e.isExternal {
-            {}
-          }
-          if !e.isExternal {
-            {
-              require_tls: true
-              secret:      #secret & {
-                _name:    ServiceName
-                _subject: e.cluster
-              }
-            }
-          }
-        },
-      ]
-    }
-  }
+	httpEgresses: {
+		if len(HTTPEgresses) > 0 {
+			clusters: [
+				for k, v in HTTPEgresses {
+					if v.isExternal {
+						{}
+					}
+					if !v.isExternal {
+						{
+							require_tls: true
+							secret:      #secret & {
+								_name:    workload.metadata.name
+								_subject: k
+							}
+						}
+					}
+				},
+			]
+		}
+	}
 
-  tcpEgresses: [
-    for i, e in TCPEgresses {
-      {
-        clusters: [
-          if e.isExternal {
-            {}
-          },
-          if !e.isExternal {
-            {
-              require_tls: true
-              secret:      #secret & {
-                _name:    ServiceName
-                _subject: e.cluster
-              }
-            }
-          },
-        ]
-      }
-    },
-  ]
+	tcpEgresses: [
+		for k, v in TCPEgresses {
+			{
+				clusters: [
+					if v.isExternal {
+						{}
+					},
+					if !v.isExternal {
+						{
+							require_tls: true
+							secret:      #secret & {
+								_name:    workload.metadata.name
+								_subject: k
+							}
+						}
+					},
+				]
+			}
+		},
+	]
 
-  localEgresses: [
-    for _, e in HTTPEgresses if !e.isExternal {
-      e.cluster
-    },
-    for _, e in TCPEgresses if !e.isExternal {
-      e.cluster
-    },
-  ]
+	localEgresses: [
+		for k, v in HTTPEgresses if !v.isExternal {
+			k
+		},
+		for k, v in TCPEgresses if !v.isExternal {
+			k
+		},
+	]
 }

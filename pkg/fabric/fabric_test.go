@@ -2,13 +2,14 @@ package fabric
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/assert"
 	"github.com/greymatter-io/operator/pkg/cueutils"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -27,7 +28,12 @@ func TestEdgeDomain(t *testing.T) {
 func TestService(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example", nil, nil)
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,8 +124,11 @@ func TestService(t *testing.T) {
 func TestServiceEdge(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("edge", nil, map[string]int32{
-		"proxy": 10808,
+	service, err := f.Service("edge", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "edge",
+			Namespace: "myns",
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -141,16 +150,36 @@ func TestServiceEdge(t *testing.T) {
 func TestServiceGMRedis(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("gm-redis", nil, nil)
+	service, err := f.Service("gm-redis", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "gm-redis",
+			Namespace: "myns",
+			Annotations: map[string]string{
+				"greymatter.io/network-filters": `["envoy.tcp_proxy"]`,
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "gm-redis",
+							Ports: []corev1.ContainerPort{
+								{ContainerPort: 6379},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Run("Listener", assert.JSONHasSubstrings(service.Listener,
-		`"listener_key":"gm-redis"`,
-		`"zone_key":"myzone"`,
-		`"domain_keys":["gm-redis"]`,
-		`"port":10808`,
+		`"active_network_filters":["envoy.tcp_proxy"]`,
+		`"network_filters":{"envoy_tcp_proxy":{"cluster":"gm-redis:6379","stat_prefix":"gm-redis:6379"}}`,
 	))
 	t.Run("Proxy", assert.JSONHasSubstrings(service.Proxy,
 		`"name":"gm-redis"`,
@@ -185,7 +214,12 @@ func TestServiceGMRedis(t *testing.T) {
 func TestServiceNoIngress(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example", nil, nil)
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,8 +240,25 @@ func TestServiceNoIngress(t *testing.T) {
 func TestServiceOneIngress(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example", nil, map[string]int32{
-		"api": 5555,
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "api",
+							Ports: []corev1.ContainerPort{
+								{ContainerPort: 5555},
+							},
+						},
+					},
+				},
+			},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -244,9 +295,31 @@ func TestServiceOneIngress(t *testing.T) {
 func TestServiceMultipleIngresses(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example", nil, map[string]int32{
-		"api":  5555,
-		"api2": 8080,
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "api",
+							Ports: []corev1.ContainerPort{
+								{Name: "api", ContainerPort: 5555},
+							},
+						},
+						{
+							Name: "api2",
+							Ports: []corev1.ContainerPort{
+								{Name: "api2", ContainerPort: 8080},
+							},
+						},
+					},
+				},
+			},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -291,11 +364,15 @@ func TestServiceMultipleIngresses(t *testing.T) {
 func TestServiceOneHTTPLocalEgress(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example",
-		map[string]string{
-			"greymatter.io/egress-http-local": `["othercluster"]`,
-		}, nil,
-	)
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+			Annotations: map[string]string{
+				"greymatter.io/egress-http-local": `["othercluster"]`,
+			},
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -344,11 +421,15 @@ func TestServiceOneHTTPLocalEgress(t *testing.T) {
 func TestServiceMultipleHTTPLocalEgresses(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example",
-		map[string]string{
-			"greymatter.io/egress-http-local": `["othercluster1","othercluster2"]`,
-		}, nil,
-	)
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+			Annotations: map[string]string{
+				"greymatter.io/egress-http-local": `["othercluster1","othercluster2"]`,
+			},
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,9 +465,15 @@ func TestServiceMultipleHTTPLocalEgresses(t *testing.T) {
 func TestServiceOneHTTPExternalEgress(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example", map[string]string{
-		"greymatter.io/egress-http-external": `[{"name":"google","host":"google.com","port":80}]`,
-	}, nil)
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+			Annotations: map[string]string{
+				"greymatter.io/egress-http-external": `[{"name":"google","host":"google.com","port":80}]`,
+			},
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -429,12 +516,18 @@ func TestServiceOneHTTPExternalEgress(t *testing.T) {
 func TestServiceMultipleHTTPExternalEgresses(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example", map[string]string{
-		"greymatter.io/egress-http-external": `[
-			{"name":"google","host":"google.com","port":80},
-			{"name":"amazon","host":"amazon.com","port":80}
-		]`,
-	}, nil)
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+			Annotations: map[string]string{
+				"greymatter.io/egress-http-external": `[
+					{"name":"google","host":"google.com","port":80},
+					{"name":"amazon","host":"amazon.com","port":80}
+				]`,
+			},
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -463,11 +556,15 @@ func TestServiceMultipleHTTPExternalEgresses(t *testing.T) {
 func TestServiceOneTCPLocalEgress(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example",
-		map[string]string{
-			"greymatter.io/egress-tcp-local": `["othercluster"]`,
-		}, nil,
-	)
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+			Annotations: map[string]string{
+				"greymatter.io/egress-tcp-local": `["othercluster"]`,
+			},
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -519,11 +616,15 @@ func TestServiceOneTCPLocalEgress(t *testing.T) {
 func TestServiceMultipleTCPLocalEgresses(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example",
-		map[string]string{
-			"greymatter.io/egress-tcp-local": `["c1","c2"]`,
-		}, nil,
-	)
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+			Annotations: map[string]string{
+				"greymatter.io/egress-tcp-local": `["c1","c2"]`,
+			},
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -584,11 +685,15 @@ func TestServiceMultipleTCPLocalEgresses(t *testing.T) {
 func TestServiceOneTCPExternalEgress(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example",
-		map[string]string{
-			"greymatter.io/egress-tcp-external": `[{"name":"svc","host":"1.2.3.4","port":80}]`,
-		}, nil,
-	)
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+			Annotations: map[string]string{
+				"greymatter.io/egress-tcp-external": `[{"name":"svc","host":"1.2.3.4","port":80}]`,
+			},
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -634,14 +739,18 @@ func TestServiceOneTCPExternalEgress(t *testing.T) {
 func TestServiceMultipleTCPExternalEgresses(t *testing.T) {
 	f := loadMock(t)
 
-	service, err := f.Service("example",
-		map[string]string{
-			"greymatter.io/egress-tcp-external": `[
-				{"name":"s1","host":"1.1.1.1","port":1111},
-				{"name":"s2","host":"2.2.2.2","port":2222}
-			]`,
-		}, nil,
-	)
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+			Annotations: map[string]string{
+				"greymatter.io/egress-tcp-external": `[
+					{"name":"s1","host":"1.1.1.1","port":1111},
+					{"name":"s2","host":"2.2.2.2","port":2222}
+				]`,
+			},
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -694,245 +803,6 @@ func TestServiceMultipleTCPExternalEgresses(t *testing.T) {
 	}
 }
 
-func TestParseFilters(t *testing.T) {
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-	for _, tc := range []struct {
-		input    string
-		expected map[string]bool
-	}{
-		{
-			input:    "",
-			expected: map[string]bool{},
-		},
-		{
-			input:    `["one"]`,
-			expected: map[string]bool{"one": true},
-		},
-		{
-			input:    `["one","two"]`,
-			expected: map[string]bool{"one": true, "two": true},
-		},
-		{
-			input:    `[" one"," two"]`,
-			expected: map[string]bool{"one": true, "two": true},
-		},
-		{
-			input:    `["one","","two"]`,
-			expected: map[string]bool{"one": true, "two": true},
-		},
-	} {
-		t.Run(tc.input, func(t *testing.T) {
-			output := parseFilters(tc.input)
-			if !reflect.DeepEqual(output, tc.expected) {
-				t.Errorf("expected %v but got %v", tc.expected, output)
-			}
-		})
-	}
-}
-
-func TestParseLocalEgressArgs(t *testing.T) {
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-	for _, tc := range []struct {
-		name         string
-		args         []EgressArgs
-		annotation   string
-		tcpPort      int32
-		expectedArgs []EgressArgs
-		expectedPort int32
-	}{
-		{
-			name:         "nil and empty",
-			args:         nil,
-			annotation:   "",
-			expectedArgs: []EgressArgs{},
-		},
-		{
-			name:         "nil",
-			args:         nil,
-			annotation:   `["one"]`,
-			expectedArgs: []EgressArgs{{Cluster: "one"}},
-		},
-		{
-			name:         "non-nil",
-			args:         []EgressArgs{},
-			annotation:   `["one"]`,
-			expectedArgs: []EgressArgs{{Cluster: "one"}},
-		},
-		{
-			name:         "multiple",
-			args:         []EgressArgs{},
-			annotation:   `["one","two"]`,
-			expectedArgs: []EgressArgs{{Cluster: "one"}, {Cluster: "two"}},
-		},
-		{
-			name:         "trim",
-			args:         []EgressArgs{},
-			annotation:   `[" one"," two"]`,
-			expectedArgs: []EgressArgs{{Cluster: "one"}, {Cluster: "two"}},
-		},
-		{
-			name:         "adjacent commas",
-			args:         []EgressArgs{},
-			annotation:   `["one","","two"]`,
-			expectedArgs: []EgressArgs{{Cluster: "one"}, {Cluster: "two"}},
-		},
-		{
-			name:       "tcp",
-			args:       []EgressArgs{{Cluster: "gm-redis", TCPPort: 10910}},
-			annotation: `["one"]`,
-			tcpPort:    10912,
-			expectedArgs: []EgressArgs{
-				{Cluster: "gm-redis", TCPPort: 10910},
-				{Cluster: "one", TCPPort: 10912},
-			},
-			expectedPort: 10913,
-		},
-		{
-			name:       "tcp multiple",
-			args:       []EgressArgs{{Cluster: "gm-redis", TCPPort: 10910}},
-			annotation: `["one","two"]`,
-			tcpPort:    10912,
-			expectedArgs: []EgressArgs{
-				{Cluster: "gm-redis", TCPPort: 10910},
-				{Cluster: "one", TCPPort: 10912},
-				{Cluster: "two", TCPPort: 10913},
-			},
-			expectedPort: 10914,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			output, port := parseLocalEgressArgs(tc.args, tc.annotation, tc.tcpPort)
-			if !reflect.DeepEqual(output, tc.expectedArgs) {
-				t.Errorf("args: expected %v but got %v", tc.expectedArgs, output)
-			}
-			if port != tc.expectedPort {
-				t.Errorf("port: expected %d but got %d", tc.expectedPort, port)
-			}
-		})
-	}
-}
-
-func TestParseExternalEgressArgs(t *testing.T) {
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-	for _, tc := range []struct {
-		name         string
-		args         []EgressArgs
-		annotation   string
-		tcpPort      int32
-		expectedArgs []EgressArgs
-		expectedPort int32
-	}{
-		{
-			name:         "nil and empty",
-			args:         nil,
-			annotation:   "",
-			expectedArgs: []EgressArgs{},
-		},
-		{
-			name: "nil",
-			args: nil,
-			annotation: `[
-				{
-					"name": "cluster",
-					"host": "host",
-					"port": 8080
-				}
-			]`,
-			expectedArgs: []EgressArgs{
-				{IsExternal: true, Cluster: "cluster", Host: "host", Port: 8080},
-			},
-		},
-		{
-			name: "one",
-			args: []EgressArgs{},
-			annotation: `[
-				{
-					"name": "cluster",
-					"host": "host",
-					"port": 8080
-				}
-			]`,
-			expectedArgs: []EgressArgs{
-				{IsExternal: true, Cluster: "cluster", Host: "host", Port: 8080},
-			},
-		},
-		{
-			name: "multiple",
-			args: []EgressArgs{},
-			annotation: `[
-				{
-					"name": "c1",
-					"host": "h1",
-					"port": 8080
-				},
-				{
-					"name": "c2",
-					"host": "h2",
-					"port": 3000
-				}
-			]`,
-			expectedArgs: []EgressArgs{
-				{IsExternal: true, Cluster: "c1", Host: "h1", Port: 8080},
-				{IsExternal: true, Cluster: "c2", Host: "h2", Port: 3000},
-			},
-		},
-		{
-			name: "tcp",
-			args: []EgressArgs{
-				{IsExternal: true, Cluster: "gm-redis", Host: "redis://extserver", Port: 6379, TCPPort: 10910},
-			},
-			annotation: `[
-				{
-					"name": "c1",
-					"host": "h1",
-					"port": 8080
-				}
-			]`,
-			tcpPort: 10912,
-			expectedArgs: []EgressArgs{
-				{IsExternal: true, Cluster: "gm-redis", Host: "redis://extserver", Port: 6379, TCPPort: 10910},
-				{IsExternal: true, Cluster: "c1", Host: "h1", Port: 8080, TCPPort: 10912},
-			},
-			expectedPort: 10913,
-		},
-		{
-			name: "tcp multiple",
-			args: []EgressArgs{
-				{IsExternal: true, Cluster: "gm-redis", Host: "redis://extserver", Port: 6379, TCPPort: 10910},
-			},
-			annotation: `[
-				{
-					"name": "c1",
-					"host": "h1",
-					"port": 8080
-				},
-				{
-					"name": "c2",
-					"host": "h2",
-					"port": 3000
-				}
-			]`,
-			tcpPort: 10912,
-			expectedArgs: []EgressArgs{
-				{IsExternal: true, Cluster: "gm-redis", Host: "redis://extserver", Port: 6379, TCPPort: 10910},
-				{IsExternal: true, Cluster: "c1", Host: "h1", Port: 8080, TCPPort: 10912},
-				{IsExternal: true, Cluster: "c2", Host: "h2", Port: 3000, TCPPort: 10913},
-			},
-			expectedPort: 10914,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			output, port := parseExternalEgressArgs(tc.args, tc.annotation, tc.tcpPort)
-			if !reflect.DeepEqual(output, tc.expectedArgs) {
-				t.Errorf("args: expected %v but got %v", tc.expectedArgs, output)
-			}
-			if port != tc.expectedPort {
-				t.Errorf("port: expected %d but got %d", tc.expectedPort, port)
-			}
-		})
-	}
-}
-
 func loadMock(t *testing.T) *Fabric {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
@@ -944,12 +814,11 @@ func loadMock(t *testing.T) *Fabric {
 	f, _ := New(&v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mymesh"},
 		Spec: v1alpha1.MeshSpec{
-			Zone:           "myzone",
-			ReleaseVersion: "1.7",
+			InstallNamespace: "greymatter",
+			ReleaseVersion:   "1.7",
+			Zone:             "myzone",
 		},
 	})
-
-	fmt.Println(f.cue)
 
 	return f
 }

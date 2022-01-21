@@ -4,8 +4,8 @@ package meshconfigs
 // It is added here since it isn't defined in greymatter-cue
 #CatalogService: {
 	mesh_id:                   mesh.metadata.name
-	service_id:                ServiceName
-	name:                      *ServiceName | string
+	service_id:                workload.metadata.name
+	name:                      *workload.metadata.name | string
 	version?:                  string
 	api_endpoint?:             string
 	api_spec_endpoint?:        string

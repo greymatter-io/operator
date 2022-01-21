@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,16 +42,29 @@ func TestNewClient(t *testing.T) {
 		),
 	)
 
-	containers := []corev1.Container{
-		{Ports: []corev1.ContainerPort{
-			{Name: "api", ContainerPort: 5555},
-			{Name: "ui", ContainerPort: 3000},
-		}},
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "api",
+							Ports: []corev1.ContainerPort{
+								{ContainerPort: 5555},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
-	c.ConfigureService("mesh", "gm-redis", nil, containers)
-	c.ConfigureService("mesh", "mock", nil, containers)
-	c.RemoveService("mesh", "mock", nil, containers)
+	c.ConfigureService("mesh", "mock", deployment)
+	c.RemoveService("mesh", "mock", deployment)
 
 	c.RemoveMeshClient("mesh")
 

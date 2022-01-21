@@ -39,6 +39,7 @@ func (wd *workloadDefaulter) Handle(ctx context.Context, req admission.Request) 
 	return wd.handleWorkload(req)
 }
 
+// TODO: Modification should happen using a CUE package.
 func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response {
 	if req.Operation == admissionv1.Delete {
 		return admission.ValidationResponse(true, "allowed")
@@ -93,6 +94,7 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 	return admission.PatchResponseFromRaw(req.Object.Raw, rawUpdate)
 }
 
+// TODO: Modification should happen using a CUE package.
 func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Response {
 	mesh := wd.WatchedBy(req.Namespace)
 	if mesh == "" {
@@ -118,10 +120,10 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-			go wd.ConfigureService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
+			go wd.ConfigureService(mesh, req.Name, deployment)
 		} else {
 			wd.DecodeRaw(req.OldObject, deployment)
-			go wd.RemoveService(mesh, req.Name, deployment.Annotations, deployment.Spec.Template.Spec.Containers)
+			go wd.RemoveService(mesh, req.Name, deployment)
 			return admission.ValidationResponse(true, "allowed")
 		}
 
@@ -140,10 +142,10 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-			go wd.ConfigureService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
+			go wd.ConfigureService(mesh, req.Name, statefulset)
 		} else {
 			wd.DecodeRaw(req.OldObject, statefulset)
-			go wd.RemoveService(mesh, req.Name, statefulset.Annotations, statefulset.Spec.Template.Spec.Containers)
+			go wd.RemoveService(mesh, req.Name, statefulset)
 			return admission.ValidationResponse(true, "allowed")
 		}
 	}
