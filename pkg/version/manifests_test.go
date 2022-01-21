@@ -35,6 +35,8 @@ func TestVersionManifests_1_6(t *testing.T) {
 	t.Skip()
 }
 
+// TODO (alec): rewrite this
+//lint:ignore U1000 this needs to be rewritten to support the new way of loading versions
 func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 
 	// Run all general tests for manifests
@@ -179,31 +181,6 @@ func testVersionManifests(t *testing.T, v Version, to ...testOptions) {
 						t.Errorf("Expected namespaces to contain %s: got %v", namespace, namespaces)
 					}
 				}
-			},
-		},
-		{
-			name: "UserTokens",
-			options: []cue.Value{UserTokens(`[
-					{
-						"label": "CN=engineer,OU=engineering,O=Decipher,=Alexandria,=Virginia,C=US",
-						"values": {
-							"email": ["engineering@greymatter.io"],
-							"org": ["www.greymatter.io"],
-							"privilege": ["root"]
-						}
-					}
-				]`)},
-			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-				// unimplemented
-				// check for expected configMap and reference to configMap
-			},
-		},
-		{
-			name:    "JWTSecrets",
-			options: []cue.Value{JWTSecrets()},
-			checkManifests: func(t *testing.T, manifests []ManifestGroup) {
-				// unimplemented
-				// check for expected secret and references to secret
 			},
 		},
 		{

@@ -47,13 +47,6 @@ spec:
           spec:
             description: MeshSpec defines the desired state of a Grey Matter mesh.
             properties:
-              image_pull_secrets_ref:
-                additionalProperties:
-                  items:
-                    type: string
-                  type: array
-                description: A map of pull secrets grouped by namespaces.
-                type: object
               images:
                 additionalProperties:
                   type: string
@@ -64,6 +57,13 @@ spec:
                 description: Namespace where mesh core components and dependencies
                   should be installed.
                 type: string
+              pull_secrets:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                description: A map of pull secrets grouped by namespaces.
+                type: object
               release_version:
                 default: latest
                 description: The version of Grey Matter to install for this mesh.

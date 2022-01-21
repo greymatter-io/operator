@@ -4,6 +4,7 @@ package installer
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -113,12 +114,15 @@ func (i *Installer) SyncMeshes() error {
 	}
 
 	for _, mesh := range meshList.Items {
-		options := mesh.Options(i.clusterIngressDomain)
-
 		i.Lock()
 		{
-			v := i.versions[mesh.Spec.ReleaseVersion].Copy()
-			v.Unify(options...)
+			// TODO (alec): this could get slow if we have a lot of meshes all unifying n number of times
+			// with various options. CUE is fast so maybe this is fine but it's something to keep in mind.
+			v, err := version.New(&mesh, version.WithIngressSubDomain(i.clusterIngressDomain))
+			if err != nil {
+				return fmt.Errorf("failed to create version for mesh %s: %v", mesh.Name, err)
+			}
+
 			i.sidecars[mesh.Name] = v.SidecarTemplate()
 			i.namespaces[mesh.Spec.InstallNamespace] = mesh.Name
 			for _, namespace := range mesh.Spec.WatchNamespaces {

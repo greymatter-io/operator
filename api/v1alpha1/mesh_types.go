@@ -38,7 +38,7 @@ type MeshSpec struct {
 
 	// A map of pull secrets grouped by namespaces.
 	// +optional
-	PullSecrets map[string][]string `json:"image_pull_secrets_ref"`
+	PullSecrets map[string][]string `json:"pull_secrets"`
 
 	// Label this mesh as belonging to a particular zone.
 	// +kubebuilder:default=default-zone

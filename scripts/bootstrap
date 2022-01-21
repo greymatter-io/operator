@@ -11,7 +11,6 @@ do
         go mod tidy
         go mod vendor
     elif [ "$dependency" == "cue" ]; then
-        (cd ./pkg/version/cue.mod; cue get go k8s.io/api/...) # TODO: Remove
         (cd ./pkg/cuemodule/cue.mod; cue get go github.com/greymatter-io/operator/api/...)
         (cd ./pkg/cuemodule/cue.mod; cue get go k8s.io/api/...)
     elif [ "$dependency" == "git" ]; then

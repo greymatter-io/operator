@@ -24,16 +24,12 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		logger.Info("Upgrading Mesh", "Name", mesh.Name)
 	}
 
-	// Get a copy of the version specified in the Mesh CR.
-	// Assume the value is valid since the CRD enumerates acceptable values for the apiserver.
-	i.RLock()
-
-	// v := i.versions[mesh.Spec.ReleaseVersion].Copy()
-	i.RUnlock()
-
-	// Apply options for mutating the version copy's internal Cue value.
-	options := mesh.Options(i.clusterIngressDomain)
-	v.Unify(options...)
+	// Retrieve our version list from the base versions/compoenents evaluated CUE
+	// given the supplied mesh CRD.
+	v, err := version.New(mesh, version.WithIngressSubDomain(i.clusterIngressDomain))
+	if err != nil {
+		logger.Error(err, "Failed to retreive versions", err)
+	}
 
 	go i.ConfigureMeshClient(mesh)
 

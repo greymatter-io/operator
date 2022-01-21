@@ -25,6 +25,8 @@ func TestVersionSidecar_1_6(t *testing.T) {
 	t.Skip()
 }
 
+// TODO (alec): rewrite this
+//lint:ignore U1000 this needs to be rewritten to support the new version loading system
 func testVersionSidecar(t *testing.T, v Version, to ...testOptions) {
 
 	// Run all general tests for sidecar

@@ -29,7 +29,7 @@ FROM ubuntu:21.04
 WORKDIR /
 COPY --from=builder /workspace/operator .
 COPY --from=builder /workspace/greymatter /bin/greymatter
-COPY --from=builder /workspace/pkg/version/cue.mod/ cue.mod/
+COPY --from=builder /workspace/pkg/cuemodule/ .
 USER 1000:1000
 
 ENTRYPOINT ["/operator"]
