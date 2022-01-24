@@ -21,7 +21,7 @@ spec:
       - name: gm-docker-secret
       containers:
       - command:
-        - /operator
+        - /app/operator
         args:
         - --leader-elect
         image: docker.greymatter.io/internal/gm-operator:latest

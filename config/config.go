@@ -46,6 +46,11 @@ var kubernetesCommand = cli.Command{
 			EnvVars:  []string{"GREYMATTER_REGISTRY_PASSWORD"},
 			Required: true,
 		},
+		&cli.StringFlag{
+			Name:    "pull-secrets",
+			Usage:   "A command delimited list of known image pull secrets to use for fetching core services.",
+			EnvVars: []string{"GREYMATTER_PULL_SECRETS_LIST"},
+		},
 		&cli.BoolFlag{
 			Name: "disable-internal-ca",
 			Usage: strings.Join([]string{
@@ -63,17 +68,23 @@ var kubernetesCommand = cli.Command{
 			DockerUsername:               c.String("registry-username"),
 			DockerPassword:               c.String("registry-password"),
 			DisableWebhookCertGeneration: c.Bool("disable-internal-ca"),
+			SecretsList:                  strings.Split(c.String("pull-secrets"), ","),
 		})
 	},
 }
 
+// manifestConfig contains options read from CLI flags
+// to be used in the applied kustomize template patches.
 type manifestConfig struct {
 	DockerImageURL               string
 	DockerUsername               string
 	DockerPassword               string
 	DisableWebhookCertGeneration bool
+
 	// Generated from DockerUsername and DockerPassword
 	DockerConfigBase64 string
+	// SecretsList contains a comma-delimited slice of known imagePullSecret names
+	SecretsList []string
 }
 
 func loadManifests(dirPath string, conf manifestConfig) error {

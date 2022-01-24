@@ -18,3 +18,7 @@ spec:
       containers:
       - name: operator
         image: "{{ .DockerImageURL }}"
+      imagePullSecrets:
+      {{ range $secret := .SecretsList }}
+        - {{ $secret }}
+      {{ end }}
