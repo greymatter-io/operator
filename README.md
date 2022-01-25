@@ -96,12 +96,19 @@ The operator will be installed to the `gm-operator` namespace. View its running 
 ./scripts/dev logs k8s
 ```
 
-A sample Mesh custom resource has been provided in `hack/sample-k8s.yaml` for declaring the state of
-a mesh's components. Run the following to apply it and view the operator logs for mesh components
-being created and configured:
+Run the following to create a Mesh custom resource in your cluster:
 
 ```
-./scripts/dev sample k8s
+cat <<EOF | kubectl apply -f -
+apiVersion: greymatter.io/v1alpha1
+kind: Mesh
+metadata:
+  name: mesh-sample
+spec:
+  release_version: '1.7'
+  zone: default-zone
+  install_namespace: default
+EOF
 ```
 
 To uninstall all components:
