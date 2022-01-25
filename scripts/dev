@@ -37,11 +37,6 @@ oc_logs() {
   oc logs -n gm-operator $(oc get pod -n gm-operator -o json | jq -c '.items[0] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
 }
 
-oc_sample() {
-  oc apply -f hack/sample-openshift.yaml
-  oc_logs
-}
-
 # Kubernetes
 
 k8s_deploy() {
@@ -61,11 +56,6 @@ k8s_upgrade() {
 
 k8s_logs() {
   kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
-}
-
-k8s_sample() {
-  kubectl apply -f hack/sample-k8s.yaml
-  k8s_logs
 }
 
 # K3D (local development)
@@ -89,11 +79,6 @@ k3d_upgrade() {
 
 k3d_logs() {
   kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
-}
-
-k3d_sample() {
-  kubectl apply -f hack/sample-k8s.yaml
-  k3d_logs
 }
 
 # Shared
@@ -147,7 +132,6 @@ case $1 in
   cleanup)  choose $2 cleanup; ;;
   upgrade)  choose $2 upgrade; ;;
   logs)     choose $2 logs;    ;;
-  sample)   choose $2 sample;  ;;
   *)
     echo "invalid argument $1"
     exit 1
