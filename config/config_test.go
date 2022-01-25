@@ -10,13 +10,22 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var testConf = manifestConfig{
+	DockerImageURL:               "my-docker-image-url",
+	DockerUsername:               "my-docker-user",
+	DockerPassword:               "my-docker-password",
+	DisableWebhookCertGeneration: true,
+	SecretsList:                  []string{"secret1", "secret2"},
+}
+
 func TestKubernetesCommand(t *testing.T) {
 	app := cli.NewApp()
 	app.Commands = []*cli.Command{&kubernetesCommand}
 	if err := app.Run([]string{"", "",
-		"--image", "my-docker-image-url",
-		"--registry-username", "my-docker-user",
-		"--registry-password", "my-docker-password",
+		"--image", testConf.DockerImageURL,
+		"--registry-username", testConf.DockerUsername,
+		"--registry-password", testConf.DockerPassword,
+		"--pull-secrets", strings.Join(testConf.SecretsList, ","),
 		"--disable-internal-ca",
 	}); err != nil {
 		t.Error(err)
@@ -26,8 +35,8 @@ func TestKubernetesCommand(t *testing.T) {
 func TestKubernetesCommandDockerAuthEnvVars(t *testing.T) {
 	app := cli.NewApp()
 	app.Commands = []*cli.Command{&kubernetesCommand}
-	os.Setenv("GREYMATTER_REGISTRY_USERNAME", "my-docker-user")
-	os.Setenv("GREYMATTER_REGISTRY_PASSWORD", "my-docker-password")
+	os.Setenv("GREYMATTER_REGISTRY_USERNAME", testConf.DockerUsername)
+	os.Setenv("GREYMATTER_REGISTRY_PASSWORD", testConf.DockerPassword)
 	if err := app.Run([]string{"", ""}); err != nil {
 		t.Error(err)
 	}
@@ -43,36 +52,35 @@ func TestKubernetesCommandHelp(t *testing.T) {
 }
 
 func TestLoadManifests(t *testing.T) {
-	conf := manifestConfig{
-		DockerImageURL:               "my-docker-image-url",
-		DockerUsername:               "my-docker-user",
-		DockerPassword:               "my-docker-password",
-		DisableWebhookCertGeneration: true,
-	}
-	if err := loadManifests("context/kubernetes-options", conf); err != nil {
+	if err := loadManifests("context/kubernetes-options", testConf); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestLoadTemplateString(t *testing.T) {
-	tmplStr, err := loadTemplateString("context/kubernetes-options")
+	tc := testConf
+	// Manually set the base64 Docker config since it's generated outside this function
+	tc.DockerConfigBase64 = genDockerConfigBase64(tc.DockerUsername, tc.DockerPassword)
+
+	tms, err := loadTemplatedManifests("context/kubernetes-options", tc)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, placeholder := range []string{
-		"DockerImageURL",
-		"DisableWebhookCertGeneration",
-		"DockerConfigBase64",
-	} {
-		if !strings.Contains(tmplStr, fmt.Sprintf("{{ .%s }}", placeholder)) {
-			t.Errorf("Did not find placeholder for %s", placeholder)
+	expectedValues := append([]string{
+		tc.DockerImageURL,
+		tc.DockerConfigBase64,
+	}, tc.SecretsList...)
+
+	for _, value := range expectedValues {
+		if !strings.Contains(tms, value) {
+			t.Errorf("Did not find value %s", value)
 		}
 	}
 }
 
 func TestMkKyamlFileSys(t *testing.T) {
-	kfs, err := mkKyamlFileSys(configFS)
+	kfs, err := mkKyamlFileSys(configFS, testConf)
 	if err != nil {
 		t.Fatal(err)
 	}

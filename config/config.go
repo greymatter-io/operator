@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"embed"
 	"encoding/base64"
 	"fmt"
@@ -90,17 +91,13 @@ type manifestConfig struct {
 func loadManifests(dirPath string, conf manifestConfig) error {
 	conf.DockerConfigBase64 = genDockerConfigBase64(conf.DockerUsername, conf.DockerPassword)
 
-	tmplString, err := loadTemplateString(dirPath)
+	result, err := loadTemplatedManifests(dirPath, conf)
 	if err != nil {
-		return fmt.Errorf("failed to load template string: %w", err)
+		return fmt.Errorf("failed to load templated manifests: %w", err)
 	}
 
-	tmpl, err := template.New("manifests").Parse(tmplString)
-	if err != nil {
-		return fmt.Errorf("failed to parse template string: %w", err)
-	}
-
-	return tmpl.Execute(os.Stdout, conf)
+	_, err = os.Stdout.WriteString(result)
+	return err
 }
 
 func genDockerConfigBase64(user, password string) string {
@@ -117,8 +114,8 @@ func genDockerConfigBase64(user, password string) string {
 	}`, user, user, password, auth)))
 }
 
-func loadTemplateString(dirPath string) (string, error) {
-	kfs, err := mkKyamlFileSys(configFS)
+func loadTemplatedManifests(dirPath string, conf manifestConfig) (string, error) {
+	kfs, err := mkKyamlFileSys(configFS, conf)
 	if err != nil {
 		return "", fmt.Errorf("failed to populate in-memory file system: %w", err)
 	}
@@ -141,9 +138,9 @@ func loadTemplateString(dirPath string) (string, error) {
 }
 
 // Loads a filesys.FileSystem with data from an embed.FS suitable for building a kustomize resource map.
-func mkKyamlFileSys(efs embed.FS) (filesys.FileSystem, error) {
+func mkKyamlFileSys(efs embed.FS, conf manifestConfig) (filesys.FileSystem, error) {
 	kfs := filesys.MakeFsInMemory()
-	loadFunc := mkFileLoader(efs, kfs)
+	loadFunc := mkFileLoader(efs, kfs, conf)
 	if err := fs.WalkDir(efs, ".", loadFunc); err != nil {
 		return nil, err
 	}
@@ -153,7 +150,7 @@ func mkKyamlFileSys(efs embed.FS) (filesys.FileSystem, error) {
 // Receives an embed.FS (from the Go 1.16+ standard library) and an filesys.FileSystem (from kustomize)
 // and returns a function that implements the fs.WalkDirFunc function signature for each embed.FS fs.DirEntry.
 // The returned function reads YAML files from the embed.FS and writes it to the same path in the filesys.FileSystem.
-func mkFileLoader(efs embed.FS, kfs filesys.FileSystem) func(string, fs.DirEntry, error) error {
+func mkFileLoader(efs embed.FS, kfs filesys.FileSystem, conf manifestConfig) func(string, fs.DirEntry, error) error {
 	return func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -161,10 +158,31 @@ func mkFileLoader(efs embed.FS, kfs filesys.FileSystem) func(string, fs.DirEntry
 		if !strings.HasSuffix(path, ".yaml") {
 			return nil
 		}
+
+		// Load the YAML file from the embed.FS.
 		data, err := efs.ReadFile(path)
 		if err != nil {
 			return err
 		}
+
+		// If the YAML file is in our template directory, execute it with our manifestConfig
+		// and overwrite the template in memory with the result.
+		if strings.HasPrefix(path, "context/kubernetes-options/") &&
+			!strings.HasSuffix(path, "kustomization.yaml") {
+
+			tmpl, err := template.New(path).Parse(string(data))
+			if err != nil {
+				return fmt.Errorf("failed to parse: %w", err)
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, conf); err != nil {
+				return fmt.Errorf("failed to execute: %w", err)
+			}
+
+			data = buf.Bytes()
+		}
+
 		return kfs.WriteFile(path, data)
 	}
 }
