@@ -47,7 +47,22 @@ subjects:
 - kind: ServiceAccount
   name: admin-user
   namespace: kubernetes-dashboard" | kubectl apply -f - 
+    
+kubectl create secret generic regcred \
+   --from-file=.dockerconfigjson=$HOME/.docker/config.json \
+   --type=kubernetes.io/dockerconfigjson \
+   -n default
+echo "Just a moment..."
+sleep 5;
+echo "Adding private credentials to service account."
+kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "regcred"}]}'
 
+
+echo -e "\n\nLogin to the dashboard with token:"
+echo -e "\n\thttp://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/workloads?namespace=_all#/login\n"
+echo -e "\nKubernetes Dashboard Token:\n"
+kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"
+echo -e "\n\n"
 
 # Create namespace
 kubectl create namespace gm-operator
@@ -62,20 +77,33 @@ docker login docker.greymatter.io
 # Install GM Operator
 kubectl apply -k config/context/kubernetes
 
-kubectl create secret generic regcred \
-   --from-file=.dockerconfigjson=$HOME/.docker/config.json \
-   --type=kubernetes.io/dockerconfigjson \
-   -n default
+while [ "$(kubectl get pods -n gm-operator -l=name='gm-operator' -o jsonpath='{.items[*].status.containerStatuses[0].ready}')" != "true" ]; do
+   sleep 5
+   echo "Waiting for GM Operator to be ready."
+   kubectl get pods -n gm-operator
+done
+kubectl get pods -n gm-operator
 
-echo "Just a moment..."
-sleep 5;
-echo "Adding private credentials to service account."
-kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "regcred"}]}'
- 
-echo -e "\n\nLogin to the dashboard with token:"
-echo -e "\n\thttp://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/\n"
-echo -e "\nKubernetes Dashboard Token:\n"
-kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"
+function yes_or_no {
+    while true; do
+        read -p "$* [y/n]: " yn
+        case $yn in
+            [Yy]*) return 0  ;;  
+            [Nn]*) echo "Aborted" ; return  1 ;;
+        esac
+    done
+}
+
+yes_or_no "Would you like to install a demo mesh?" && echo "
+apiVersion: greymatter.io/v1alpha1
+kind: Mesh
+metadata:
+  name: mesh-sample
+spec:
+  release_version: '1.7'
+  zone: default-zone
+  install_namespace: default" | kubectl apply -f -
+
 
 echo -e "\n\n"
 
