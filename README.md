@@ -21,10 +21,15 @@ To get the latest development version of the operator up and running in your Kub
 the following:
 
 ```
-kubectl create namespace gm-operator
-docker login docker.greymatter.io
-kubectl create secret generic gm-docker-secret --from-file=.dockerconfigjson=$HOME/.docker/config.json --type=kubernetes.io/dockerconfigjson -n gm-operator
+
 kubectl apply -k config/context/kubernetes
+
+kubectl create secret docker-registry gm-docker-secret \
+  --docker-server=docker.greymatter.io \
+  --docker-username=$GREYMATTER_REGISTRY_USERNAME \
+  --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
+  --docker-email=$GREYMATTER_REGISTRY_USERNAME \
+  -n gm-operator
 ```
 
 The operator will be running in a pod in the `gm-operator` namespace.
