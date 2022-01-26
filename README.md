@@ -21,15 +21,10 @@ To get the latest development version of the operator up and running in your Kub
 the following:
 
 ```
-
+kubectl create namespace gm-operator
+docker login docker.greymatter.io
+kubectl create secret generic gm-docker-secret --from-file=.dockerconfigjson=$HOME/.docker/config.json --type=kubernetes.io/dockerconfigjson -n gm-operator
 kubectl apply -k config/context/kubernetes
-
-kubectl create secret docker-registry gm-docker-secret \
-  --docker-server=docker.greymatter.io \
-  --docker-username=$GREYMATTER_REGISTRY_USERNAME \
-  --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
-  --docker-email=$GREYMATTER_REGISTRY_USERNAME \
-  -n gm-operator
 ```
 
 The operator will be running in a pod in the `gm-operator` namespace.
@@ -75,8 +70,7 @@ CLI](https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/).
 Go dependencies can be added with `GO111MODULE=on go mod vendor`. The Go dependencies will be
 downloaded to the gitignored `vendor` directory.
 
-Cue dependencies should be added inside of the `/pkg/version/cue.mod` directory by running `cue get
-go k8s.io/api/...` inside of that directory. The Cue dependencies will be downloaded to the
+Cue dependencies should be added inside of the `/pkg/version/cue.mod` directory by running `cue get go k8s.io/api/...` inside of that directory. The Cue dependencies will be downloaded to the
 gitignored `/pkg/version/cue.mod/gen` directory.
 
 ### Quickstart (Kubernetes)
@@ -117,7 +111,6 @@ To uninstall all components:
 ./scripts/dev cleanup k8s
 ```
 
-
 ### Local Quickstart (K3d)
 
 This section outlines how to set up a local development environment in [K3d](https://k3d.io).
@@ -148,6 +141,15 @@ To tear down the local cluster, run:
 k3d cluster delete gm-operator
 ```
 
+### Local Quickstart (Nix Shell K3d)
+
+First, install docker and [Nix (the package manager)](https://nixos.org/download.html) on your system.
+
+Then run:
+
+```
+nix-shell
+```
 
 ### OpenShift Quickstart
 
