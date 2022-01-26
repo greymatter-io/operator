@@ -75,7 +75,8 @@ CLI](https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/).
 Go dependencies can be added with `GO111MODULE=on go mod vendor`. The Go dependencies will be
 downloaded to the gitignored `vendor` directory.
 
-Cue dependencies should be added inside of the `/pkg/version/cue.mod` directory by running `cue get go k8s.io/api/...` inside of that directory. The Cue dependencies will be downloaded to the
+Cue dependencies should be added inside of the `/pkg/version/cue.mod` directory by running `cue get
+go k8s.io/api/...` inside of that directory. The Cue dependencies will be downloaded to the
 gitignored `/pkg/version/cue.mod/gen` directory.
 
 ### Quickstart (Kubernetes)
@@ -115,6 +116,7 @@ To uninstall all components:
 ```
 ./scripts/dev cleanup k8s
 ```
+
 
 ### Local Quickstart (K3d)
 
