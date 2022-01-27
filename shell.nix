@@ -10,6 +10,7 @@ mkShell {
   ];
 
   shellHook = ''
+trap 'k3d cluster stop gm-cluster; k3d cluster delete gm-cluster;  killall kubectl;' EXIT
 docker --version
 if docker --version; then
   echo "Docker Daemon is running" 
@@ -17,6 +18,8 @@ else
   echo "Docker Daemon is not running. Please install and run it on your system." 
   exit 0;
 fi
+
+docker login docker.greymatter.io
 
 k3d cluster create gm-cluster -a 1 -p 30000:10808@loadbalancer
 k3d cluster start gm-cluster
@@ -47,11 +50,30 @@ subjects:
 - kind: ServiceAccount
   name: admin-user
   namespace: kubernetes-dashboard" | kubectl apply -f - 
-    
-kubectl create secret generic regcred \
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  # Mac OSX
+  if [[ -z "$GREYMATTER_REGISTRY_USERNAME" ]]; then
+    echo "Docker Username(email): "
+    read GREYMATTER_REGISTRY_USERNAME
+  fi
+  if [[ -z "$GREYMATTER_REGISTRY_PASSWORD" ]]; then
+    echo "Docker Password: "
+    read -s GREYMATTER_REGISTRY_PASSWORD
+  fi
+  kubectl create secret docker-registry regcred \
+    --docker-server=docker.greymatter.io \
+    --docker-username=$GREYMATTER_REGISTRY_USERNAME \
+    --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
+    --docker-email=$GREYMATTER_REGISTRY_USERNAME \
+    -n default
+else
+  kubectl create secret generic regcred \
    --from-file=.dockerconfigjson=$HOME/.docker/config.json \
    --type=kubernetes.io/dockerconfigjson \
    -n default
+fi
+
 echo "Just a moment..."
 sleep 5;
 echo "Adding private credentials to service account."
@@ -68,11 +90,28 @@ echo -e "\n\n"
 kubectl create namespace gm-operator
 
 # Create docker pull secrets from local docker config
-docker login docker.greymatter.io
-    kubectl create secret generic gm-docker-secret \
-    --from-file=.dockerconfigjson=$HOME/.docker/config.json \
-    --type=kubernetes.io/dockerconfigjson \
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  # Mac OSX
+  if [[ -z "$GREYMATTER_REGISTRY_USERNAME" ]]; then
+    echo "Docker Username(email): "
+    read GREYMATTER_REGISTRY_USERNAME
+  fi
+  if [[ -z "$GREYMATTER_REGISTRY_PASSWORD" ]]; then
+    echo "Docker Password: "
+    read -s GREYMATTER_REGISTRY_PASSWORD
+  fi
+  kubectl create secret docker-registry gm-docker-secret \
+    --docker-server=docker.greymatter.io \
+    --docker-username=$GREYMATTER_REGISTRY_USERNAME \
+    --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
+    --docker-email=$GREYMATTER_REGISTRY_USERNAME \
     -n gm-operator
+else
+  kubectl create secret generic gm-docker-secret \
+  --from-file=.dockerconfigjson=$HOME/.docker/config.json \
+  --type=kubernetes.io/dockerconfigjson \
+  -n gm-operator
+fi
 
 # Install GM Operator
 kubectl apply -k config/context/kubernetes
@@ -110,6 +149,5 @@ echo -e "\n\n"
 export PS1="\[\e[32m\]GM K8S Shell \u@\h \w \n\$ \[\e[m\]"
 
 
-trap 'k3d cluster stop gm-cluster; k3d cluster delete gm-cluster;  killall kubectl;' EXIT
   '';
 }
