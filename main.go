@@ -106,24 +106,6 @@ func run() error {
 		}
 	}
 
-	// Create context for goroutine cleanup
-	ctx := ctrl.SetupSignalHandler()
-
-	// Create a rest.Config that has settings for communicating with the K8s cluster.
-	restConfig := ctrl.GetConfigOrDie()
-
-	// Create a write+read client for making requests to the API server.
-	c, err := client.New(restConfig, client.Options{Scheme: scheme})
-	if err != nil {
-		return fmt.Errorf("failed to create initial client: %w", err)
-	}
-
-	// Initialize operator with configured options
-	mgr, err := ctrl.NewManager(restConfig, options)
-	if err != nil {
-		return fmt.Errorf("failed to initialize controller-manager: %w", err)
-	}
-
 	// Start up our CFSSL server for issuing two certs:
 	// 1) Webhook server certs (unless disabled in the bootstrap config)
 	// 2) SPIRE's intermediate CA for issuing identities to workloads
@@ -135,11 +117,29 @@ func run() error {
 		return fmt.Errorf("failed to start CFSSL server: %w", err)
 	}
 
+	// Create context for goroutine cleanup
+	ctx := ctrl.SetupSignalHandler()
+
 	// Initialize interface with greymatter CLI
 	// For now, mTLSEnabled is always true since we install SPIRE by default.
 	gmcli, err := cli.New(ctx, true)
 	if err != nil {
 		return err
+	}
+
+	// Create a rest.Config that has settings for communicating with the K8s cluster.
+	restConfig := ctrl.GetConfigOrDie()
+
+	// Create a write+read client for making requests to the API server.
+	c, err := client.New(restConfig, client.Options{Scheme: scheme})
+	if err != nil {
+		return fmt.Errorf("failed to create initial client: %w", err)
+	}
+
+	// Initialize controller-runtime manager with configured options
+	mgr, err := ctrl.NewManager(restConfig, options)
+	if err != nil {
+		return fmt.Errorf("failed to initialize controller-manager: %w", err)
 	}
 
 	// Initialize manifests installer.

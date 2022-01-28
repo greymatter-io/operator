@@ -2,6 +2,7 @@ package cuemodule
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"runtime"
 
@@ -12,12 +13,13 @@ import (
 
 var dirPath string
 
-// Initialize the path to our Cue module directory (i.e. this directory).
+// Initialize the path to our Cue module directory.
+// We expect the working directory in the container to be `/app`.
+// If not running from `/app`, this is in a unit test which needs the runtime file path.
 func init() {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		panic(fmt.Errorf("failed to retrieve path to Cue module"))
-	} else {
+	dirPath, _ = os.Getwd()
+	if dirPath != "/app" {
+		_, filename, _, _ := runtime.Caller(0)
 		dirPath = path.Dir(filename)
 	}
 }

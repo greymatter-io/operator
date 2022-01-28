@@ -3,14 +3,11 @@ package version
 import (
 	"embed"
 	"fmt"
-	"os"
-	"path"
 	"strings"
 
 	"cuelang.org/go/cue"
-	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
-	"cuelang.org/go/cue/load"
+	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"github.com/greymatter-io/operator/pkg/cueutils"
 )
 
@@ -42,28 +39,13 @@ func loadBaseWithVersions(pathElems []string) (map[string]Version, error) {
 }
 
 func loadBase(pathElems []string) (cue.Value, error) {
-	var dirPath string
-	if len(pathElems) == 0 {
-		wd, err := os.Getwd()
-		if err != nil {
-			return cue.Value{}, fmt.Errorf("failed to determine working directory")
-		}
-		dirPath = wd
-	} else {
-		dirPath = path.Join(pathElems...)
-	}
-	instances := load.Instances([]string{"greymatter.io/operator/version/cue.mod:base"}, &load.Config{
-		Package:    "base",
-		ModuleRoot: dirPath,
-		Dir:        fmt.Sprintf("%s/cue.mod", dirPath),
-	})
-	base := cuecontext.New().BuildInstance(instances[0])
-	if err := base.Err(); err != nil {
-		return base, err
+	v, err := cuemodule.LoadPackage("base")
+	if err != nil {
+		return cue.Value{}, err
 	}
 
 	logger.Info("Loaded base install configuration module")
-	return base, nil
+	return v, nil
 }
 
 func loadVersions(base cue.Value) (map[string]Version, error) {
