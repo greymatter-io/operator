@@ -171,7 +171,7 @@ func (cs *CFSSLServer) RequestIntermediateCA(req csr.CertificateRequest) ([]byte
 
 	logger.Info("Requesting intermediate CA", "CN", req.CN)
 
-	c := http.Client{Timeout: time.Second * 3}
+	c := http.Client{Timeout: time.Second * 10}
 
 	resp, err := getCFSSLResponse(c, "newkey", fmt.Sprintf(`{"request":%s}`, string(reqBytes)))
 	if err != nil {
@@ -213,7 +213,7 @@ func (cs *CFSSLServer) RequestCert(req csr.CertificateRequest) ([]byte, []byte, 
 
 	logger.Info("Requesting certificate", "CN", req.CN)
 
-	c := http.Client{Timeout: time.Second * 3}
+	c := http.Client{Timeout: time.Second * 10}
 	resp, err := getCFSSLResponse(c, "newcert", fmt.Sprintf(`{"request":%s,"profile":"server"}`, string(reqBytes)))
 	if err != nil {
 		return nil, nil, err
