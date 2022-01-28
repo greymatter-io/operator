@@ -56,6 +56,11 @@ type MeshSpec struct {
 	UserTokens []UserToken `json:"user_tokens,omitempty"`
 }
 
+type UserToken struct {
+	Label  string              `json:"label"`
+	Values map[string][]string `json:"values"`
+}
+
 // MeshStatus describes the observed state of a Grey Matter mesh.
 type MeshStatus struct {
 }
