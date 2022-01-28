@@ -25,6 +25,7 @@ import (
 	"github.com/greymatter-io/operator/pkg/bootstrap"
 	"github.com/greymatter-io/operator/pkg/cfsslsrv"
 	"github.com/greymatter-io/operator/pkg/cli"
+	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"github.com/greymatter-io/operator/pkg/installer"
 	"github.com/greymatter-io/operator/pkg/webhooks"
 
@@ -122,7 +123,7 @@ func run() error {
 
 	// Initialize interface with greymatter CLI
 	// For now, mTLSEnabled is always true since we install SPIRE by default.
-	gmcli, err := cli.New(ctx, true)
+	gmcli, err := cli.New(ctx, cuemodule.LoadPackage, true)
 	if err != nil {
 		return err
 	}

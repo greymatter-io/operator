@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"github.com/greymatter-io/operator/pkg/cueutils"
 
 	"cuelang.org/go/cue"
@@ -248,7 +249,7 @@ func getEnvValue(container corev1.Container, key string) (string, bool) {
 }
 
 func loadVersion(t *testing.T, name string) Version {
-	versions, err := loadBaseWithVersions(nil)
+	versions, err := loadBaseWithVersions(cuemodule.LoadPackageForTest)
 	if err != nil {
 		cueutils.LogError(logger, err)
 		t.FailNow()
