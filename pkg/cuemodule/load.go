@@ -11,22 +11,29 @@ import (
 	"cuelang.org/go/cue/load"
 )
 
-var dirPath string
+// Loader loads a package from our CUE module.
+type Loader func(string) (cue.Value, error)
 
-// Initialize the path to our Cue module directory.
-// We expect the working directory in the container to be `/app`.
-// If not running from `/app`, this is in a unit test which needs the runtime file path.
-func init() {
-	dirPath, _ = os.Getwd()
-	if dirPath != "/app" {
-		_, filename, _, _ := runtime.Caller(0)
-		dirPath = path.Dir(filename)
-	}
-}
-
-// Loads a package from our Cue module.
+// LoadPackage loads a package from our Cue module.
 // Packages are added to subdirectories and declared with the same name as the subdirectory.
 func LoadPackage(pkgName string) (cue.Value, error) {
+	dirPath, err := os.Getwd()
+	if err != nil {
+		return cue.Value{}, err
+	}
+
+	return loadPackage(pkgName, dirPath)
+}
+
+// LoadPackageForTest loads a package from our Cue module within a test context.
+func LoadPackageForTest(pkgName string) (cue.Value, error) {
+	_, filename, _, _ := runtime.Caller(0)
+	dirPath := path.Dir(filename)
+
+	return loadPackage(pkgName, dirPath)
+}
+
+func loadPackage(pkgName, dirPath string) (cue.Value, error) {
 	instances := load.Instances([]string{"greymatter.io/operator/" + pkgName}, &load.Config{
 		ModuleRoot: dirPath,
 	})

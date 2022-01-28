@@ -16,19 +16,21 @@ var (
 	filesystem embed.FS
 )
 
-func Load(pathElems ...string) (map[string]Version, error) {
-	versions, err := loadBaseWithVersions(pathElems)
+// Load receives a cuemodule.Loader function and loads the Version map as an overlay on base install configuration.
+func Load(loader cuemodule.Loader) (map[string]Version, error) {
+	versions, err := loadBaseWithVersions(loader)
 	if err != nil {
 		return nil, err
 	}
 	return versions, nil
 }
 
-func loadBaseWithVersions(pathElems []string) (map[string]Version, error) {
-	base, err := loadBase(pathElems)
+func loadBaseWithVersions(loader cuemodule.Loader) (map[string]Version, error) {
+	base, err := loader("base")
 	if err != nil {
 		return nil, err
 	}
+	logger.Info("Loaded base install configuration module")
 
 	versions, err := loadVersions(base)
 	if err != nil {
@@ -36,16 +38,6 @@ func loadBaseWithVersions(pathElems []string) (map[string]Version, error) {
 	}
 
 	return versions, nil
-}
-
-func loadBase(pathElems []string) (cue.Value, error) {
-	v, err := cuemodule.LoadPackage("base")
-	if err != nil {
-		return cue.Value{}, err
-	}
-
-	logger.Info("Loaded base install configuration module")
-	return v, nil
 }
 
 func loadVersions(base cue.Value) (map[string]Version, error) {

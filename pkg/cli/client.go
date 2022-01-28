@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"cuelang.org/go/cue"
 	"github.com/google/uuid"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/fabric"
@@ -20,8 +21,8 @@ type client struct {
 	f           *fabric.Fabric
 }
 
-func newClient(mesh *v1alpha1.Mesh, flags ...string) (*client, error) {
-	f, err := fabric.New(mesh)
+func newClient(tmpl cue.Value, mesh *v1alpha1.Mesh, flags ...string) (*client, error) {
+	f, err := fabric.New(tmpl, mesh)
 	if err != nil {
 		return nil, err
 	}

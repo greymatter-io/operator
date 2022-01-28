@@ -7,6 +7,7 @@ import (
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/assert"
+	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"github.com/greymatter-io/operator/pkg/cueutils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -883,12 +884,13 @@ func TestServiceMultipleTCPExternalEgresses(t *testing.T) {
 func loadMock(t *testing.T) *Fabric {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	if err := Init(); err != nil {
+	tmpl, err := cuemodule.LoadPackageForTest("meshconfigs")
+	if err != nil {
 		cueutils.LogError(logger, err)
 		t.FailNow()
 	}
 
-	f, _ := New(&v1alpha1.Mesh{
+	f, _ := New(tmpl, &v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mymesh"},
 		Spec: v1alpha1.MeshSpec{
 			InstallNamespace: "greymatter",

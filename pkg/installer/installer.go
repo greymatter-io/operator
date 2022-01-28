@@ -10,6 +10,7 @@ import (
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cfsslsrv"
 	"github.com/greymatter-io/operator/pkg/cli"
+	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"github.com/greymatter-io/operator/pkg/k8sapi"
 	"github.com/greymatter-io/operator/pkg/version"
 
@@ -71,7 +72,7 @@ func (i *Installer) Start(ctx context.Context) error {
 
 	// Load versioned install configurations
 	var err error
-	i.versions, err = version.Load()
+	i.versions, err = version.Load(cuemodule.LoadPackage)
 	if err != nil {
 		logger.Error(err, "Failed to load versioned install configurations:")
 		return err

@@ -9,8 +9,9 @@ import (
 	"fmt"
 	"sync"
 
+	"cuelang.org/go/cue"
 	"github.com/greymatter-io/operator/api/v1alpha1"
-	"github.com/greymatter-io/operator/pkg/fabric"
+	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -22,13 +23,14 @@ var (
 // CLI exposes methods for configuring clients that execute greymatter CLI commands.
 type CLI struct {
 	*sync.RWMutex
-	clients     map[string]*client
-	mTLSEnabled bool
+	clients         map[string]*client
+	meshconfigsTmpl cue.Value
+	mTLSEnabled     bool
 }
 
 // New returns a new *CLI instance.
 // It receives a context for cleaning up goroutines started by the *CLI.
-func New(ctx context.Context, mTLSEnabled bool) (*CLI, error) {
+func New(ctx context.Context, load cuemodule.Loader, mTLSEnabled bool) (*CLI, error) {
 	v, err := cliversion()
 	if err != nil {
 		logger.Error(err, "Failed to initialize greymatter CLI")
@@ -37,15 +39,17 @@ func New(ctx context.Context, mTLSEnabled bool) (*CLI, error) {
 
 	logger.Info("Using greymatter CLI", "Version", v)
 
-	if err := fabric.Init(); err != nil {
+	meshconfigsTmpl, err := load("meshconfigs")
+	if err != nil {
 		logger.Error(err, "Failed to initialize Fabric templates")
 		return nil, err
 	}
 
 	gmcli := &CLI{
-		RWMutex:     &sync.RWMutex{},
-		clients:     make(map[string]*client),
-		mTLSEnabled: mTLSEnabled,
+		RWMutex:         &sync.RWMutex{},
+		clients:         make(map[string]*client),
+		meshconfigsTmpl: meshconfigsTmpl,
+		mTLSEnabled:     mTLSEnabled,
 	}
 
 	// Cancel all client goroutines if package context is done.
@@ -98,7 +102,7 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) error {
 		logger.Info("Initializing mesh client", "Mesh", mesh.Name)
 	}
 
-	cl, err := newClient(mesh, flags...)
+	cl, err := newClient(c.meshconfigsTmpl, mesh, flags...)
 	if err != nil {
 		return err
 	}
