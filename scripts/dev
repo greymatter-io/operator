@@ -3,13 +3,17 @@
 set -euf -o pipefail
 
 cli_deploy() {
-  greymatter k8s-operator | kubectl apply -f -
+  greymatter k8s operator | kubectl apply -f -
 }
 
 # Openshift
 
+oc_push() {
+  push_docker
+}
+
 oc_deploy() {
-  prompt_push
+  push_docker
 
   oc create secret docker-registry gm-docker-secret \
     --docker-server=docker.greymatter.io \
@@ -25,7 +29,7 @@ oc_deploy() {
 
 oc_cleanup() {
   operator-sdk cleanup -n gm-operator gm-operator
-  oc delete pvc gm-redis-append-dir-gm-redis-0 -n gm-operator-test2
+  oc delete pvc gm-redis-append-dir-gm-redis-0
 }
 
 oc_upgrade() {
@@ -37,21 +41,20 @@ oc_logs() {
   oc logs -n gm-operator $(oc get pod -n gm-operator -o json | jq -c '.items[0] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
 }
 
-oc_sample() {
-  oc apply -f hack/sample-openshift.yaml
-  oc_logs
-}
-
 # Kubernetes
 
+k8s_push() {
+  push_docker
+}
+
 k8s_deploy() {
-  prompt_push
+  push_docker
   k_deploy kops
 }
 
 k8s_cleanup() {
   kubectl delete -k config/context/kubernetes
-  kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n greymatter
+  kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
 
 k8s_upgrade() {
@@ -63,22 +66,21 @@ k8s_logs() {
   kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
 }
 
-k8s_sample() {
-  kubectl apply -f hack/sample-k8s.yaml
-  k8s_logs
+# K3D (local development)
+
+k3d_push() {
+  ./scripts/build docker
+  k3d image import -c gm-operator docker.greymatter.io/internal/gm-operator:latest
 }
 
-# K3D (local development)
-# mostly similar to Kubernetes commamnds, might delete later
-
 k3d_deploy() {
-  prompt_push
+  k3d_push
   k_deploy k3d
 }
 
 k3d_cleanup() {
   kubectl delete -k config/context/kubernetes
-  kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n greymatter
+  kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
 
 k3d_upgrade() {
@@ -91,21 +93,7 @@ k3d_logs() {
   kubectl logs -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs) -c operator -f
 }
 
-k3d_sample() {
-  kubectl apply -f hack/sample-k8s.yaml
-  k3d_logs
-}
-
 # Shared
-
-prompt_push() {
-  read -p "Build and push a new Docker image? (y/n) " -n 1 -r
-  echo ""
-  if [[ $REPLY =~ ^[Yy]$ ]]
-  then
-    push_docker
-  fi
-}
 
 push_docker() {
   ./scripts/build docker
@@ -125,12 +113,12 @@ k_deploy() {
 
 choose() {
   case $1 in
-    k3*) k3d_$2 ;;
-    k8*) k8s_$2 ;;
-    o*)  oc_$2 ;;
+    k3d) k3d_$2 ;;
+    k8s) k8s_$2 ;;
+    oc)  oc_$2 ;;
     cli) cli_$2 ;;
     *)
-      echo "invalid argument $1: expected match with k3*, k8*, or o*."
+      echo "invalid argument $1: expected match with k3d, k8s, or oc."
       exit 1
       ;;
   esac
@@ -142,12 +130,11 @@ if [ $# -lt 2 ]; then
 fi
 
 case $1 in
-  push)     push_docker;       ;; 
+  push)     choose $2 push;    ;;
   deploy)   choose $2 deploy;  ;;
   cleanup)  choose $2 cleanup; ;;
   upgrade)  choose $2 upgrade; ;;
   logs)     choose $2 logs;    ;;
-  sample)   choose $2 sample;  ;;
   *)
     echo "invalid argument $1"
     exit 1

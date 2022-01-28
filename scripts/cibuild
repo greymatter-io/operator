@@ -14,8 +14,7 @@ run_test() {
 
 # Downloads CUE dependencies for tests and for adding to the image.
 install_cue_deps() {
-  (cd ./pkg/cuemodule/cue.mod; cue get go github.com/greymatter-io/operator/api/...)
-  (cd ./pkg/cuemodule/cue.mod; cue get go k8s.io/api/...)
+  (cd ./pkg/cuemodule/cue.mod; cue get go github.com/greymatter-io/operator/api/...; cue get go k8s.io/api/...)
   git submodule update --init --recursive --remote
 }
 

@@ -9,11 +9,11 @@ spec:
       containers:
       - name: operator
         args:
-        - "--config=bootstrap_config.yaml"
+        - "--config=config/bootstrap_config.yaml"
         - "--leader-elect"
         volumeMounts:
         - name: operator-config
-          mountPath: /bootstrap_config.yaml
+          mountPath: /app/config/bootstrap_config.yaml
           subPath: bootstrap_config.yaml
       volumes:
       - name: operator-config

@@ -2,13 +2,13 @@ package cueutils
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
-	"cuelang.org/go/encoding/gocode/gocodec"
 	"github.com/go-logr/logr"
 	"github.com/kylelemons/godebug/diff"
 )
@@ -54,11 +54,14 @@ func FromStrings(ss ...string) cue.Value {
 	return cuecontext.New().CompileString(strings.Join(ss, "\n"))
 }
 
-// FromStruct creates a cue.Value from a Go struct.
+// FromStruct creates a nested cue.Value from a Go struct.
+// The new cue.Value will have a single field from name, which will contain the struct.
 func FromStruct(name string, s interface{}) (cue.Value, error) {
-	//lint:ignore SA1019 will update to Context in next Cue version
-	codec := gocodec.New(&cue.Runtime{}, nil)
-	return codec.Decode(map[string]interface{}{name: s})
+	sJSON, err := json.Marshal(s)
+	if err != nil {
+		return cue.Value{}, err
+	}
+	return FromStrings(fmt.Sprintf("%s: %s", name, string(sJSON))), nil
 }
 
 // LogError logs errors that may or may not contain a list of cue/errors.Error.

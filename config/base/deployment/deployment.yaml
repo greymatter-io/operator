@@ -25,7 +25,7 @@ spec:
         args:
         - --leader-elect
         image: docker.greymatter.io/internal/gm-operator:latest
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: operator
         securityContext:
           allowPrivilegeEscalation: false
