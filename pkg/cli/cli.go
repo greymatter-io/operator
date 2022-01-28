@@ -41,9 +41,11 @@ func New(ctx context.Context, load cuemodule.Loader, mTLSEnabled bool) (*CLI, er
 
 	meshconfigsTmpl, err := load("meshconfigs")
 	if err != nil {
-		logger.Error(err, "Failed to initialize Fabric templates")
+		logger.Error(err, "Failed to load Fabric templates")
 		return nil, err
 	}
+
+	logger.Info("Loaded Fabric templates")
 
 	gmcli := &CLI{
 		RWMutex:         &sync.RWMutex{},

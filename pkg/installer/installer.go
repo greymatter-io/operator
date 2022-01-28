@@ -59,9 +59,11 @@ type Installer struct {
 func New(c client.Client, load cuemodule.Loader, gmcli *cli.CLI, cs *cfsslsrv.CFSSLServer, clusterIngressName string) (*Installer, error) {
 	baseTmpl, err := load("base")
 	if err != nil {
-		logger.Error(err, "Failed to initialize base install configuration templates")
+		logger.Error(err, "Failed to load base install configuration templates")
 		return nil, err
 	}
+
+	logger.Info("Loaded base install configuration templates")
 
 	return &Installer{
 		RWMutex:            &sync.RWMutex{},

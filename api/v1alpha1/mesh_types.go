@@ -34,11 +34,11 @@ type MeshSpec struct {
 	// A list of OCI image strings and their respective pull secret names.
 	// These are treated as overrides to the specified "release_version".
 	// +optional
-	Images map[string]string `json:"images"`
+	Images map[string]string `json:"images,omitempty"`
 
 	// A map of pull secrets grouped by namespaces.
 	// +optional
-	PullSecrets map[string][]string `json:"pull_secrets"`
+	PullSecrets map[string][]string `json:"pull_secrets,omitempty"`
 
 	// Label this mesh as belonging to a particular zone.
 	// +kubebuilder:default=default-zone

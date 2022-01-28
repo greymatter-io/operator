@@ -135,7 +135,7 @@ dashboard: #Component & {
   env: {
     BASE_URL: "/services/dashboard/"
     FABRIC_SERVER: "/services/catalog/"
-    CONFIG_SERVER: =~"^/services/control/api/"
+    CONFIG_SERVER: "/services/control/api/"
     PROMETHEUS_SERVER: "/services/prometheus/api/v1/"
     REQUEST_TIMEOUT: "15000"
     USE_PROMETHEUS: "false"
@@ -162,7 +162,7 @@ dashboard: #Component & {
 
 jwt_security: #Component & {
   name: "jwt-security"
-  image: Versions.jwt_security
+  image: Versions.jwtsecurity
   ports: api: 3000
   env: {
     HTTP_PORT: "3000"
