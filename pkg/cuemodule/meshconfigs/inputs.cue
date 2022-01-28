@@ -3,6 +3,7 @@ package meshconfigs
 import (
 	"encoding/json"
 	"github.com/greymatter-io/operator/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -21,8 +22,8 @@ workload: {
 		"greymatter.io/egress-tcp-local":     *"" | string
 		"greymatter.io/egress-tcp-external":  *"" | string
 	}
-	// We expect the incoming workload (Deployment/StatefulSet) to have a spec.template.
-	spec: template: {...}
+	// We expect the incoming workload (Deployment/StatefulSet) to have a spec.template.spec.
+	spec: template: spec: corev1.#PodSpec
 }
 
 // A map derived from all container ports specified in a container.

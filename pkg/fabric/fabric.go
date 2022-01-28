@@ -72,8 +72,7 @@ func (f *Fabric) EdgeDomain() json.RawMessage {
 	return e.EdgeDomain
 }
 
-// Service creates fabric objects for adding a workload to a mesh,
-// given the workload's annotations and a map of its parsed container ports.
+// Service creates meshconfigs for adding a workload to a mesh.
 func (f *Fabric) Service(name string, workload runtime.Object) (Objects, error) {
 	w, err := cueutils.FromStruct("workload", workload)
 	if err != nil {
