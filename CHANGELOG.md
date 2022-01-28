@@ -6,6 +6,20 @@
 
 - [greymatter-cue](https://github.com/greymatter-io/greymatter-cue) Git submodule for importing
   Grey Matter CUE schemas.
+- Generated CUE schema for the Mesh custom resource definition, to be parsed within CUE when
+  generating installation manifests and mesh configurations for a configured Mesh.
+
+### Changed
+
+- Moved all CUE packages into a single CUE module that lives in `pkg/cuemodule`. Each CUE package
+  may be evaluated using the CUE CLI as well as loaded via exported loader functions defined in the
+  `cuemodule` Go package.
+
+### Fixed
+
+- Addressed a bug that kept existing Mesh custom resources from being fully registered with a new
+  instance of the operator on startup. The bug prevented new mesh configurations from being
+  generated for workloads within namespaces of existing meshes.
 
 ## 0.3.0 (January 10, 2022)
 
