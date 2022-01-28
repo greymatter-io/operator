@@ -26,7 +26,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 
 	// Retrieve our version list from the base versions/compoenents evaluated CUE
 	// given the supplied mesh CRD.
-	v, err := version.New(mesh, version.WithIngressSubDomain(i.clusterIngressDomain))
+	v, err := version.New(i.baseTmpl, mesh, version.WithIngressSubDomain(i.clusterIngressDomain))
 	if err != nil {
 		logger.Error(err, "Failed to retreive versions", err)
 	}

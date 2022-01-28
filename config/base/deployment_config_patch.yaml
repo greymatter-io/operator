@@ -10,7 +10,6 @@ spec:
       - name: operator
         args:
         - "--config=config/bootstrap_config.yaml"
-        - "--leader-elect"
         volumeMounts:
         - name: operator-config
           mountPath: /app/config/bootstrap_config.yaml

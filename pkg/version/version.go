@@ -1,6 +1,8 @@
 package version
 
 import (
+	"fmt"
+
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cueutils"
 
@@ -25,15 +27,15 @@ type Opt func(o []cue.Value)
 func WithIngressSubDomain(domain string) func([]cue.Value) {
 	return func(opts []cue.Value) {
 		//lint:ignore SA4006 slices are pointers so this actually does get used
-		opts = append(opts, cueutils.FromStrings(domain))
+		opts = append(opts, cueutils.FromStrings(fmt.Sprintf(`domain: %s`, domain)))
 	}
 }
 
 // New creates a *Version instance which contains all known internal container versions.
 // It accepts a Mesh CR which overrides defaults if supplied.
-func New(mesh *v1alpha1.Mesh, opts ...Opt) (*Version, error) {
+func New(tmpl cue.Value, mesh *v1alpha1.Mesh, opts ...Opt) (*Version, error) {
 	v := &Version{
-		cue:  cue.Value{},
+		cue:  tmpl,
 		opts: make([]cue.Value, 0),
 	}
 	for _, o := range opts {
@@ -47,11 +49,10 @@ func New(mesh *v1alpha1.Mesh, opts ...Opt) (*Version, error) {
 
 	// Add all are options into the original base components.cue evaluated template.
 	v.cue = v.cue.Unify(m)
-	for _, o := range v.opts {
-		// TODO (alec): These will generally be very small unifications but we need to be careful about
-		// how expensive this can get.
-		v.cue.Unify(o)
-	}
+
+	// TODO (alec): These will generally be very small unifications but we need to be careful about
+	// how expensive this can get.
+	v.Unify(v.opts...)
 
 	return v, nil
 }
