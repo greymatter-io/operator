@@ -24,8 +24,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		logger.Info("Upgrading Mesh", "Name", mesh.Name)
 	}
 
-	// Retrieve our version list from the base versions/compoenents evaluated CUE
-	// given the supplied mesh CRD.
+	// Retrieve our Grey Matter install configurations evaluated in CUE given the supplied Mesh CR.
 	v, err := version.New(i.baseTmpl, mesh, version.WithIngressSubDomain(i.clusterIngressDomain))
 	if err != nil {
 		logger.Error(err, "Failed to retreive versions", err)
