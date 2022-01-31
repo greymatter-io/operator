@@ -53,7 +53,7 @@ k8s_deploy() {
 }
 
 k8s_cleanup() {
-  kubectl delete -k config/context/kubernetes
+  kubectl delete -k config/context/kubernetes-dev
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
 
@@ -79,7 +79,7 @@ k3d_deploy() {
 }
 
 k3d_cleanup() {
-  kubectl delete -k config/context/kubernetes
+  kubectl delete -k config/context/kubernetes-dev
   kubectl delete pvc gm-redis-append-dir-gm-redis-0 -n default
 }
 
@@ -101,7 +101,7 @@ push_docker() {
 }
 
 k_deploy() {
-  kubectl apply -k config/context/kubernetes
+  kubectl apply -k config/context/kubernetes-dev
 
   kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
