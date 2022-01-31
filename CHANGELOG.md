@@ -1,6 +1,15 @@
 # Changelog
 
-## NEXT
+## 0.3.1 (January 31, 2022)
+
+This release includes internal changes to how we source Grey Matter mesh configuration schema.
+Grey Matter mesh configurations are defined in CUE and bundled into this project via a Git
+submodule [greymatter-cue](https://github.com/greymatter-io/greymatter-cue). Mesh custom resources
+are also ingested into CUE to be parsed for installing and configuring mesh deployments.
+
+Additionally, this release addressed a bug that prevented the operator from restoring its own
+internal state of existing Mesh custom resources on startup. The fix ensures that the leader
+replica of the operator will always have the latest state of Mesh custom resources.
 
 ### Added
 
