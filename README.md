@@ -134,7 +134,6 @@ with `k3d` instead of `k8s`. You can run the following:
 ```
 ./scripts/dev deploy k3d
 ./scripts/dev logs k3d
-./scripts/dev sample k3d
 ./scripts/dev cleanup k3d
 ```
 
@@ -166,7 +165,6 @@ with `oc` instead of `k8s`. You can run the following:
 ```
 ./scripts/dev deploy oc
 ./scripts/dev logs oc
-./scripts/dev sample oc
 ./scripts/dev cleanup oc
 ```
 
