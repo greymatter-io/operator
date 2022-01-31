@@ -9,7 +9,7 @@ short-form.
 
 ## Prerequisites
 
-It is assumed that you have kubectl installed with cluster administrator access.
+It is assumed that you have [kubectl v1.21+](https://kubernetes.io/docs/tasks/tools/) installed with cluster administrator access.
 
 Next, ensure you have the following environment variables sourced: `GREYMATTER_REGISTRY_USERNAME` and
 `GREYMATTER_REGISTRY_PASSWORD`. These require your credentials for pulling Grey Matter core service
@@ -21,7 +21,6 @@ To get the latest development version of the operator up and running in your Kub
 the following:
 
 ```
-
 kubectl apply -k config/context/kubernetes
 
 kubectl create secret docker-registry gm-docker-secret \

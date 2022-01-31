@@ -43,7 +43,6 @@ _ServiceVersions: {
 	cluster_key: string
 	name:        *cluster_key | string
 	zone_key:    mesh.spec.zone
-	require_tls: true
 }
 
 #Route: greymatter.#Route & {
