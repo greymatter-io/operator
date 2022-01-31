@@ -10,7 +10,6 @@ import (
 	"github.com/greymatter-io/operator/pkg/cueutils"
 
 	"cuelang.org/go/cue"
-	"cuelang.org/go/encoding/gocode/gocodec"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
@@ -28,15 +27,12 @@ type ManifestGroup struct {
 
 // Extracts manifests from a Version's cue.Value.
 func (v Version) Manifests() []ManifestGroup {
-	//lint:ignore SA1019 will update to Context in next Cue version
-	codec := gocodec.New(&cue.Runtime{}, nil)
 	var m struct {
 		Manifests []ManifestGroup `json:"manifests"`
 		Sidecar   `json:"sidecar"`
 	}
-
 	injected := v.cue.Unify(injectXDSCluster("edge"))
-	codec.Encode(injected, &m)
+	cueutils.Extract(injected, &m)
 
 	// Inject static config for edge pods
 	if len(string(m.Sidecar.StaticConfig)) > 0 {
@@ -62,14 +58,11 @@ type Sidecar struct {
 // Returns a function that extracts sidecar manifests from a Version's cue.Value.
 func (v Version) SidecarTemplate() func(string) Sidecar {
 	return func(xdsCluster string) Sidecar {
-		//lint:ignore SA1019 will update to Context in next Cue version
-		codec := gocodec.New(&cue.Runtime{}, nil)
 		var s struct {
 			Sidecar `json:"sidecar"`
 		}
-
 		injected := v.cue.Unify(injectXDSCluster(xdsCluster))
-		codec.Encode(injected, &s)
+		cueutils.Extract(injected, &s)
 
 		if len(string(s.Sidecar.StaticConfig)) > 0 {
 			s.Sidecar.Container.Env = append(s.Sidecar.Container.Env, corev1.EnvVar{

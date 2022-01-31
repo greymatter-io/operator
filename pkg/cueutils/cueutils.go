@@ -9,6 +9,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/errors"
+	"cuelang.org/go/encoding/gocode/gocodec"
 	"github.com/go-logr/logr"
 	"github.com/kylelemons/godebug/diff"
 )
@@ -62,6 +63,13 @@ func FromStruct(name string, s interface{}) (cue.Value, error) {
 		return cue.Value{}, err
 	}
 	return FromStrings(fmt.Sprintf("%s: %s", name, string(sJSON))), nil
+}
+
+// Extract pulls values out of CUE and encodes them into a Go struct with JSON tags.
+func Extract(v cue.Value, s interface{}) error {
+	//lint:ignore SA1019 will update to Context in next Cue version
+	codec := gocodec.New(&cue.Runtime{}, nil)
+	return codec.Encode(v, s)
 }
 
 // LogError logs errors that may or may not contain a list of cue/errors.Error.

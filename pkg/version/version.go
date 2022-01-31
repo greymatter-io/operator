@@ -17,7 +17,6 @@ var (
 // Version contains a cue.Value that holds all installation templates for a
 // version of Grey Matter, plus options applied from a Mesh custom resource.
 type Version struct {
-	name string
 	cue  cue.Value
 	opts []cue.Value
 }
@@ -26,13 +25,13 @@ type Opt func(o []cue.Value)
 
 func WithIngressSubDomain(domain string) func([]cue.Value) {
 	return func(opts []cue.Value) {
-		//lint:ignore SA4006 slices are pointers so this actually does get used
-		opts = append(opts, cueutils.FromStrings(fmt.Sprintf(`domain: %s`, domain)))
+		//lint:ignore SA4010,SA4006 slices are pointers so this actually does get used
+		opts = append(opts, cueutils.FromStrings(fmt.Sprintf(`IngressSubDomain: %s`, domain)))
 	}
 }
 
-// New creates a *Version instance which contains all known internal container versions.
-// It accepts a Mesh CR which overrides defaults if supplied.
+// New creates a *Version instance which contains all manifests needed to install a version of Grey Matter.
+// It accepts a base install templates and a Mesh CR which overrides defaults when supplied.
 func New(tmpl cue.Value, mesh *v1alpha1.Mesh, opts ...Opt) (*Version, error) {
 	v := &Version{
 		cue:  tmpl,
@@ -47,22 +46,19 @@ func New(tmpl cue.Value, mesh *v1alpha1.Mesh, opts ...Opt) (*Version, error) {
 		return nil, err
 	}
 
-	// Add all are options into the original base components.cue evaluated template.
-	v.cue = v.cue.Unify(m)
-
+	// Unify our base install template with the mesh CR, plus any supplied options.
 	// TODO (alec): These will generally be very small unifications but we need to be careful about
 	// how expensive this can get.
-	v.Unify(v.opts...)
+	v.Unify(append(v.opts, m)...)
+	if err := v.cue.Err(); err != nil {
+		cueutils.LogError(logger, err)
+		return nil, err
+	}
 
 	return v, nil
 }
 
-// Copy deep copies a Version's cue.Value into a new Version.
-func (v Version) Copy() Version {
-	return Version{v.name, v.cue, v.opts}
-}
-
-// Unify gets the lower bound cue.Value of Version.cue and all argument values.
+// Unify combines multiple cue.Values into a Version's cue.Value.
 func (v *Version) Unify(ws ...cue.Value) {
 	for _, w := range ws {
 		v.cue = v.cue.Unify(w)

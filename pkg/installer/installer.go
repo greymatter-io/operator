@@ -81,9 +81,8 @@ func New(c client.Client, load cuemodule.Loader, gmcli *cli.CLI, cs *cfsslsrv.CF
 // It implements the controller-runtime Runnable interface.
 func (i *Installer) Start(ctx context.Context) error {
 
-	// Copy the image pull secret from the apiserver (block until it's retrieved).
-	// This secret will be re-created in each install namespace where our core services are pulled.
-	// This secret will now be default and a fallback if no image override is specified.
+	// Retrieve the operator image secret from the apiserver (block until it's retrieved).
+	// This secret will be re-created in each install namespace and watch namespaces where core services are pulled.
 	i.imagePullSecret = getImagePullSecret(i.client)
 
 	// Get our Mesh CRD to set as an owner for cluster-scoped resources
