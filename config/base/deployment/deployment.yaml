@@ -24,7 +24,7 @@ spec:
         - /app/operator
         args:
         - --leader-elect
-        image: docker.greymatter.io/internal/gm-operator:latest
+        image: docker.greymatter.io/development/gm-operator:latest
         imagePullPolicy: IfNotPresent
         name: operator
         securityContext:
