@@ -23,16 +23,16 @@ type Fabric struct {
 	cue cue.Value
 }
 
-// New returns a new *Fabric instance. It receives a MeshSpec...
-func New(mesh *v1alpha1.Mesh) (*Fabric, error) {
-	v := *value
-
+// New returns a new *Fabric instance.
+// It receives the meshconfigs template cue.Value
+// and a Mesh custom resource to unify it with.
+func New(tmpl cue.Value, mesh *v1alpha1.Mesh) (*Fabric, error) {
 	m, err := cueutils.FromStruct("mesh", mesh)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Fabric{cue: v.Unify(m)}, nil
+	return &Fabric{cue: tmpl.Unify(m)}, nil
 }
 
 // Objects contains all fabric objects to apply for adding a workload to a mesh.
@@ -72,8 +72,7 @@ func (f *Fabric) EdgeDomain() json.RawMessage {
 	return e.EdgeDomain
 }
 
-// Service creates fabric objects for adding a workload to a mesh,
-// given the workload's annotations and a map of its parsed container ports.
+// Service creates meshconfigs for adding a workload to a mesh.
 func (f *Fabric) Service(name string, workload runtime.Object) (Objects, error) {
 	w, err := cueutils.FromStruct("workload", workload)
 	if err != nil {

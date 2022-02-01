@@ -22,26 +22,19 @@ workload: {
 		"greymatter.io/egress-tcp-local":     *"" | string
 		"greymatter.io/egress-tcp-external":  *"" | string
 	}
+	// We expect the incoming workload (Deployment/StatefulSet) to have a spec.template.spec.
 	spec: template: spec: corev1.#PodSpec
-	// spec.containers[n].ports[n].name is optional, so we default to an empty string.
-	// This lets us evaluate the concrete value of port.name throughout our code.
-	spec: template: spec: {
-		containers: [...{
-			ports: [...{
-				name: *"" | string
-			}]
-		}]
-	}
 }
 
-// A map derived from all container ports specified in the PodSpec.
+// A map derived from all container ports specified in a container.
 Ingresses: {
 	for container in workload.spec.template.spec.containers {
 		for port in container.ports {
-			if port.name != "" {
+			// `port.name` is optional, so check if it is undefined (i.e. bottom)
+			if port.name != _|_ {
 				"\(port.name)": port.containerPort
 			}
-			if port.name == "" {
+			if port.name == _|_ {
 				"\(port.containerPort)": port.containerPort
 			}
 		}

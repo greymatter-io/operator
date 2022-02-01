@@ -7,6 +7,7 @@ import (
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/assert"
+	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"github.com/greymatter-io/operator/pkg/cueutils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +33,13 @@ func TestService(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "example",
 			Namespace: "myns",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{},
+				},
+			},
 		},
 	})
 	if err != nil {
@@ -129,6 +137,13 @@ func TestServiceEdge(t *testing.T) {
 			Name:      "edge",
 			Namespace: "myns",
 		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{},
+				},
+			},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -218,6 +233,13 @@ func TestServiceNoIngress(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "example",
 			Namespace: "myns",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{},
+				},
+			},
 		},
 	})
 	if err != nil {
@@ -372,6 +394,13 @@ func TestServiceOneHTTPLocalEgress(t *testing.T) {
 				"greymatter.io/egress-http-local": `["othercluster"]`,
 			},
 		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{},
+				},
+			},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -429,6 +458,13 @@ func TestServiceMultipleHTTPLocalEgresses(t *testing.T) {
 				"greymatter.io/egress-http-local": `["othercluster1","othercluster2"]`,
 			},
 		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{},
+				},
+			},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -471,6 +507,13 @@ func TestServiceOneHTTPExternalEgress(t *testing.T) {
 			Namespace: "myns",
 			Annotations: map[string]string{
 				"greymatter.io/egress-http-external": `[{"name":"google","host":"google.com","port":80}]`,
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{},
+				},
 			},
 		},
 	})
@@ -527,6 +570,13 @@ func TestServiceMultipleHTTPExternalEgresses(t *testing.T) {
 				]`,
 			},
 		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{},
+				},
+			},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -562,6 +612,13 @@ func TestServiceOneTCPLocalEgress(t *testing.T) {
 			Namespace: "myns",
 			Annotations: map[string]string{
 				"greymatter.io/egress-tcp-local": `["othercluster"]`,
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{},
+				},
 			},
 		},
 	})
@@ -622,6 +679,13 @@ func TestServiceMultipleTCPLocalEgresses(t *testing.T) {
 			Namespace: "myns",
 			Annotations: map[string]string{
 				"greymatter.io/egress-tcp-local": `["c1","c2"]`,
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{},
+				},
 			},
 		},
 	})
@@ -693,6 +757,13 @@ func TestServiceOneTCPExternalEgress(t *testing.T) {
 				"greymatter.io/egress-tcp-external": `[{"name":"svc","host":"1.2.3.4","port":80}]`,
 			},
 		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{},
+				},
+			},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -748,6 +819,13 @@ func TestServiceMultipleTCPExternalEgresses(t *testing.T) {
 					{"name":"s1","host":"1.1.1.1","port":1111},
 					{"name":"s2","host":"2.2.2.2","port":2222}
 				]`,
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{},
+				},
 			},
 		},
 	})
@@ -806,12 +884,13 @@ func TestServiceMultipleTCPExternalEgresses(t *testing.T) {
 func loadMock(t *testing.T) *Fabric {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	if err := Init(); err != nil {
+	tmpl, err := cuemodule.LoadPackageForTest("meshconfigs")
+	if err != nil {
 		cueutils.LogError(logger, err)
 		t.FailNow()
 	}
 
-	f, _ := New(&v1alpha1.Mesh{
+	f, _ := New(tmpl, &v1alpha1.Mesh{
 		ObjectMeta: metav1.ObjectMeta{Name: "mymesh"},
 		Spec: v1alpha1.MeshSpec{
 			InstallNamespace: "greymatter",
