@@ -17,8 +17,8 @@ Docker images from `docker.greymatter.io`.
 
 ## Quick Install
 
-To get the latest development version of the operator up and running in your Kubernetes cluster, run
-the following:
+To get the latest stable development version of the operator up and running in your Kubernetes
+cluster, run the following:
 
 ```
 kubectl apply -k config/context/kubernetes
