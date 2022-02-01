@@ -1,35 +1,31 @@
 with (import <nixpkgs> {});
 mkShell {
   buildInputs = [
+    pkgs.coreutils
+    pkgs.tmux
     pkgs.kubectl
     pkgs.kubernetes-helm
     pkgs.kompose
-    pkgs.killall
-    pkgs.coreutils
     #pkgs.kube3d
     pkgs.kind
+    pkgs.kubetail
+    pkgs.k9s
+    pkgs.podman
   ];
 
   shellHook = ''
-trap 'kind stop cluster --name gm-cluster; kind delete cluster --name gm-cluster;  killall kubectl;' EXIT
-docker --version
-if docker --version; then
-  echo "Docker Daemon is running" 
-else
-  echo "Docker Daemon is not running. Please install and run it on your system." 
-  exit 0;
-fi
+trap 'kind stop cluster; kind delete cluster; tmux kill-ses -t gm-shell;' EXIT
+alias docker=podman
+podman info
 
+echo "Login to docker.greymatter.io"
 docker login docker.greymatter.io
 
-kind create cluster --name gm-cluster
+kind create cluster 
 kubectl get nodes
 
-#k3d cluster create gm-cluster -a 1 -p 30000:10808@loadbalancer
-#k3d cluster start gm-cluster
-
 #Make sure we are using the right context
-kubectl config use-context kind-gm-cluster
+kubectl config use-context kind-kind
 
 # Create namespace
 kubectl create namespace gm-operator
@@ -58,17 +54,6 @@ else
   --type=kubernetes.io/dockerconfigjson \
   -n gm-operator
 fi
-
-# Install GM Operator
-kubectl apply -k config/context/kubernetes
-
-while [ "$(kubectl get pods -n gm-operator -l=name='gm-operator' -o jsonpath='{.items[*].status.containerStatuses[0].ready}')" != "true" ]; do
-   sleep 5
-   echo "Waiting for GM Operator to be ready."
-   kubectl get pods -n gm-operator
-done
-kubectl get pods -n gm-operator
-
 function yes_or_no {
     while true; do
         read -p "$* [y/n]: " yn
@@ -79,6 +64,20 @@ function yes_or_no {
     done
 }
 
+# Install GM Operator
+kubectl apply -k config/context/kubernetes
+
+echo "Waiting for GM Operator to be ready."
+while [ "$(kubectl get pods -n gm-operator -l=name='gm-operator' -o jsonpath='{.items[*].status.containerStatuses[0].ready}')" != "true" ]; do
+  kubectl get pods -n gm-operator -l=name='gm-operator' -o jsonpath="Name: {.items[0].metadata.name} Status: {.items[0].status.phase}" 2>/dev/null 
+  sleep 5
+  echo -e "."
+
+  #kubectl get pods -n gm-operator
+done
+echo "."
+kubectl get pods -n gm-operator
+
 yes_or_no "Would you like to install a demo mesh?" && echo "
 apiVersion: greymatter.io/v1alpha1
 kind: Mesh
@@ -88,6 +87,8 @@ spec:
   release_version: '1.7'
   zone: default-zone
   install_namespace: default" | kubectl apply -f -
+
+
 
 
 echo -e "\n\n"
