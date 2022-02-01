@@ -15,6 +15,12 @@ mkShell {
   shellHook = ''
 trap 'kind stop cluster; kind delete cluster;' EXIT
 docker --version
+if docker --version; then
+  echo "Docker Daemon is running"
+else
+  echo "Docker Daemon is not running. Please install and run it on your system."
+  exit 0;
+fi
 
 echo "🔵 Login to docker.greymatter.io"
 docker login docker.greymatter.io
