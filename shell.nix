@@ -10,22 +10,27 @@ mkShell {
     pkgs.kind
     pkgs.kubetail
     pkgs.k9s
-    pkgs.podman
   ];
 
   shellHook = ''
-trap 'kind stop cluster; kind delete cluster; tmux kill-ses -t gm-shell;' EXIT
-alias docker=podman
-podman info
+trap 'kind stop cluster; kind delete cluster;' EXIT
+docker --version
 
-echo "Login to docker.greymatter.io"
+echo "🔵 Login to docker.greymatter.io"
 docker login docker.greymatter.io
 
 kind create cluster 
+
 kubectl get nodes
 
 #Make sure we are using the right context
 kubectl config use-context kind-kind
+
+echo "🔵 Waiting for kind-control-plane to be Ready."
+kubectl wait --for=condition=Ready node/kind-control-plane
+    
+kubectl get nodes
+
 
 # Create namespace
 kubectl create namespace gm-operator
@@ -35,11 +40,11 @@ sleep 5;
 if [[ "$OSTYPE" == "darwin"* ]]; then
   # Mac OSX
   if [[ -z "$GREYMATTER_REGISTRY_USERNAME" ]]; then
-    echo "Docker Username(email): "
+    echo "🔵 Docker Username(email): "
     read GREYMATTER_REGISTRY_USERNAME
   fi
   if [[ -z "$GREYMATTER_REGISTRY_PASSWORD" ]]; then
-    echo "Docker Password: "
+    echo "🔵 Docker Password: "
     read -s GREYMATTER_REGISTRY_PASSWORD
   fi
   kubectl create secret docker-registry gm-docker-secret \
@@ -67,18 +72,20 @@ function yes_or_no {
 # Install GM Operator
 kubectl apply -k config/context/kubernetes
 
-echo "Waiting for GM Operator to be ready."
+
+echo "🔵 Waiting for GM Operator to be ready."
 while [ "$(kubectl get pods -n gm-operator -l=name='gm-operator' -o jsonpath='{.items[*].status.containerStatuses[0].ready}')" != "true" ]; do
   kubectl get pods -n gm-operator -l=name='gm-operator' -o jsonpath="Name: {.items[0].metadata.name} Status: {.items[0].status.phase}" 2>/dev/null 
+  echo -e "\n"
   sleep 5
-  echo -e "."
 
   #kubectl get pods -n gm-operator
 done
-echo "."
+
+
 kubectl get pods -n gm-operator
 
-yes_or_no "Would you like to install a demo mesh?" && echo "
+yes_or_no "🔵 Would you like to install a demo mesh?" && echo "
 apiVersion: greymatter.io/v1alpha1
 kind: Mesh
 metadata:
@@ -88,10 +95,9 @@ spec:
   zone: default-zone
   install_namespace: default" | kubectl apply -f -
 
-
-
-
 echo -e "\n\n"
+
+echo -e "🔵 Available Commands:\n\tk9s\n\tkubectrl\n\tkustomize\n\ttmux\n\thelm\n\tkubetail\n\tkind\n\n"
 
 export PS1="\[\e[32m\]GM K8S Shell \u@\h \w \n\$ \[\e[m\]"
 
