@@ -25,7 +25,7 @@ func TestKubernetesCommand(t *testing.T) {
 		"--image", testConf.DockerImageURL,
 		"--registry-username", testConf.DockerUsername,
 		"--registry-password", testConf.DockerPassword,
-		"--pull-secrets", strings.Join(testConf.ImagePullSecretsList, ","),
+		"--image-pull-secrets-list", strings.Join(testConf.ImagePullSecretsList, ","),
 		"--disable-internal-ca",
 	}); err != nil {
 		t.Error(err)
