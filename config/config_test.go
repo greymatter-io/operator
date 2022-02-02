@@ -15,7 +15,7 @@ var testConf = manifestConfig{
 	DockerUsername:               "my-docker-user",
 	DockerPassword:               "my-docker-password",
 	DisableWebhookCertGeneration: true,
-	SecretsList:                  []string{"secret1", "secret2"},
+	ImagePullSecretsList:         []string{"secret1", "secret2"},
 }
 
 func TestKubernetesCommand(t *testing.T) {
@@ -25,7 +25,7 @@ func TestKubernetesCommand(t *testing.T) {
 		"--image", testConf.DockerImageURL,
 		"--registry-username", testConf.DockerUsername,
 		"--registry-password", testConf.DockerPassword,
-		"--pull-secrets", strings.Join(testConf.SecretsList, ","),
+		"--pull-secrets", strings.Join(testConf.ImagePullSecretsList, ","),
 		"--disable-internal-ca",
 	}); err != nil {
 		t.Error(err)
@@ -70,7 +70,7 @@ func TestLoadTemplateString(t *testing.T) {
 	expectedValues := append([]string{
 		tc.DockerImageURL,
 		tc.DockerConfigBase64,
-	}, tc.SecretsList...)
+	}, tc.ImagePullSecretsList...)
 
 	for _, value := range expectedValues {
 		if !strings.Contains(tms, value) {

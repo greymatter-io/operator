@@ -34,11 +34,11 @@ type MeshSpec struct {
 	// A list of OCI image strings and their respective pull secret names.
 	// These are treated as overrides to the specified "release_version".
 	// +optional
-	Images map[string]string `json:"images,omitempty"`
+	Images Images `json:"images,omitempty"`
 
-	// A map of pull secrets grouped by namespaces.
+	// A list of pull secrets to try for fetching core services.
 	// +optional
-	PullSecrets map[string][]string `json:"pull_secrets,omitempty"`
+	ImagePullSecrets []string `json:"image_pull_secrets,omitempty"`
 
 	// Label this mesh as belonging to a particular zone.
 	// +kubebuilder:default=default-zone
@@ -59,6 +59,16 @@ type MeshSpec struct {
 type UserToken struct {
 	Label  string              `json:"label"`
 	Values map[string][]string `json:"values"`
+}
+
+type Images struct {
+	Proxy       string `json:"proxy,omitempty"`
+	Catalog     string `json:"catalog,omitempty"`
+	Control     string `json:"control,omitempty"`
+	Dashboard   string `json:"dashboard,omitempty"`
+	JWTSecurity string `json:"jwt_security,omitempty"`
+	Redis       string `json:"redis,omitempty"`
+	Prometheus  string `json:"prometheus,omitempty"`
 }
 
 // MeshStatus describes the observed state of a Grey Matter mesh.
