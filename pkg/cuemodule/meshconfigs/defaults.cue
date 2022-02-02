@@ -35,7 +35,6 @@ _ServiceVersions: {
 	listener_key: string
 	name:         listener_key
 	zone_key:     mesh.spec.zone
-	ip:           "0.0.0.0"
 	protocol:     "http_auto"
 }
 
@@ -54,7 +53,10 @@ edgeDomain: #Domain
 service: {
 	proxy:    #Proxy
 	domain:   #Domain & {domain_key:     workload.metadata.name}
-	listener: #Listener & {listener_key: workload.metadata.name}
+	listener: #Listener & {
+		listener_key: workload.metadata.name
+		ip: "0.0.0.0"
+	}
 	clusters: [...#Cluster]
 	routes: [...#Route]
 
@@ -66,7 +68,9 @@ service: {
 	if len(HTTPEgresses) > 0 {
 		httpEgresses: {
 			domain:   #Domain
-			listener: #Listener
+			listener: #Listener & {
+				ip: "127.0.0.1"
+			}
 			clusters: [...#Cluster]
 			routes: [...#Route]
 		}
@@ -74,7 +78,9 @@ service: {
 
 	tcpEgresses: [...{
 		domain:   #Domain
-		listener: #Listener
+		listener: #Listener & {
+			ip: "127.0.0.1"
+		}
 		clusters: [...#Cluster]
 		routes: [...#Route]
 	}]

@@ -17,12 +17,6 @@ envoyMeshConfig: #envoy & {
 				_spireSubject: "gm-redis"
 			},
 			#envoyCluster & {
-				_name: "bootstrap"
-				_alt: "\(sidecar.xdsCluster):\(sidecar.localPort)"
-				_host: "127.0.0.1"
-				_port: sidecar.localPort
-			},
-			#envoyCluster & {
 				_name: "spire_agent"
 			}
 		]
@@ -31,25 +25,7 @@ envoyMeshConfig: #envoy & {
 				_name: sidecar.xdsCluster
 				_port: 10910
 				_cluster: "gm-redis"
-			},
-			#envoyHTTPListener & {
-				_name: "bootstrap"
-				_port: 10707
-				_routes: [
-					{
-						match: {
-							prefix: "/"
-							case_sensitive: false
-						}
-						route: {
-							cluster: "bootstrap"
-							timeout: "5s"
-						}
-					}
-				]
-				_tlsContext: "spire"
-				_spireSecret: sidecar.xdsCluster
-				_spireSubjects: ["edge"]
+				_egress: true
 			}
 		]
 	}
@@ -252,10 +228,16 @@ envoyRedis: #envoy & {
 	_tlsContext: *"" | string
 	_spireSecret: string
 	_spireSubjects: [...string]
+	_egress: *false | bool
 
 	name: "\(_name):\(_port)"
 	address: socket_address: {
-		address:    "0.0.0.0"
+		if _egress {
+			address: "127.0.0.1"
+		}
+		if !_egress {
+			address: "0.0.0.0"
+		}
 		port_value: _port
 	}
 	filter_chains: [...{...}]
