@@ -13,3 +13,17 @@ package base
 //     zone: "myzone"
 //   }
 // }
+
+mesh: {
+  metadata: {
+    name: "mymesh"
+  }
+  spec: {
+    install_namespace: "greymatter"
+    release_version: "latest"
+    zone: "myzone"
+    images: {
+      catalog: "docker.greymatter.io/development/gm-catalog:3.0.0"
+    }
+  }
+}
