@@ -144,6 +144,10 @@ func (i *Installer) SyncMeshes() error {
 		}
 		i.Unlock()
 
+		// We attempt an Apply here to statisfy the race condition of our server
+		// missing CRD creation even though the webhooks are ready to accept config
+		// If nothings changed this apply is ignored and we continue successfully.
+		go i.ApplyMesh(nil, &mesh)
 		go i.ConfigureMeshClient(&mesh)
 	}
 
