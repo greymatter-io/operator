@@ -11,5 +11,12 @@ package base
 //     install_namespace: "greymatter"
 //     release_version: "1.7"
 //     zone: "myzone"
+//     image_pull_secrets: [
+//         "test1",
+//         "test2"
+//     ]
+//     images: {
+//         catalog: "docker.greymatter.io/development/gm-catalog:3.0.0"
+//     }
 //   }
 // }
