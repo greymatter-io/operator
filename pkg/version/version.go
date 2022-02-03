@@ -47,8 +47,8 @@ func New(tmpl cue.Value, mesh *v1alpha1.Mesh, opts ...Opt) (*Version, error) {
 	}
 
 	// Unify our base install template with the mesh CR, plus any supplied options.
-	// TODO (alec): These will generally be very small unifications but we need to be careful about
-	// how expensive this can get.
+	// TODO (alec): These will generally be very small unifications
+	// but we need to be careful about how expensive this can get.
 	v.Unify(append(v.opts, m)...)
 	if err := v.cue.Err(); err != nil {
 		cueutils.LogError(logger, err)

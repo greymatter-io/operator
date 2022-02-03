@@ -34,7 +34,10 @@ func TestBasicMesh(t *testing.T) {
 					ReleaseVersion:   "latest",
 					InstallNamespace: "myns",
 					WatchNamespaces:  []string{"ns2", "ns3"},
-					Zone:             "default-zone",
+					Images: v1alpha1.Images{
+						Catalog: "docker.greymatter.io/development/gm-catalog:3.0.0",
+					},
+					Zone: "default-zone",
 				},
 			},
 			opts: nil,
@@ -64,6 +67,15 @@ func TestBasicMesh(t *testing.T) {
 						for svc, img := range vs.Versions {
 							if img == "" {
 								t.Errorf("service '%s' is missing an OCI container string", svc)
+							}
+
+							// We've overrided catalog in the test input so
+							// check to see if we see that value
+							if svc == "catalog" {
+								want := "docker.greymatter.io/development/gm-catalog:3.0.0"
+								if img != want {
+									t.Fatalf("received catalog image: %s, wanted %s", img, want)
+								}
 							}
 						}
 					},
