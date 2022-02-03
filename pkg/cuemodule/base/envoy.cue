@@ -22,11 +22,11 @@ envoyMeshConfig: #envoy & {
 		]
 		listeners: [
 			#envoyTCPListener & {
-				_name: sidecar.xdsCluster
-				_port: 10910
+				_name:    sidecar.xdsCluster
+				_address: "127.0.0.1"
+				_port:    10910
 				_cluster: "gm-redis"
-				_egress: true
-			}
+			},
 		]
 	}
 }
@@ -224,20 +224,15 @@ envoyRedis: #envoy & {
 
 #envoyListener: {
 	_name: string
+	_address: *"0.0.0.0" | string
 	_port: int
 	_tlsContext: *"" | string
 	_spireSecret: string
 	_spireSubjects: [...string]
-	_egress: *false | bool
 
 	name: "\(_name):\(_port)"
 	address: socket_address: {
-		if _egress {
-			address: "127.0.0.1"
-		}
-		if !_egress {
-			address: "0.0.0.0"
-		}
+		address: _address
 		port_value: _port
 	}
 	filter_chains: [...{...}]
