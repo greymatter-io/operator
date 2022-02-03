@@ -65,6 +65,7 @@ type Images struct {
 	Proxy       string `json:"proxy,omitempty"`
 	Catalog     string `json:"catalog,omitempty"`
 	Control     string `json:"control,omitempty"`
+	ControlAPI  string `json:"control_api,omitempty"`
 	Dashboard   string `json:"dashboard,omitempty"`
 	JWTSecurity string `json:"jwt_security,omitempty"`
 	Redis       string `json:"redis,omitempty"`

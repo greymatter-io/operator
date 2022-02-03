@@ -60,6 +60,8 @@ spec:
                     type: string
                   control:
                     type: string
+                  control_api:
+                    type: string
                   dashboard:
                     type: string
                   jwt_security:
