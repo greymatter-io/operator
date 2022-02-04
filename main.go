@@ -144,7 +144,10 @@ func run() error {
 	}
 
 	// Initialize manifests installer.
-	inst := installer.New(c, gmcli, cs, cfg.ClusterIngressName)
+	inst, err := installer.New(c, cuemodule.LoadPackage, gmcli, cs, cfg.ClusterIngressName)
+	if err != nil {
+		return fmt.Errorf("failed to initialize manifest installer: %w", err)
+	}
 
 	// Initialize the webhooks loader.
 	wl, err := webhooks.New(c, inst, gmcli, cs, cfg.DisableWebhookCertGeneration, mgr.GetWebhookServer)

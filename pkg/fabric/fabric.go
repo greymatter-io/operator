@@ -10,7 +10,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"cuelang.org/go/cue"
-	"cuelang.org/go/encoding/gocode/gocodec"
 )
 
 var (
@@ -63,12 +62,10 @@ type Objects struct {
 // EdgeDomain extracts the edge domain fabric object from a *Fabric's cue.Value.
 // The edge domain is parsed individually since it is created as the root mesh domain.
 func (f *Fabric) EdgeDomain() json.RawMessage {
-	//lint:ignore SA1019 will update to Context in next Cue version
-	codec := gocodec.New(&cue.Runtime{}, nil)
 	var e struct {
 		EdgeDomain json.RawMessage `json:"edgeDomain"`
 	}
-	codec.Encode(f.cue, &e)
+	cueutils.Extract(f.cue, &e)
 	return e.EdgeDomain
 }
 
@@ -85,11 +82,13 @@ func (f *Fabric) Service(name string, workload runtime.Object) (Objects, error) 
 		return Objects{}, err
 	}
 
-	//lint:ignore SA1019 will update to Context in next Cue version
-	codec := gocodec.New(&cue.Runtime{}, nil)
 	var s struct {
 		Service Objects `json:"service"`
 	}
-	codec.Encode(value, &s)
+	if err := cueutils.Extract(value, &s); err != nil {
+		cueutils.LogError(logger, err)
+		return Objects{}, err
+	}
+
 	return s.Service, nil
 }

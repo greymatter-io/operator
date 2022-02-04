@@ -22,8 +22,6 @@ spec:
       containers:
       - command:
         - /app/operator
-        args:
-        - --leader-elect
         image: docker.greymatter.io/development/gm-operator:latest
         imagePullPolicy: IfNotPresent
         name: operator

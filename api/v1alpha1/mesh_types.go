@@ -27,9 +27,18 @@ import (
 // MeshSpec defines the desired state of a Grey Matter mesh.
 type MeshSpec struct {
 	// The version of Grey Matter to install for this mesh.
-	// +kubebuilder:validation:Enum="1.6";"1.7"
-	// +kubebuilder:default="1.7"
+	// +kubebuilder:validation:Enum="1.6";"1.7";"latest"
+	// +kubebuilder:default="latest"
 	ReleaseVersion string `json:"release_version"`
+
+	// A list of OCI image strings and their respective pull secret names.
+	// These are treated as overrides to the specified "release_version".
+	// +optional
+	Images Images `json:"images,omitempty"`
+
+	// A list of pull secrets to try for fetching core services.
+	// +optional
+	ImagePullSecrets []string `json:"image_pull_secrets,omitempty"`
 
 	// Label this mesh as belonging to a particular zone.
 	// +kubebuilder:default=default-zone
@@ -45,6 +54,22 @@ type MeshSpec struct {
 	// Add user tokens to the JWT Security Service.
 	// +optional
 	UserTokens []UserToken `json:"user_tokens,omitempty"`
+}
+
+type UserToken struct {
+	Label  string              `json:"label"`
+	Values map[string][]string `json:"values"`
+}
+
+type Images struct {
+	Proxy       string `json:"proxy,omitempty"`
+	Catalog     string `json:"catalog,omitempty"`
+	Control     string `json:"control,omitempty"`
+	ControlAPI  string `json:"control_api,omitempty"`
+	Dashboard   string `json:"dashboard,omitempty"`
+	JWTSecurity string `json:"jwt_security,omitempty"`
+	Redis       string `json:"redis,omitempty"`
+	Prometheus  string `json:"prometheus,omitempty"`
 }
 
 // MeshStatus describes the observed state of a Grey Matter mesh.
