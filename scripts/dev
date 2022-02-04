@@ -69,7 +69,7 @@ k8s_logs() {
 # K3D (local development)
 
 k3d_push() {
-  ./scripts/build docker
+  ./scripts/build container
   k3d image import -c gm-operator docker.greymatter.io/internal/gm-operator:latest
 }
 
@@ -84,7 +84,7 @@ k3d_cleanup() {
 }
 
 k3d_upgrade() {
-  ./scripts/build docker
+  ./scripts/build container
   k3d image import -c gm-operator docker.greymatter.io/internal/gm-operator:latest
   kubectl delete pod -n gm-operator $(kubectl get pod -n gm-operator -o json | jq -c '.items[] | select(.metadata.name | contains("operator")).metadata.name' | xargs)
 }
@@ -96,7 +96,7 @@ k3d_logs() {
 # Shared
 
 push_docker() {
-  ./scripts/build docker
+  ./scripts/build container
   docker push docker.greymatter.io/internal/gm-operator:latest
 }
 

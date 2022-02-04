@@ -5,25 +5,59 @@
 
 set -euf -o pipefail
 
-if [ $# -eq 0 ]
-then
+cmd_build () {
   if [[ $OSTYPE == 'linux-gnu' ]]
   then
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o bin/operator main.go
   else
     make build
   fi
+}
+
+cmd_help () {
+  echo 'valid args: container, build, help'
+}
+
+_buildah_build () {
+  local tag=$1
+  buildah bud \
+    --build-arg username=$GREYMATTER_REGISTRY_USERNAME \
+    --build-arg password=$GREYMATTER_REGISTRY_PASSWORD \
+    -t "$tag" --layers -f Dockerfile .
+}
+
+_docker_build () {
+  local tag=$1
+  docker build \
+  --build-arg username=$GREYMATTER_REGISTRY_USERNAME \
+  --build-arg password=$GREYMATTER_REGISTRY_PASSWORD \
+  -t "$tag" -f Dockerfile .
+}
+
+cmd_container () {
+  if type -p buildah  &>/dev/null; then
+    _buildah_build "docker.greymatter.io/internal/gm-operator:latest"
+  else
+    _docker_build "docker.greymatter.io/internal/gm-operator:latest"
+  fi
+}
+
+usage() {
+  cmd_help
+  exit 1
+}
+
+if [ $# -eq 0 ]; then
+  cmd_build
 else
-  case $1 in 
-  docker)
-    docker build \
-      --build-arg username=$GREYMATTER_REGISTRY_USERNAME \
-      --build-arg password=$GREYMATTER_REGISTRY_PASSWORD \
-      -t docker.greymatter.io/internal/gm-operator:latest .
-    ;;
-  *) 
-    echo "invalid argument $1"
-    exit 1
-    ;;
+  MODE="${1:-}"
+  case "$MODE" in
+    build|container|help)
+      shift
+      "cmd_$MODE" "$@"
+      ;;
+    *)
+      usage
+      ;;
   esac
 fi

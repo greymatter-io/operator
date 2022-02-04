@@ -52,6 +52,11 @@ manifests: [...#ManifestGroup] & [
         spec: {
           if _c[0].name != "gm-redis" && _c[0].name != "gm-prometheus" {
             imagePullSecrets: [
+              // If we receive extra secrets from the mesh CRD,
+              //  we need to make sure they get piped down to the manifests.
+              for _, secret in ImagePullSecrets if len(ImagePullSecrets) > 0 {
+                { name: "\(secret)" }
+              }
               { name: "gm-docker-secret" }
             ]
           }

@@ -4,9 +4,11 @@ package installer
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	"cuelang.org/go/cue"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cfsslsrv"
 	"github.com/greymatter-io/operator/pkg/cli"
@@ -43,18 +45,26 @@ type Installer struct {
 	imagePullSecret *corev1.Secret
 	// The name of a configured cluster ingress name for OpenShift environments.
 	clusterIngressName string
-	// A map of Grey Matter version (v*.*) -> Version read from the filesystem.
-	versions map[string]version.Version
 	// A map of namespaces -> mesh name.
 	namespaces map[string]string
 	// A map of mesh -> function that returns a sidecar (given an xdsCluster name), used for sidecar injection
 	sidecars map[string]func(string) version.Sidecar
+	// Base install configuration template for generating Grey Matter core service manifests
+	baseTmpl cue.Value
 	// The cluster ingress domain
 	clusterIngressDomain string
 }
 
 // New returns a new *Installer instance for installing Grey Matter components and dependencies.
-func New(c client.Client, gmcli *cli.CLI, cs *cfsslsrv.CFSSLServer, clusterIngressName string) *Installer {
+func New(c client.Client, load cuemodule.Loader, gmcli *cli.CLI, cs *cfsslsrv.CFSSLServer, clusterIngressName string) (*Installer, error) {
+	baseTmpl, err := load("base")
+	if err != nil {
+		logger.Error(err, "Failed to load base install configuration templates")
+		return nil, err
+	}
+
+	logger.Info("Loaded base install configuration templates")
+
 	return &Installer{
 		RWMutex:            &sync.RWMutex{},
 		CLI:                gmcli,
@@ -63,28 +73,21 @@ func New(c client.Client, gmcli *cli.CLI, cs *cfsslsrv.CFSSLServer, clusterIngre
 		clusterIngressName: clusterIngressName,
 		namespaces:         make(map[string]string),
 		sidecars:           make(map[string]func(string) version.Sidecar),
-	}
+		baseTmpl:           baseTmpl,
+	}, nil
 }
 
 // Start initializes resources and configurations after controller-manager has launched.
 // It implements the controller-runtime Runnable interface.
 func (i *Installer) Start(ctx context.Context) error {
 
-	// Load versioned install configurations
-	var err error
-	i.versions, err = version.Load(cuemodule.LoadPackage)
-	if err != nil {
-		logger.Error(err, "Failed to load versioned install configurations:")
-		return err
-	}
-
-	// Copy the image pull secret from the apiserver (block until it's retrieved).
-	// This secret will be re-created in each install namespace where our core services are pulled.
+	// Retrieve the operator image secret from the apiserver (block until it's retrieved).
+	// This secret will be re-created in each install namespace and watch namespaces where core services are pulled.
 	i.imagePullSecret = getImagePullSecret(i.client)
 
 	// Get our Mesh CRD to set as an owner for cluster-scoped resources
 	i.owner = &extv1.CustomResourceDefinition{}
-	err = i.client.Get(ctx, client.ObjectKey{Name: "meshes.greymatter.io"}, i.owner)
+	err := i.client.Get(ctx, client.ObjectKey{Name: "meshes.greymatter.io"}, i.owner)
 	if err != nil {
 		logger.Error(err, "Failed to get CustomResourceDefinition meshes.greymatter.io")
 		return err
@@ -124,12 +127,15 @@ func (i *Installer) SyncMeshes() error {
 	}
 
 	for _, mesh := range meshList.Items {
-		options := mesh.Options(i.clusterIngressDomain)
-
 		i.Lock()
 		{
-			v := i.versions[mesh.Spec.ReleaseVersion].Copy()
-			v.Unify(options...)
+			// TODO (alec): this could get slow if we have a lot of meshes all unifying n number of times
+			// with various options. CUE is fast so maybe this is fine but it's something to keep in mind.
+			v, err := version.New(i.baseTmpl, &mesh, version.WithIngressSubDomain(i.clusterIngressDomain))
+			if err != nil {
+				return fmt.Errorf("failed to create version for mesh %s: %v", mesh.Name, err)
+			}
+
 			i.sidecars[mesh.Name] = v.SidecarTemplate()
 			i.namespaces[mesh.Spec.InstallNamespace] = mesh.Name
 			for _, namespace := range mesh.Spec.WatchNamespaces {
@@ -138,6 +144,10 @@ func (i *Installer) SyncMeshes() error {
 		}
 		i.Unlock()
 
+		// We attempt an Apply here to statisfy the race condition of our server
+		// missing CRD creation even though the webhooks are ready to accept config
+		// If nothings changed this apply is ignored and we continue successfully.
+		go i.ApplyMesh(nil, &mesh)
 		go i.ConfigureMeshClient(&mesh)
 	}
 

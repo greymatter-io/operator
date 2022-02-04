@@ -52,6 +52,19 @@ manifests that can be piped into a file after downloading kustomize, run
 ./bin/kustomize build config/context/kubernetes
 ```
 
+## Using nix-shell
+
+For those using the [Nix package manager](https://nixos.org/download.html), a `shell.nix` script has
+been provided at the root of this project to launch the operator in a local
+[KinD](https://kind.sigs.k8s.io/) cluster.
+
+Some caveats:
+* You should have Docker and Nix installed
+* You should be able to login to `docker.greymatter.io`
+
+To launch, simply run `nix-shell`.
+
+
 ## Development
 
 ### Dependencies
@@ -134,7 +147,6 @@ with `k3d` instead of `k8s`. You can run the following:
 ```
 ./scripts/dev deploy k3d
 ./scripts/dev logs k3d
-./scripts/dev sample k3d
 ./scripts/dev cleanup k3d
 ```
 
@@ -146,7 +158,6 @@ To tear down the local cluster, run:
 ```
 k3d cluster delete gm-operator
 ```
-
 
 ### OpenShift Quickstart
 
@@ -166,7 +177,6 @@ with `oc` instead of `k8s`. You can run the following:
 ```
 ./scripts/dev deploy oc
 ./scripts/dev logs oc
-./scripts/dev sample oc
 ./scripts/dev cleanup oc
 ```
 
