@@ -2,11 +2,14 @@
 
 ## Unreleased
 
-## Fixed
+## Changed
 
 - Updated versions of Spire images (spire-server, spire-agent, and the k8s-workload-registrar) that
   the operator installs to 1.2.0. This fixes an issue on some platforms where Spire would
   misidentify the process as non-k8s, and fail to issue an identity.
+
+- Specifying `--platform linux/amd64` in docker and buildah container builds to ensure M1
+  Macs know what to do with it, regardless of where it was built.
 
 ## 0.3.1 (January 31, 2022)
 
