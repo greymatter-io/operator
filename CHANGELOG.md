@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+## Fixed
+
+- Updated versions of Spire images (spire-server, spire-agent, and the k8s-workload-registrar) that
+  the operator installs to 1.2.0. This fixes an issue on some platforms where Spire would
+  misidentify the process as non-k8s, and fail to issue an identity.
+
 ## 0.3.1 (January 31, 2022)
 
 This release includes internal changes to how we source Grey Matter mesh configuration schema.
