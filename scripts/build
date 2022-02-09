@@ -21,6 +21,7 @@ cmd_help () {
 _buildah_build () {
   local tag=$1
   buildah bud \
+    --platform linux/amd64 \
     --build-arg username=$GREYMATTER_REGISTRY_USERNAME \
     --build-arg password=$GREYMATTER_REGISTRY_PASSWORD \
     -t "$tag" --layers -f Dockerfile .
@@ -29,6 +30,7 @@ _buildah_build () {
 _docker_build () {
   local tag=$1
   docker build \
+  --platform linux/amd64 \
   --build-arg username=$GREYMATTER_REGISTRY_USERNAME \
   --build-arg password=$GREYMATTER_REGISTRY_PASSWORD \
   -t "$tag" -f Dockerfile .
