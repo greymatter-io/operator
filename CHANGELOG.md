@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Updated flag in spire server liveness probe to prevent an eventual crash of spire server.
+
 ## 0.3.2 (February 10, 2022)
 
 This release includes internal changes to how we source Grey Matter mesh configuration schema.
