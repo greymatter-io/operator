@@ -148,7 +148,6 @@ func (i *Installer) SyncMeshes() error {
 		// missing CRD creation even though the webhooks are ready to accept config
 		// If nothings changed this apply is ignored and we continue successfully.
 		go i.ApplyMesh(nil, &mesh)
-		go i.ConfigureMeshClient(&mesh)
 	}
 
 	return nil
