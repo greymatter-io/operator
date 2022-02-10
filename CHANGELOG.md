@@ -11,6 +11,9 @@
 - Specifying `--platform linux/amd64` in docker and buildah container builds to ensure M1
   Macs know what to do with it, regardless of where it was built.
 
+- Increased memory limit (100Mi -> 300Mi) and increased initial wait period on readiness and
+  liveness probes to accommodate slower/emulated machines (-> 120 sec).
+
 ## 0.3.1 (January 31, 2022)
 
 This release includes internal changes to how we source Grey Matter mesh configuration schema.
