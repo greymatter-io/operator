@@ -70,7 +70,7 @@ statefulset:
               command:
               - /opt/spire/bin/spire-server
               - healthcheck
-              - --registrationUDSPath=/run/spire/socket/registration.sock
+              - -socketPath=/run/spire/socket/registration.sock
             failureThreshold: 2
             initialDelaySeconds: 15
             periodSeconds: 60
