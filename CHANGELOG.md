@@ -1,12 +1,6 @@
 # Changelog
 
-## Unreleased
-
-### Fixed
-
-- Updated flag in spire server liveness probe to prevent an eventual crash of spire server.
-
-## 0.3.2 (February 10, 2022)
+## 0.3.3 (February 10, 2022)
 
 This release includes internal changes to how we source Grey Matter mesh configuration schema.
 Grey Matter mesh configurations are defined in CUE and bundled into this project via a Git
@@ -16,6 +10,8 @@ are also ingested into CUE to be parsed for installing and configuring mesh depl
 Additionally, this release addressed a bug that prevented the operator from restoring its own
 internal state of existing Mesh custom resources on startup. The fix ensures that the leader
 replica of the operator will always have the latest state of Mesh custom resources.
+
+This release also has been tested for local development on Rancher Desktop.
 
 ### Changed
 
@@ -43,6 +39,7 @@ replica of the operator will always have the latest state of Mesh custom resourc
 
 ### Fixed
 
+- Updated flag in spire server liveness probe to prevent an eventual crash of spire server.
 - Addressed a bug that kept existing Mesh custom resources from being fully registered with a new
   instance of the operator on startup. The bug prevented new mesh configurations from being
   generated for workloads within namespaces of existing meshes.
