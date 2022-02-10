@@ -1,8 +1,21 @@
 # Changelog
 
-## Unreleased
+## 0.3.2 (February 10, 2022)
 
-## Changed
+This release includes internal changes to how we source Grey Matter mesh configuration schema.
+Grey Matter mesh configurations are defined in CUE and bundled into this project via a Git
+submodule [greymatter-cue](https://github.com/greymatter-io/greymatter-cue). Mesh custom resources
+are also ingested into CUE to be parsed for installing and configuring mesh deployments.
+
+Additionally, this release addressed a bug that prevented the operator from restoring its own
+internal state of existing Mesh custom resources on startup. The fix ensures that the leader
+replica of the operator will always have the latest state of Mesh custom resources.
+
+### Changed
+
+- Moved all CUE packages into a single CUE module that lives in `pkg/cuemodule`. Each CUE package
+  may be evaluated using the CUE CLI as well as loaded via exported loader functions defined in the
+  `cuemodule` Go package.
 
 - Updated versions of Spire images (spire-server, spire-agent, and the k8s-workload-registrar) that
   the operator installs to 1.2.0. This fixes an issue on some platforms where Spire would
@@ -14,29 +27,13 @@
 - Increased memory limit (100Mi -> 300Mi) and increased initial wait period on readiness and
   liveness probes to accommodate slower/emulated machines (-> 120 sec).
 
-## 0.3.1 (January 31, 2022)
-
-This release includes internal changes to how we source Grey Matter mesh configuration schema.
-Grey Matter mesh configurations are defined in CUE and bundled into this project via a Git
-submodule [greymatter-cue](https://github.com/greymatter-io/greymatter-cue). Mesh custom resources
-are also ingested into CUE to be parsed for installing and configuring mesh deployments.
-
-Additionally, this release addressed a bug that prevented the operator from restoring its own
-internal state of existing Mesh custom resources on startup. The fix ensures that the leader
-replica of the operator will always have the latest state of Mesh custom resources.
-
 ### Added
 
 - [greymatter-cue](https://github.com/greymatter-io/greymatter-cue) Git submodule for importing
   Grey Matter CUE schemas.
 - Generated CUE schema for the Mesh custom resource definition, to be parsed within CUE when
   generating installation manifests and mesh configurations for a configured Mesh.
-
-### Changed
-
-- Moved all CUE packages into a single CUE module that lives in `pkg/cuemodule`. Each CUE package
-  may be evaluated using the CUE CLI as well as loaded via exported loader functions defined in the
-  `cuemodule` Go package.
+- Fix concurrent write to a map shared among goroutines.
 
 ### Fixed
 
