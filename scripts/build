@@ -14,6 +14,12 @@ cmd_build () {
   fi
 }
 
+cmd_debug () {
+    go build -o bin/operator \
+        --mod=vendor \
+        -gcflags 'all=-N -l' github.com/greymatter-io/operator
+}
+
 cmd_help () {
   echo 'valid args: container, build, help'
 }
@@ -54,7 +60,7 @@ if [ $# -eq 0 ]; then
 else
   MODE="${1:-}"
   case "$MODE" in
-    build|container|help)
+    build|container|debug|help)
       shift
       "cmd_$MODE" "$@"
       ;;
