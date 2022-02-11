@@ -62,8 +62,8 @@ func init() {
 
 // Global config flags
 var (
-	configFile  string
-	development bool
+	configPath string
+	zapDevMode bool
 )
 
 func main() {
@@ -76,16 +76,16 @@ func main() {
 func run() error {
 	flag.Parse()
 
-	flag.StringVar(&configFile, "config", "", "The operator will load its initial configuration from this file if defined.")
-	flag.BoolVar(&development, "development", false, "Run in development mode.")
+	flag.StringVar(&configPath, "configPath", "", "The operator will load its initial configuration from this file if defined.")
+	flag.BoolVar(&zapDevMode, "zapDevMode", false, "Configure zap logger in development mode.")
 
 	// Bind flags for Zap logger options.
-	opts := zap.Options{Development: development}
+	opts := zap.Options{Development: zapDevMode}
 	opts.BindFlags(flag.CommandLine)
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	// Initialize operator options with set values.
-	// These values will not be replaced by any values set in a read configFile.
+	// These values will not be replaced by any values set in a read configPath.
 	options := ctrl.Options{
 		Scheme:                  scheme,
 		LeaderElection:          true,
@@ -105,15 +105,15 @@ func run() error {
 		ClusterIngressName: "cluster",
 	}
 
-	// Attempt to read a configFile if one has been configured.
+	// Attempt to read a configPath if one has been configured.
 	cfg := defaultBootstrapConfig
 	var err error
-	if configFile != "" {
-		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&cfg))
+	if configPath != "" {
+		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configPath).OfKind(&cfg))
 		if err != nil {
-			return fmt.Errorf("failed to load bootstrap config at path %s: %w", configFile, err)
+			return fmt.Errorf("failed to load bootstrap config at path %s: %w", configPath, err)
 		}
-		logger.Info("Loaded bootstrap config", "Path", configFile)
+		logger.Info("Loaded bootstrap config", "Path", configPath)
 	}
 
 	// Start up our CFSSL server for issuing two certs:
