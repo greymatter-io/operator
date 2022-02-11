@@ -62,8 +62,8 @@ func init() {
 
 // Global config flags
 var (
-	configFile  string
-	development bool
+	configFile string
+	zapDevMode bool
 )
 
 func main() {
@@ -77,10 +77,10 @@ func run() error {
 	flag.Parse()
 
 	flag.StringVar(&configFile, "config", "", "The operator will load its initial configuration from this file if defined.")
-	flag.BoolVar(&development, "development", false, "Run in development mode.")
+	flag.BoolVar(&zapDevMode, "development", false, "Configure zap logger in development mode.")
 
 	// Bind flags for Zap logger options.
-	opts := zap.Options{Development: development}
+	opts := zap.Options{Development: zapDevMode}
 	opts.BindFlags(flag.CommandLine)
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
@@ -98,7 +98,7 @@ func run() error {
 
 	// Default bootstrap config values
 	defaultBootstrapConfig := bootstrap.BootstrapConfig{
-		// LeaderElection is required as an empty config since it cannot be nil.
+		// LeaderElection is required as an empty config since it cannot be nil.github.com/greymatter-io/operator
 		ControllerManagerConfigurationSpec: cfg.ControllerManagerConfigurationSpec{
 			LeaderElection: &basecfg.LeaderElectionConfiguration{},
 		},
