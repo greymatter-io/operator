@@ -17,6 +17,7 @@ cmd_build () {
 cmd_debug () {
     go build -o bin/operator \
         --mod=vendor \
+        -tags debug \
         -gcflags 'all=-N -l' github.com/greymatter-io/operator
 }
 
