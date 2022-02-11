@@ -50,11 +50,6 @@ import (
 var (
 	scheme = runtime.NewScheme()
 	logger = ctrl.Log.WithName("init")
-
-	// Global config flags
-	configFile  string
-	development bool
-
 )
 
 func init() {
@@ -65,7 +60,22 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
+// Global config flags
+var (
+	configFile  string
+	development bool
+)
+
+func main() {
+	if err := run(); err != nil {
+		logger.Error(err, "Failed to run operator")
+		os.Exit(1)
+	}
+}
+
 func run() error {
+	flag.Parse()
+
 	flag.StringVar(&configFile, "config", "", "The operator will load its initial configuration from this file if defined.")
 	flag.BoolVar(&development, "development", false, "Run in development mode.")
 
@@ -73,7 +83,6 @@ func run() error {
 	opts := zap.Options{Development: development}
 	opts.BindFlags(flag.CommandLine)
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	flag.Parse()
 
 	// Initialize operator options with set values.
 	// These values will not be replaced by any values set in a read configFile.
@@ -103,9 +112,8 @@ func run() error {
 		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&cfg))
 		if err != nil {
 			return fmt.Errorf("failed to load bootstrap config at path %s: %w", configFile, err)
-		} else {
-			logger.Info("Loaded bootstrap config", "Path", configFile)
 		}
+		logger.Info("Loaded bootstrap config", "Path", configFile)
 	}
 
 	// Start up our CFSSL server for issuing two certs:
@@ -174,11 +182,4 @@ func run() error {
 	}
 
 	return nil
-}
-
-func main() {
-	if err := run(); err != nil {
-		logger.Error(err, "Failed to run operator")
-		os.Exit(1)
-	}
 }
