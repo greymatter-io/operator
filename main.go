@@ -55,14 +55,6 @@ var (
 	configFile  string
 	development bool
 
-	// Default bootstrap config values
-	defaultBootstrapConfig = bootstrap.BootstrapConfig{
-		// LeaderElection is required as an empty config since it cannot be nil.
-		ControllerManagerConfigurationSpec: cfg.ControllerManagerConfigurationSpec{
-			LeaderElection: &basecfg.LeaderElectionConfiguration{},
-		},
-		ClusterIngressName: "cluster",
-	}
 )
 
 func init() {
@@ -93,6 +85,15 @@ func run() error {
 		Port:                    9443,
 		MetricsBindAddress:      ":8080",
 		HealthProbeBindAddress:  ":8081",
+	}
+
+	// Default bootstrap config values
+	defaultBootstrapConfig := bootstrap.BootstrapConfig{
+		// LeaderElection is required as an empty config since it cannot be nil.
+		ControllerManagerConfigurationSpec: cfg.ControllerManagerConfigurationSpec{
+			LeaderElection: &basecfg.LeaderElectionConfiguration{},
+		},
+		ClusterIngressName: "cluster",
 	}
 
 	// Attempt to read a configFile if one has been configured.
