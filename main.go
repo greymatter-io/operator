@@ -19,8 +19,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/bootstrap"
 	"github.com/greymatter-io/operator/pkg/cfsslsrv"
@@ -28,6 +26,7 @@ import (
 	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"github.com/greymatter-io/operator/pkg/installer"
 	"github.com/greymatter-io/operator/pkg/webhooks"
+	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -64,6 +63,7 @@ func init() {
 var (
 	configPath string
 	zapDevMode bool
+  pprofAddr  string
 )
 
 func main() {
@@ -76,6 +76,7 @@ func main() {
 func run() error {
 	flag.Parse()
 
+	flag.StringVar(&pprofAddr, "pprofAddr", ":1234", "Address for pprof server; has no effect on release builds")
 	flag.StringVar(&configPath, "configPath", "", "The operator will load its initial configuration from this file if defined.")
 	flag.BoolVar(&zapDevMode, "zapDevMode", false, "Configure zap logger in development mode.")
 

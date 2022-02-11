@@ -1,5 +1,11 @@
 # Changelog
 
+## vNEXT
+
+### Added
+
+- Add a debug build mode that starts a pprof server automatically.
+
 ## 0.3.3 (February 10, 2022)
 
 This release includes internal changes to how we source Grey Matter mesh configuration schema.
