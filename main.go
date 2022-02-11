@@ -61,9 +61,9 @@ func init() {
 
 // Global config flags
 var (
-	configFile string
+	configPath string
 	zapDevMode bool
-	pprofAddr  string
+  pprofAddr  string
 )
 
 func main() {
@@ -76,9 +76,9 @@ func main() {
 func run() error {
 	flag.Parse()
 
-	flag.StringVar(&configFile, "config", "", "The operator will load its initial configuration from this file if defined.")
 	flag.StringVar(&pprofAddr, "pprofAddr", ":1234", "Address for pprof server; has no effect on release builds")
-	flag.BoolVar(&zapDevMode, "development", false, "Configure zap logger in development mode.")
+	flag.StringVar(&configPath, "configPath", "", "The operator will load its initial configuration from this file if defined.")
+	flag.BoolVar(&zapDevMode, "zapDevMode", false, "Configure zap logger in development mode.")
 
 	// Bind flags for Zap logger options.
 	opts := zap.Options{Development: zapDevMode}
@@ -86,7 +86,7 @@ func run() error {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	// Initialize operator options with set values.
-	// These values will not be replaced by any values set in a read configFile.
+	// These values will not be replaced by any values set in a read configPath.
 	options := ctrl.Options{
 		Scheme:                  scheme,
 		LeaderElection:          true,
@@ -99,22 +99,22 @@ func run() error {
 
 	// Default bootstrap config values
 	defaultBootstrapConfig := bootstrap.BootstrapConfig{
-		// LeaderElection is required as an empty config since it cannot be nil.github.com/greymatter-io/operator
+		// LeaderElection is required as an empty config since it cannot be nil.
 		ControllerManagerConfigurationSpec: cfg.ControllerManagerConfigurationSpec{
 			LeaderElection: &basecfg.LeaderElectionConfiguration{},
 		},
 		ClusterIngressName: "cluster",
 	}
 
-	// Attempt to read a configFile if one has been configured.
+	// Attempt to read a configPath if one has been configured.
 	cfg := defaultBootstrapConfig
 	var err error
-	if configFile != "" {
-		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configFile).OfKind(&cfg))
+	if configPath != "" {
+		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configPath).OfKind(&cfg))
 		if err != nil {
-			return fmt.Errorf("failed to load bootstrap config at path %s: %w", configFile, err)
+			return fmt.Errorf("failed to load bootstrap config at path %s: %w", configPath, err)
 		}
-		logger.Info("Loaded bootstrap config", "Path", configFile)
+		logger.Info("Loaded bootstrap config", "Path", configPath)
 	}
 
 	// Start up our CFSSL server for issuing two certs:

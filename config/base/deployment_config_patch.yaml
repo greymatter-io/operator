@@ -9,7 +9,7 @@ spec:
       containers:
       - name: operator
         args:
-        - "--config=config/bootstrap_config.yaml"
+        - "--configPath=config/bootstrap_config.yaml"
         volumeMounts:
         - name: operator-config
           mountPath: /app/config/bootstrap_config.yaml
