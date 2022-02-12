@@ -74,7 +74,6 @@ func main() {
 }
 
 func run() error {
-	flag.Parse()
 
 	flag.StringVar(&pprofAddr, "pprofAddr", ":1234", "Address for pprof server; has no effect on release builds")
 	flag.StringVar(&configPath, "configPath", "", "The operator will load its initial configuration from this file if defined.")
@@ -84,6 +83,9 @@ func run() error {
 	opts := zap.Options{Development: zapDevMode}
 	opts.BindFlags(flag.CommandLine)
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	// We have to call Parse late for some reason
+	flag.Parse()
 
 	// Initialize operator options with set values.
 	// These values will not be replaced by any values set in a read configPath.
