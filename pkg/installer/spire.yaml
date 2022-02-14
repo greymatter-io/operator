@@ -439,8 +439,4 @@ configmaps:
             skip_kubelet_verification = true
           }
         }
-        WorkloadAttestor "unix" {
-          plugin_data {
-          }
-        }
       }
