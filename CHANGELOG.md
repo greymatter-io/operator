@@ -6,6 +6,10 @@
 
 - Add a debug build mode that starts a pprof server automatically.
 
+### Fixed
+
+- Fixed parsing of the `watch_namespaces` field in the Mesh custom resource `spec` that prevented Control's `GM_CONTROL_KUBERNETES_NAMESPACES` environment variable from being set, causing service discovery to fail to identify data planes in the `install_namespace` when no `watch_namespaces` were specified.
+
 ## 0.3.3 (February 10, 2022)
 
 This release includes internal changes to how we source Grey Matter mesh configuration schema.
