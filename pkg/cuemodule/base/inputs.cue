@@ -19,11 +19,9 @@ Zone: *"default-zone" | mesh.spec.zone
 IngressSubDomain: *"" | string
 
 InstallNamespace: mesh.spec.install_namespace
-WatchNamespaces: mesh.spec.watch_namespaces
+WatchNamespaces: *mesh.spec.watch_namespaces | []
 
-// Secrets that can live in other namespaces so users aren't tied to
-// docker.greymatter.io
-ImagePullSecrets: mesh.spec.image_pull_secrets
+ImagePullSecrets: *mesh.spec.image_pull_secrets | []
 Images: mesh.spec.images
 
 // Add the install namespace to watch namespaces, and then use list comprehension to identify unique values
