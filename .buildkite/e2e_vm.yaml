@@ -1,0 +1,5 @@
+steps:
+  - label: "kickoff build"
+    commands: 
+      - echo "hello world"
+
