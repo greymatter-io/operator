@@ -2,6 +2,7 @@ package installer
 
 import (
 	"context"
+	"github.com/greymatter-io/operator/pkg/wellknown"
 	"time"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
@@ -81,7 +82,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 			if deployment.Annotations == nil {
 				deployment.Annotations = make(map[string]string)
 			}
-			deployment.Annotations["greymatter.io/last-applied"] = time.Now().String()
+			deployment.Annotations[wellknown.ANNOTATION_LAST_APPLIED] = time.Now().String()
 			k8sapi.Apply(i.client, &deployment, nil, k8sapi.CreateOrUpdate)
 		}
 	}
@@ -92,7 +93,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 			if statefulset.Annotations == nil {
 				statefulset.Annotations = make(map[string]string)
 			}
-			statefulset.Annotations["greymatter.io/last-applied"] = time.Now().String()
+			statefulset.Annotations[wellknown.ANNOTATION_LAST_APPLIED] = time.Now().String()
 			k8sapi.Apply(i.client, &statefulset, nil, k8sapi.CreateOrUpdate)
 		}
 	}
@@ -186,9 +187,9 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 				if deployment.Spec.Template.Labels == nil {
 					deployment.Spec.Template.Labels = make(map[string]string)
 				}
-				if _, ok := deployment.Spec.Template.Labels["greymatter.io/cluster"]; ok {
-					delete(deployment.Spec.Template.Labels, "greymatter.io/cluster")
-					delete(deployment.Spec.Template.Labels, "greymatter.io/workload")
+				if _, ok := deployment.Spec.Template.Labels[wellknown.LABEL_CLUSTER]; ok {
+					delete(deployment.Spec.Template.Labels, wellknown.LABEL_CLUSTER)
+					delete(deployment.Spec.Template.Labels, wellknown.LABEL_WORKLOAD)
 					k8sapi.Apply(i.client, &deployment, nil, k8sapi.CreateOrUpdate)
 				}
 			}
@@ -203,9 +204,9 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 				if statefulset.Spec.Template.Labels == nil {
 					statefulset.Spec.Template.Labels = make(map[string]string)
 				}
-				if _, ok := statefulset.Spec.Template.Labels["greymatter.io/cluster"]; ok {
-					delete(statefulset.Spec.Template.Labels, "greymatter.io/cluster")
-					delete(statefulset.Spec.Template.Labels, "greymatter.io/workload")
+				if _, ok := statefulset.Spec.Template.Labels[wellknown.LABEL_CLUSTER]; ok {
+					delete(statefulset.Spec.Template.Labels, wellknown.LABEL_CLUSTER)
+					delete(statefulset.Spec.Template.Labels, wellknown.LABEL_WORKLOAD)
 					k8sapi.Apply(i.client, &statefulset, nil, k8sapi.CreateOrUpdate)
 				}
 			}
