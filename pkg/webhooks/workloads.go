@@ -126,7 +126,9 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			}
 		} else {
 			wd.DecodeRaw(req.OldObject, deployment)
-			go wd.RemoveService(mesh, req.Name, deployment)
+			if deployment.Annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR] != "false" {
+				go wd.RemoveService(mesh, req.Name, deployment)
+			}
 			return admission.ValidationResponse(true, "allowed")
 		}
 
@@ -151,7 +153,9 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			}
 		} else {
 			wd.DecodeRaw(req.OldObject, statefulset)
-			go wd.RemoveService(mesh, req.Name, statefulset)
+			if statefulset.Annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR] != "false" {
+				go wd.RemoveService(mesh, req.Name, statefulset)
+			}
 			return admission.ValidationResponse(true, "allowed")
 		}
 	}
