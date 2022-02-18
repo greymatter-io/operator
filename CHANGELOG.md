@@ -5,6 +5,8 @@
 ### Added
 
 - Add a debug build mode that starts a pprof server automatically.
+- Added an annotation to control whether sidecar configuration is created for a given Deployment
+  or StatefulSet, e.g., `greymatter.io/configure-sidecar: "false"`
 
 ### Fixed
 

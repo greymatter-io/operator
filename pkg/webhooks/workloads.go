@@ -9,6 +9,7 @@ import (
 
 	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/installer"
+	"github.com/greymatter-io/operator/pkg/wellknown"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -51,7 +52,7 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 	}
 
 	// Check for a cluster label; if not found, this pod does not belong to a Mesh.
-	xdsCluster, ok := pod.Labels["greymatter.io/cluster"]
+	xdsCluster, ok := pod.Labels[wellknown.LABEL_CLUSTER]
 	if !ok {
 		return admission.ValidationResponse(true, "allowed")
 	}
@@ -112,7 +113,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			if deployment.Annotations == nil {
 				deployment.Annotations = make(map[string]string)
 			}
-			deployment.Annotations["greymatter.io/last-applied"] = time.Now().String()
+			deployment.Annotations[wellknown.ANNOTATION_LAST_APPLIED] = time.Now().String()
 			deployment.Spec.Template = addClusterLabels(deployment.Spec.Template, mesh, req.Name)
 			rawUpdate, err = json.Marshal(deployment)
 			if err != nil {
@@ -120,10 +121,14 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-			go wd.ConfigureService(mesh, req.Name, deployment)
+			if deployment.Annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR] != "false" {
+				go wd.ConfigureService(mesh, req.Name, deployment)
+			}
 		} else {
 			wd.DecodeRaw(req.OldObject, deployment)
-			go wd.RemoveService(mesh, req.Name, deployment)
+			if deployment.Annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR] != "false" {
+				go wd.RemoveService(mesh, req.Name, deployment)
+			}
 			return admission.ValidationResponse(true, "allowed")
 		}
 
@@ -134,7 +139,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			if statefulset.Annotations == nil {
 				statefulset.Annotations = make(map[string]string)
 			}
-			statefulset.Annotations["greymatter.io/last-applied"] = time.Now().String()
+			statefulset.Annotations[wellknown.ANNOTATION_LAST_APPLIED] = time.Now().String()
 			statefulset.Spec.Template = addClusterLabels(statefulset.Spec.Template, mesh, req.Name)
 			rawUpdate, err = json.Marshal(statefulset)
 			if err != nil {
@@ -142,10 +147,15 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-			go wd.ConfigureService(mesh, req.Name, statefulset)
+
+			if statefulset.Annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR] != "false" {
+				go wd.ConfigureService(mesh, req.Name, statefulset)
+			}
 		} else {
 			wd.DecodeRaw(req.OldObject, statefulset)
-			go wd.RemoveService(mesh, req.Name, statefulset)
+			if statefulset.Annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR] != "false" {
+				go wd.RemoveService(mesh, req.Name, statefulset)
+			}
 			return admission.ValidationResponse(true, "allowed")
 		}
 	}
@@ -157,7 +167,7 @@ func addClusterLabels(tmpl corev1.PodTemplateSpec, mesh, name string) corev1.Pod
 	if tmpl.Labels == nil {
 		tmpl.Labels = make(map[string]string)
 	}
-	tmpl.Labels["greymatter.io/cluster"] = name
-	tmpl.Labels["greymatter.io/workload"] = fmt.Sprintf("%s.%s", mesh, name)
+	tmpl.Labels[wellknown.LABEL_CLUSTER] = name
+	tmpl.Labels[wellknown.LABEL_WORKLOAD] = fmt.Sprintf("%s.%s", mesh, name)
 	return tmpl
 }
