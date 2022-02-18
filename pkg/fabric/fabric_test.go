@@ -314,6 +314,43 @@ func TestServiceOneIngress(t *testing.T) {
 	))
 }
 
+func TestServiceOneIngressWithoutPort(t *testing.T) {
+	f := loadMock(t)
+
+	service, err := f.Service("example", &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example",
+			Namespace: "myns",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "api",
+						},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if service.Ingresses == nil {
+		t.Fatal("Ingresses should not be nil")
+	}
+
+	if count := len(service.Ingresses.Clusters); count != 0 {
+		t.Fatalf("expected len(Ingresses.Clusters) to be 0 but got %d", count)
+	}
+
+	if count := len(service.Ingresses.Routes); count != 0 {
+		t.Fatalf("expected len(Ingresses.Routes) to be 0 but got %d", count)
+	}
+}
+
 func TestServiceMultipleIngresses(t *testing.T) {
 	f := loadMock(t)
 

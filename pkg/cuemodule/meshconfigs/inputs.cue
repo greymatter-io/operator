@@ -29,13 +29,15 @@ workload: {
 // A map derived from all container ports specified in a container.
 Ingresses: {
 	for container in workload.spec.template.spec.containers {
-		for port in container.ports {
-			// `port.name` is optional, so check if it is undefined (i.e. bottom)
-			if port.name != _|_ {
-				"\(port.name)": port.containerPort
-			}
-			if port.name == _|_ {
-				"\(port.containerPort)": port.containerPort
+		if container.ports != _|_ {
+			for port in container.ports {
+				// `port.name` is optional, so check if it is undefined (i.e. bottom)
+				if port.name != _|_ {
+					"\(port.name)": port.containerPort
+				}
+				if port.name == _|_ {
+					"\(port.containerPort)": port.containerPort
+				}
 			}
 		}
 	}

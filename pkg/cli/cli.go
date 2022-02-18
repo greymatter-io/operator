@@ -221,7 +221,7 @@ func (c *CLI) RemoveService(mesh, workload string, obj runtime.Object) {
 
 	objects, err := cl.f.Service(workload, obj)
 	if err != nil {
-		logger.Error(err, "failed to configure fabric objects for workload", "Mesh", mesh, "Workload", workload)
+		logger.Error(err, "failed to remove fabric objects for workload", "Mesh", mesh, "Workload", workload)
 		return
 	}
 
