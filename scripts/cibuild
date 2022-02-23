@@ -112,6 +112,7 @@ case $1 in
     run_test
     ;;
   build)
+    run_test
     run_build
     ;;
   release)

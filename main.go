@@ -63,7 +63,7 @@ func init() {
 var (
 	configPath string
 	zapDevMode bool
-  pprofAddr  string
+	pprofAddr  string
 )
 
 func main() {
