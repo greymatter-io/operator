@@ -89,7 +89,7 @@ release_image() {
 # Note that the bundled deployment manifest points to a docker.greymatter.io/release/gm-operator:$1 image.
 _bundle() {
   sed -i "s/SEMVER_VERSION/$1/" config/olm/manifests/kustomization.yaml
-	kustomize build config/olm/manifests | operator-sdk generate bundle -q --package gm-operator --overwrite --version $1
+	kubectl kustomize config/olm/manifests | operator-sdk generate bundle -q --package gm-operator --overwrite --version $1
 	operator-sdk bundle validate ./bundle
   _build_image "docker.greymatter.io/development/gm-operator-bundle:$1" bundle.Dockerfile
   _push_image "docker.greymatter.io/development/gm-operator-bundle:$1"

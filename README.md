@@ -44,12 +44,8 @@ kubectl apply -k config/context/kubernetes --dry-run=client -o yaml
 (NOTE: If deploying to OpenShift, you can replace `config/context/kubernetes` with
 `config/context/openshift`.)
 
-Under the hood, kubectl uses [kustomize](https://kustomize.io). As a convenience, `kustomize` may be
-downloaded to this repo's `bin` directory by using the `make kustomize` target. To generate the raw
-manifests that can be piped into a file after downloading kustomize, run
-
 ```
-./bin/kustomize build config/context/kubernetes
+kubectl kustomize config/context/kubernetes
 ```
 
 ## Using nix-shell
