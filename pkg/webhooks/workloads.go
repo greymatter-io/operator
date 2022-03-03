@@ -40,7 +40,6 @@ func (wd *workloadDefaulter) Handle(ctx context.Context, req admission.Request) 
 	return wd.handleWorkload(req)
 }
 
-// TODO: Modification should happen using a CUE package.
 func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response {
 	if req.Operation == admissionv1.Delete {
 		return admission.ValidationResponse(true, "allowed")
@@ -52,7 +51,7 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 	}
 
 	// Check for a cluster label; if not found, this pod does not belong to a Mesh.
-	xdsCluster, ok := pod.Labels[wellknown.LABEL_CLUSTER]
+	clusterLabel, ok := pod.Labels[wellknown.LABEL_CLUSTER]
 	if !ok {
 		return admission.ValidationResponse(true, "allowed")
 	}
@@ -65,15 +64,14 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 		}
 	}
 
-	// Get the sidecar container and any volumes to add to the Pod.
-	sidecar, ok := wd.Sidecar(req.Namespace, xdsCluster)
-	if !ok {
+	container, volumes, err := wd.OperatorCUE.UnifyAndExtractSidecar(clusterLabel)
+	if err != nil {
 		return admission.ValidationResponse(true, "allowed")
 	}
 
-	pod.Spec.Containers = append(pod.Spec.Containers, sidecar.Container)
-	pod.Spec.Volumes = append(pod.Spec.Volumes, sidecar.Volumes...)
-	logger.Info("injected sidecar", "kind", "Pod", "generateName", pod.GenerateName+"*", "namespace", req.Namespace)
+	pod.Spec.Containers = append(pod.Spec.Containers, container)
+	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
+	logger.Info("injected sidecar", "name", clusterLabel, "kind", "Pod", "generateName", pod.GenerateName+"*", "namespace", req.Namespace)
 
 	// Inject a reference to the image pull secret
 	var hasImagePullSecret bool
@@ -97,8 +95,8 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 
 // TODO: Modification should happen using a CUE package.
 func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Response {
-	mesh := wd.WatchedBy(req.Namespace)
-	if mesh == "" {
+	meshName := wd.Installer.Mesh.Name                 // wd.WatchedBy(req.Namespace)
+	if meshName == "" || wd.Installer.Mesh.UID == "" { // If the mesh isn't actually applied, don't assist deployments
 		return admission.ValidationResponse(true, "allowed")
 	}
 
@@ -108,39 +106,37 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 	switch req.Kind.Kind {
 	case "Deployment":
 		deployment := &appsv1.Deployment{}
-		if req.Operation != admissionv1.Delete {
+		if req.Operation != admissionv1.Delete { // if new or updated Deployment
 			wd.Decode(req, deployment)
 			if deployment.Annotations == nil {
 				deployment.Annotations = make(map[string]string)
 			}
 			deployment.Annotations[wellknown.ANNOTATION_LAST_APPLIED] = time.Now().String()
-			deployment.Spec.Template = addClusterLabels(deployment.Spec.Template, mesh, req.Name)
+			deployment.Spec.Template = addClusterLabels(deployment.Spec.Template, meshName, req.Name)
 			rawUpdate, err = json.Marshal(deployment)
 			if err != nil {
 				logger.Error(err, "Failed to add cluster label to Deployment", "Name", req.Name, "Namespace", req.Namespace)
 				return admission.ValidationResponse(false, "failed to add cluster label")
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
-			if deployment.Annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR] != "false" {
-				go wd.ConfigureService(mesh, req.Name, deployment)
-			}
-		} else {
+
+			go wd.ConfigureSidecar(wd.OperatorCUE, req.Name, deployment.ObjectMeta)
+
+		} else { // if this Deployment is being deleted...
 			wd.DecodeRaw(req.OldObject, deployment)
-			if deployment.Annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR] != "false" {
-				go wd.RemoveService(mesh, req.Name, deployment)
-			}
+			go wd.UnconfigureSidecar(wd.OperatorCUE, req.Name, deployment.ObjectMeta)
 			return admission.ValidationResponse(true, "allowed")
 		}
 
 	case "StatefulSet":
 		statefulset := &appsv1.StatefulSet{}
-		if req.Operation != admissionv1.Delete {
+		if req.Operation != admissionv1.Delete { // if new or updated StatefulSet
 			wd.Decode(req, statefulset)
 			if statefulset.Annotations == nil {
 				statefulset.Annotations = make(map[string]string)
 			}
 			statefulset.Annotations[wellknown.ANNOTATION_LAST_APPLIED] = time.Now().String()
-			statefulset.Spec.Template = addClusterLabels(statefulset.Spec.Template, mesh, req.Name)
+			statefulset.Spec.Template = addClusterLabels(statefulset.Spec.Template, meshName, req.Name)
 			rawUpdate, err = json.Marshal(statefulset)
 			if err != nil {
 				logger.Error(err, "Failed to add cluster label to StatefulSet", "Name", req.Name, "Namespace", req.Namespace)
@@ -148,14 +144,11 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
 
-			if statefulset.Annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR] != "false" {
-				go wd.ConfigureService(mesh, req.Name, statefulset)
-			}
-		} else {
+			go wd.ConfigureSidecar(wd.OperatorCUE, req.Name, statefulset.ObjectMeta)
+
+		} else { // if this StatefulSet is being deleted...
 			wd.DecodeRaw(req.OldObject, statefulset)
-			if statefulset.Annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR] != "false" {
-				go wd.RemoveService(mesh, req.Name, statefulset)
-			}
+			go wd.UnconfigureSidecar(wd.OperatorCUE, req.Name, statefulset.ObjectMeta)
 			return admission.ValidationResponse(true, "allowed")
 		}
 	}
@@ -163,11 +156,11 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 	return admission.PatchResponseFromRaw(req.Object.Raw, rawUpdate)
 }
 
-func addClusterLabels(tmpl corev1.PodTemplateSpec, mesh, name string) corev1.PodTemplateSpec {
+func addClusterLabels(tmpl corev1.PodTemplateSpec, meshName, clusterName string) corev1.PodTemplateSpec {
 	if tmpl.Labels == nil {
 		tmpl.Labels = make(map[string]string)
 	}
-	tmpl.Labels[wellknown.LABEL_CLUSTER] = name
-	tmpl.Labels[wellknown.LABEL_WORKLOAD] = fmt.Sprintf("%s.%s", mesh, name)
+	tmpl.Labels[wellknown.LABEL_CLUSTER] = clusterName
+	tmpl.Labels[wellknown.LABEL_WORKLOAD] = fmt.Sprintf("%s.%s", meshName, clusterName)
 	return tmpl
 }

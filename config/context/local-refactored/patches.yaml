@@ -8,4 +8,4 @@ spec:
     spec:
       containers:
       - name: operator
-        image: "docker.greymatter.io/internal/gm-operator:latest"
+        image: "docker.greymatter.io/internal/gm-operator:local_refactored"

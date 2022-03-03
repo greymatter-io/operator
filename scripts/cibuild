@@ -101,12 +101,12 @@ steps:
       - scripts/cibuild wait_for_k3s
       - buildkite-agent artifact download \"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /tmp/
       - mv /tmp/\"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /opt/k3s-import/
-      - k3s kubectl apply -k config/context/kubernetes
       - k3s kubectl create ns greymatter
+      - k3s kubectl apply -k config/context/local-refactored
       - scripts/cibuild create_image_pull_secret gm-docker-secret gm-operator
       - scripts/cibuild create_image_pull_secret gm-docker-secret greymatter
       # TODO: get rid of this sleep
-      - sleep 240
+      - sleep 480
       - k3s kubectl get pods -A
       - KUBECTL_CMD='k3s kubectl' ./scripts/test crd
       - k3s kubectl get pods -A

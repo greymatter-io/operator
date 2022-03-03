@@ -8,20 +8,20 @@ import (
 	"strings"
 )
 
-type cmd struct {
+type Cmd struct {
 	args  string
 	stdin json.RawMessage
-	// Notifies the caller to requeue the cmd if it fails.
+	// Notifies the caller to requeue the Cmd if it fails.
 	requeue bool
 	// A custom logger; if not set, nothing is logged.
 	log func(string, error)
 	// If set, modifies the output before it is returned.
 	modify func([]byte) ([]byte, error)
-	// If set, is run with the stdout of a successful parent cmd piped in.
-	then *cmd
+	// If set, is run with the stdout of a successful parent Cmd piped in.
+	then *Cmd
 }
 
-func (c cmd) run(flags []string) (string, error) {
+func (c Cmd) run(flags []string) (string, error) {
 	args := strings.Split(c.args, " ")
 	if len(flags) > 0 {
 		args = append(flags, args...)
@@ -41,7 +41,7 @@ func (c cmd) run(flags []string) (string, error) {
 	}
 
 	if err == nil {
-		// If cmd.modify is defined, call it on the output.
+		// If Cmd.modify is defined, call it on the output.
 		// If modify fails, capture the error string for logging.
 		if c.modify != nil {
 			out, err = c.modify(out)
@@ -52,7 +52,7 @@ func (c cmd) run(flags []string) (string, error) {
 			}
 		}
 
-		// If cmd.then is defined, run it next.
+		// If Cmd.then is defined, run it next.
 		if err == nil && c.then != nil {
 			c.then.stdin = out
 			return c.then.run(flags)
@@ -68,7 +68,7 @@ func (c cmd) run(flags []string) (string, error) {
 }
 
 func cliversion() (string, error) {
-	output, err := (cmd{args: "--version"}).run(nil)
+	output, err := (Cmd{args: "--version"}).run(nil)
 	if err != nil {
 		return "", err
 	}

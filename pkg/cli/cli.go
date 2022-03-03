@@ -7,12 +7,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/greymatter-io/operator/pkg/wellknown"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strconv"
 	"sync"
 
-	"cuelang.org/go/cue"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cuemodule"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -23,14 +24,14 @@ var (
 // CLI exposes methods for configuring clients that execute greymatter CLI commands.
 type CLI struct {
 	*sync.RWMutex
-	clients         map[string]*client
-	meshconfigsTmpl cue.Value
-	mTLSEnabled     bool
+	client      *Client
+	operatorCUE *cuemodule.OperatorCUE
+	mTLSEnabled bool
 }
 
 // New returns a new *CLI instance.
 // It receives a context for cleaning up goroutines started by the *CLI.
-func New(ctx context.Context, load cuemodule.Loader, mTLSEnabled bool) (*CLI, error) {
+func New(ctx context.Context, operatorCUE *cuemodule.OperatorCUE, mTLSEnabled bool) (*CLI, error) {
 	v, err := cliversion()
 	if err != nil {
 		logger.Error(err, "Failed to initialize greymatter CLI")
@@ -39,46 +40,40 @@ func New(ctx context.Context, load cuemodule.Loader, mTLSEnabled bool) (*CLI, er
 
 	logger.Info("Using greymatter CLI", "Version", v)
 
-	meshconfigsTmpl, err := load("meshconfigs")
-	if err != nil {
-		logger.Error(err, "Failed to load Fabric templates")
-		return nil, err
-	}
-
-	logger.Info("Loaded Fabric templates")
-
 	gmcli := &CLI{
-		RWMutex:         &sync.RWMutex{},
-		clients:         make(map[string]*client),
-		meshconfigsTmpl: meshconfigsTmpl,
-		mTLSEnabled:     mTLSEnabled,
+		RWMutex:     &sync.RWMutex{},
+		client:      nil,
+		operatorCUE: operatorCUE,
+		mTLSEnabled: mTLSEnabled,
 	}
 
-	// Cancel all client goroutines if package context is done.
+	// Cancel all Client goroutines if package context is done.
 	go func(c *CLI) {
 		<-ctx.Done()
 		c.RLock()
 		defer c.RUnlock()
-		for _, cl := range c.clients {
-			cl.cancel()
+		if c.client != nil {
+			c.client.cancel()
 		}
 	}(gmcli)
 
 	return gmcli, nil
 }
 
-// ConfigureMeshClient initializes or updates a client with flags specifying connection options
+// ConfigureMeshClient initializes or updates a Client with flags specifying connection options
 // for reaching Control and Catalog for the given Mesh CR.
 func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
-	conf := mkCLIConfig(
-		fmt.Sprintf("http://control.%s.svc.cluster.local:5555", mesh.Spec.InstallNamespace),
-		fmt.Sprintf("http://catalog.%s.svc.cluster.local:8080", mesh.Spec.InstallNamespace),
+	conf := mkCLIConfig( // TODO this should come from config
+		// control
+		fmt.Sprintf("http://controlensemble.%s.svc.cluster.local:5555", mesh.Spec.InstallNamespace),
+		// catalog
+		fmt.Sprintf("http://controlensemble.%s.svc.cluster.local:8080", mesh.Spec.InstallNamespace),
 		mesh.Name,
 	)
 	flags := []string{"--base64-config", conf}
 
 	if err := c.configureMeshClient(mesh, flags...); err != nil {
-		logger.Error(err, "failed to configure client", "Mesh", mesh.Name)
+		logger.Error(err, "failed to configure Client", "Mesh", mesh.Name)
 	}
 }
 
@@ -97,172 +92,88 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) error {
 	defer c.Unlock()
 
 	// Close an existing cmds channel if updating
-	if cl, ok := c.clients[mesh.Name]; ok {
-		logger.Info("Updating mesh client", "Mesh", mesh.Name)
-		cl.cancel()
+	if c.client != nil {
+		logger.Info("Updating mesh Client", "Mesh", mesh.Name)
+		c.client.cancel()
 	} else {
-		logger.Info("Initializing mesh client", "Mesh", mesh.Name)
+		logger.Info("Initializing mesh Client", "Mesh", mesh.Name)
 	}
 
-	cl, err := newClient(c.meshconfigsTmpl, mesh, flags...)
+	cl, err := newClient(c.operatorCUE, mesh, flags...)
 	if err != nil {
 		return err
 	}
 
-	c.clients[mesh.Name] = cl
+	c.client = cl
 
 	return nil
 }
 
-// RemoveMeshClient cleans up a client's goroutines before removing it from the *CLI.
-func (c *CLI) RemoveMeshClient(name string) {
-	c.Lock()
-	defer c.Unlock()
-
-	cl, ok := c.clients[name]
-	if !ok {
-		return
+// RemoveMeshClient cleans up a Client's goroutines before removing it from the *CLI.
+func (c *CLI) RemoveMeshClient() {
+	if c.client != nil {
+		c.client.cancel()
 	}
-
-	logger.Info("Removing mesh client", "Mesh", name)
-
-	cl.cancel()
-	delete(c.clients, name)
 }
 
-// ConfigureService applies fabric objects that add a workload to the mesh specified
+// ConfigureSidecar applies fabric objects that add a workload to the mesh specified
 // given the workload's annotations and a list of its corev1.Containers.
-func (c *CLI) ConfigureService(mesh, workload string, obj runtime.Object) {
-	c.RLock()
-	defer c.RUnlock()
-
-	cl, ok := c.clients[mesh]
-	if !ok {
-		logger.Error(fmt.Errorf("unknown mesh"), "failed to configure fabric objects for workload", "Mesh", mesh, "Workload", workload)
+func (c *CLI) ConfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string, metadata metav1.ObjectMeta) {
+	annotations := metadata.Annotations
+	injectedSidecarPortString, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
+	var injectedSidecarPort int
+	if injectSidecar {
+		parsedPort, err := strconv.Atoi(injectedSidecarPortString)
+		if err != nil {
+			logger.Error(err, "provided port for sidecar upstream could not be parsed as int", wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT, injectedSidecarPortString)
+			return
+		}
+		injectedSidecarPort = parsedPort
+	} else { // if we're not injecting a sidecar, skip configuration
 		return
 	}
 
-	// TODO: Handle removals of containers and annotations.
-	// We'll need to be able to pass previous annotations and containers, or even a diff with actions for what to add/edit/remove.
+	// we also skip configuration if we're explicitly told to
+	configureSidecar := annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR]
+	if configureSidecar == "false" {
+		return
+	}
 
-	objects, err := cl.f.Service(workload, obj)
+	configObjects, kinds, err := operatorCUE.UnifyAndExtractSidecarConfig(name, injectedSidecarPort)
 	if err != nil {
-		logger.Error(err, "failed to configure fabric objects for workload", "Mesh", mesh, "Workload", workload)
-		return
+		logger.Error(err, "Failed to unify or extract CUE", "name", name, "injectedSidecarPort", injectedSidecarPort)
 	}
 
-	logger.Info("loading fabric objects", "Mesh", mesh, "Workload", workload)
-
-	if workload != "edge" {
-		cl.controlCmds <- mkApply(mesh, "domain", objects.Domain)
-	}
-	cl.controlCmds <- mkApply(mesh, "listener", objects.Listener)
-	for _, cluster := range objects.Clusters {
-		cl.controlCmds <- mkApply(mesh, "cluster", cluster)
-	}
-	for _, route := range objects.Routes {
-		cl.controlCmds <- mkApply(mesh, "route", route)
-	}
-
-	if objects.Ingresses != nil && len(objects.Ingresses.Routes) > 0 {
-		for _, cluster := range objects.Ingresses.Clusters {
-			cl.controlCmds <- mkApply(mesh, "cluster", cluster)
-		}
-		for _, route := range objects.Ingresses.Routes {
-			cl.controlCmds <- mkApply(mesh, "route", route)
-		}
-	}
-
-	if objects.HTTPEgresses != nil && len(objects.HTTPEgresses.Routes) > 0 {
-		cl.controlCmds <- mkApply(mesh, "domain", objects.HTTPEgresses.Domain)
-		cl.controlCmds <- mkApply(mesh, "listener", objects.HTTPEgresses.Listener)
-		for _, cluster := range objects.HTTPEgresses.Clusters {
-			cl.controlCmds <- mkApply(mesh, "cluster", cluster)
-		}
-		for _, route := range objects.HTTPEgresses.Routes {
-			cl.controlCmds <- mkApply(mesh, "route", route)
-		}
-	}
-	for _, egress := range objects.TCPEgresses {
-		cl.controlCmds <- mkApply(mesh, "domain", egress.Domain)
-		cl.controlCmds <- mkApply(mesh, "listener", egress.Listener)
-		for _, cluster := range egress.Clusters {
-			cl.controlCmds <- mkApply(mesh, "cluster", cluster)
-		}
-		for _, route := range egress.Routes {
-			cl.controlCmds <- mkApply(mesh, "route", route)
-		}
-	}
-
-	if c.mTLSEnabled {
-		for _, listener := range objects.LocalEgresses {
-			cl.controlCmds <- mkInjectSVID(mesh, fmt.Sprintf("%s.%s", mesh, workload), listener)
-		}
-	}
-
-	cl.controlCmds <- mkApply(mesh, "proxy", objects.Proxy)
-
-	// Some services should not have a corresponding Catalog service entry
-	if len(objects.CatalogService) != 0 {
-		cl.catalogCmds <- mkApply(mesh, "catalogservice", objects.CatalogService)
-	}
+	ApplyAll(c.client, configObjects, kinds)
 }
 
-// RemoveService removes fabric objects, disconnecting the workload from the mesh specified,
-// along with all ingress and egress cluster routes derived from the given annotations and containers.
-func (c *CLI) RemoveService(mesh, workload string, obj runtime.Object) {
-	c.RLock()
-	defer c.RUnlock()
-
-	cl, ok := c.clients[mesh]
-	if !ok {
-		logger.Error(fmt.Errorf("unknown mesh"), "failed to remove fabric objects for workload", "Mesh", mesh, "Workload", workload)
-	}
-
-	objects, err := cl.f.Service(workload, obj)
-	if err != nil {
-		logger.Error(err, "failed to remove fabric objects for workload", "Mesh", mesh, "Workload", workload)
+// UnconfigureSidecar removes fabric objects, disconnecting the workload from the mesh specified
+func (c *CLI) UnconfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string, metadata metav1.ObjectMeta) {
+	annotations := metadata.Annotations
+	logger.Info("Unconfiguring sidecar with values", "name", name, "annotations", annotations)
+	injectedSidecarPortString, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
+	var injectedSidecarPort int
+	if injectSidecar {
+		parsedPort, err := strconv.Atoi(injectedSidecarPortString)
+		if err != nil {
+			logger.Error(err, "provided port for sidecar upstream could not be parsed as int", wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT, injectedSidecarPortString)
+			return
+		}
+		injectedSidecarPort = parsedPort
+	} else { // if we're not injecting a sidecar, skip configuration
 		return
 	}
 
-	logger.Info("removing fabric objects", "Mesh", mesh, "Workload", workload)
+	// we also skip configuration if we're explicitly told to
+	configureSidecar := annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR]
+	if configureSidecar == "false" {
+		return
+	}
 
-	cl.controlCmds <- mkDelete(mesh, "domain", objects.Domain)
-	cl.controlCmds <- mkDelete(mesh, "listener", objects.Listener)
-	for _, cluster := range objects.Clusters {
-		cl.controlCmds <- mkDelete(mesh, "cluster", cluster)
+	configObjects, kinds, err := operatorCUE.UnifyAndExtractSidecarConfig(name, injectedSidecarPort)
+	if err != nil {
+		logger.Error(err, "Failed to unify or extract CUE", "name", name, "injectedSidecarPort", injectedSidecarPort)
 	}
-	for _, route := range objects.Routes {
-		cl.controlCmds <- mkDelete(mesh, "route", route)
-	}
-	if objects.Ingresses != nil && len(objects.Ingresses.Routes) > 0 {
-		for _, cluster := range objects.Ingresses.Clusters {
-			cl.controlCmds <- mkDelete(mesh, "cluster", cluster)
-		}
-		for _, route := range objects.Ingresses.Routes {
-			cl.controlCmds <- mkDelete(mesh, "route", route)
-		}
-	}
-	if objects.HTTPEgresses != nil && len(objects.HTTPEgresses.Routes) > 0 {
-		cl.controlCmds <- mkDelete(mesh, "domain", objects.HTTPEgresses.Domain)
-		cl.controlCmds <- mkDelete(mesh, "listener", objects.HTTPEgresses.Listener)
-		for _, cluster := range objects.HTTPEgresses.Clusters {
-			cl.controlCmds <- mkDelete(mesh, "cluster", cluster)
-		}
-		for _, route := range objects.HTTPEgresses.Routes {
-			cl.controlCmds <- mkDelete(mesh, "route", route)
-		}
-	}
-	for _, egress := range objects.TCPEgresses {
-		cl.controlCmds <- mkDelete(mesh, "domain", egress.Domain)
-		cl.controlCmds <- mkDelete(mesh, "listener", egress.Listener)
-		for _, cluster := range egress.Clusters {
-			cl.controlCmds <- mkDelete(mesh, "cluster", cluster)
-		}
-		for _, route := range egress.Routes {
-			cl.controlCmds <- mkDelete(mesh, "route", route)
-		}
-	}
-	cl.controlCmds <- mkDelete(mesh, "proxy", objects.Proxy)
-	cl.catalogCmds <- mkDelete(mesh, "catalogservice", objects.CatalogService)
+
+	UnApplyAll(c.client, configObjects, kinds)
 }

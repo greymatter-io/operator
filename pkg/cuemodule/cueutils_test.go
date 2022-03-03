@@ -1,4 +1,4 @@
-package cueutils
+package cuemodule
 
 import (
 	"fmt"

@@ -52,7 +52,7 @@ func New(ca, caKey []byte) (*CFSSLServer, error) {
 		logger.Info("CA and CA key not provided; initializing CA", "CN", "Grey Matter Root CA")
 		ca, _, caKey, err = initca.New(&csr.CertificateRequest{
 			CN:         "Grey Matter Root CA",
-			KeyRequest: &csr.KeyRequest{A: "rsa", S: 2048},
+			KeyRequest: &csr.KeyRequest{A: "ecdsa", S: 256},
 			Names: []csr.Name{
 				{C: "US", ST: "VA", L: "Alexandria", O: "Grey Matter"},
 			},

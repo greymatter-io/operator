@@ -5,21 +5,20 @@ import (
 	"fmt"
 	"strings"
 
-	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/tidwall/gjson"
 )
 
-func mkApply(mesh, kind string, data json.RawMessage) cmd {
+func MkApply(kind string, data json.RawMessage) Cmd {
 	key := objKey(kind, data)
-	return cmd{
+	return Cmd{
 		args:    fmt.Sprintf("apply -t %s -f -", kind),
 		requeue: true,
 		stdin:   data,
 		log: func(out string, err error) {
 			if err != nil {
-				logger.Error(fmt.Errorf(out), "failed apply", "type", kind, "key", key, "Mesh", mesh)
+				logger.Error(fmt.Errorf(out), "failed apply", "type", kind, "key", key)
 			} else {
-				logger.Info("apply", "type", kind, "key", key, "Mesh", mesh)
+				logger.Info("apply", "type", kind, "key", key)
 			}
 		},
 		modify: func(out []byte) ([]byte, error) {
@@ -32,69 +31,102 @@ func mkApply(mesh, kind string, data json.RawMessage) cmd {
 	}
 }
 
-func mkInjectSVID(mesh, svid, key string) cmd {
-	return cmd{
-		args:    "get listener --listener-key " + key,
-		requeue: true,
-		log: func(out string, err error) {
-			if err != nil {
-				logger.Error(fmt.Errorf(out), "failed get for modify", "type", "listener", "key", key, "Mesh", mesh)
-			}
-		},
-		modify: func(data []byte) ([]byte, error) {
-			subjects := gjson.Get(string(data), "secret.subject_names")
-			if !subjects.Exists() {
-				return nil, fmt.Errorf("listener %s has no secret.subject_names field", key)
-			}
-			svidMap := make(map[string]struct{})
-			for _, subject := range subjects.Array() {
-				svidMap[subject.String()] = struct{}{}
-			}
-			svidMap[fmt.Sprintf("spiffe://greymatter.io/%s", svid)] = struct{}{}
-			var svids []string
-			for k := range svidMap {
-				svids = append(svids, k)
-			}
-			svidStrs, err := json.Marshal(svids)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal new subject_names from %v", svids)
-			}
-			patch, err := jsonpatch.DecodePatch([]byte(fmt.Sprintf(`[{"op":"replace","path":"/secret/subject_names","value":%s}]`, svidStrs)))
-			if err != nil {
-				return nil, fmt.Errorf("failed to generate patch with new subject_names from %v: %w", svids, err)
-			}
-			modified, err := patch.Apply([]byte(data))
-			if err != nil {
-				return nil, fmt.Errorf("failed to modify subject names for listener %s from %v: %w", key, svids, err)
-			}
-			return modified, nil
-		},
-		then: &cmd{
-			args: "apply -t listener -f -",
-			log: func(out string, err error) {
-				if err != nil {
-					logger.Error(fmt.Errorf(out), "failed modify", "type", "listener", "key", key, "Mesh", mesh)
-				} else {
-					logger.Info("modify", "type", "listener", "key", key, "Mesh", mesh)
-				}
-			},
-		},
+func ApplyAll(client *Client, objects []json.RawMessage, kinds []string) {
+	for i, kind := range kinds {
+		if kind == "catalogservice" { // Catalog is special, because it goes on a different channel
+			client.CatalogCmds <- MkApply(kind, objects[i])
+		} else if kind != "" { // Everything else goes to Control
+			client.ControlCmds <- MkApply(kind, objects[i])
+		} else {
+			// TODO explode
+			logger.Error(nil, "Loaded unexpected object, not recognizable as Grey Matter config", "Object", string(objects[i]))
+		}
 	}
 }
 
-func mkDelete(mesh, kind string, data json.RawMessage) cmd {
+func UnApplyAll(client *Client, objects []json.RawMessage, kinds []string) {
+	for i, kind := range kinds {
+		if kind == "catalogservice" { // Catalog is special, because it goes on a different channel
+			client.CatalogCmds <- mkDelete(kind, objects[i])
+		} else if kind != "" { // Everything else goes to Control
+			client.ControlCmds <- mkDelete(kind, objects[i])
+		} else {
+			// TODO explode
+			logger.Error(nil, "Loaded unexpected object, not recognizable as Grey Matter config - ignoring", "Object", string(objects[i]))
+		}
+	}
+}
+
+// TODO bring this back when we re-enable SPIRE support so we can inject
+// trust between functions
+//func mkInjectSVID(mesh, svid, key string) Cmd {
+//	return Cmd{
+//		args:    "get listener --listener-key " + key,
+//		requeue: true,
+//		log: func(out string, err error) {
+//			if err != nil {
+//				logger.Error(fmt.Errorf(out), "failed get for modify", "type", "listener", "key", key, "Mesh", mesh)
+//			}
+//		},
+//		modify: func(data []byte) ([]byte, error) {
+//			subjects := gjson.Get(string(data), "secret.subject_names")
+//			if !subjects.Exists() {
+//				return nil, fmt.Errorf("listener %s has no secret.subject_names field", key)
+//			}
+//			svidMap := make(map[string]struct{})
+//			for _, subject := range subjects.Array() {
+//				svidMap[subject.String()] = struct{}{}
+//			}
+//			svidMap[fmt.Sprintf("spiffe://greymatter.io/%s", svid)] = struct{}{}
+//			var svids []string
+//			for k := range svidMap {
+//				svids = append(svids, k)
+//			}
+//			svidStrs, err := json.Marshal(svids)
+//			if err != nil {
+//				return nil, fmt.Errorf("failed to marshal new subject_names from %v", svids)
+//			}
+//			patch, err := jsonpatch.DecodePatch([]byte(fmt.Sprintf(`[{"op":"replace","path":"/secret/subject_names","value":%s}]`, svidStrs)))
+//			if err != nil {
+//				return nil, fmt.Errorf("failed to generate patch with new subject_names from %v: %w", svids, err)
+//			}
+//			modified, err := patch.Apply([]byte(data))
+//			if err != nil {
+//				return nil, fmt.Errorf("failed to modify subject names for listener %s from %v: %w", key, svids, err)
+//			}
+//			return modified, nil
+//		},
+//		then: &Cmd{
+//			args: "apply -t listener -f -",
+//			log: func(out string, err error) {
+//				if err != nil {
+//					logger.Error(fmt.Errorf(out), "failed modify", "type", "listener", "key", key, "Mesh", mesh)
+//				} else {
+//					logger.Info("modify", "type", "listener", "key", key, "Mesh", mesh)
+//				}
+//			},
+//		},
+//	}
+//}
+
+func mkDelete(kind string, data json.RawMessage) Cmd {
 	key := objKey(kind, data)
 	args := fmt.Sprintf("delete %s --%s %s", kind, kindFlag(kind), key)
 	if kind == "catalogservice" {
-		args += fmt.Sprintf(" --mesh-id %s", mesh)
+		var extracted struct {
+			MeshID string `json:"mesh_id"`
+		}
+		_ = json.Unmarshal(data, &extracted)
+
+		args += fmt.Sprintf(" --mesh-id %s", extracted.MeshID)
 	}
-	return cmd{
+	return Cmd{
 		args: args,
 		log: func(out string, err error) {
 			if err != nil {
-				logger.Error(fmt.Errorf(out), "failed delete", "type", kind, "key", key, "Mesh", mesh)
+				logger.Error(fmt.Errorf(out), "failed delete", "type", kind, "key", key)
 			} else {
-				logger.Info("delete", "type", kind, "key", key, "Mesh", mesh)
+				logger.Info("delete", "type", kind, "key", key)
 			}
 		},
 	}
