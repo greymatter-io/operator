@@ -62,8 +62,9 @@ func init() {
 // Global config flags
 var (
 	configPath string
+	cueRoot    string
 	zapDevMode bool
-  pprofAddr  string
+	pprofAddr  string
 )
 
 func main() {
@@ -75,9 +76,10 @@ func main() {
 
 func run() error {
 
-	flag.StringVar(&pprofAddr, "pprofAddr", ":1234", "Address for pprof server; has no effect on release builds")
 	flag.StringVar(&configPath, "configPath", "", "The operator will load its initial configuration from this file if defined.")
+	flag.StringVar(&cueRoot, "cueRoot", "", "Path to the CUE module with Grey Matter config. Defaults to the current working directory.")
 	flag.BoolVar(&zapDevMode, "zapDevMode", false, "Configure zap logger in development mode.")
+	flag.StringVar(&pprofAddr, "pprofAddr", ":1234", "Address for pprof server; has no effect on release builds")
 
 	// Bind flags for Zap logger options.
 	opts := zap.Options{Development: zapDevMode}
@@ -86,6 +88,10 @@ func run() error {
 
 	// We have to call Parse late for some reason
 	flag.Parse()
+
+	// Immediately load all CUE
+	operatorCUE, initialMesh := cuemodule.LoadAll(cueRoot) // panics if unsuccessful
+	logger.Info(fmt.Sprintf("Loaded CUE module from %s", cueRoot))
 
 	// Initialize operator options with set values.
 	// These values will not be replaced by any values set in a read configPath.
@@ -122,11 +128,11 @@ func run() error {
 	// Start up our CFSSL server for issuing two certs:
 	// 1) Webhook server certs (unless disabled in the bootstrap config)
 	// 2) SPIRE's intermediate CA for issuing identities to workloads
-	cs, err := cfsslsrv.New(nil, nil)
+	cfssl, err := cfsslsrv.New(nil, nil)
 	if err != nil {
 		return fmt.Errorf("failed to configure CFSSL server: %w", err)
 	}
-	if err := cs.Start(); err != nil {
+	if err := cfssl.Start(); err != nil {
 		return fmt.Errorf("failed to start CFSSL server: %w", err)
 	}
 
@@ -135,7 +141,7 @@ func run() error {
 
 	// Initialize interface with greymatter CLI
 	// For now, mTLSEnabled is always true since we install SPIRE by default.
-	gmcli, err := cli.New(ctx, cuemodule.LoadPackage, true)
+	gmcli, err := cli.New(ctx, operatorCUE, true)
 	if err != nil {
 		return err
 	}
@@ -156,13 +162,13 @@ func run() error {
 	}
 
 	// Initialize manifests installer.
-	inst, err := installer.New(c, cuemodule.LoadPackage, gmcli, cs, cfg.ClusterIngressName)
+	inst, err := installer.New(&c, operatorCUE, initialMesh, cueRoot, gmcli, cfssl, cfg.ClusterIngressName)
 	if err != nil {
 		return fmt.Errorf("failed to initialize manifest installer: %w", err)
 	}
 
 	// Initialize the webhooks loader.
-	wl, err := webhooks.New(c, inst, gmcli, cs, cfg.DisableWebhookCertGeneration, mgr.GetWebhookServer)
+	wl, err := webhooks.New(&c, inst, gmcli, cfssl, cfg.DisableWebhookCertGeneration, mgr.GetWebhookServer)
 	if err != nil {
 		return err
 	}

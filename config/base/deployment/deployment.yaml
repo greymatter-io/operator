@@ -1,11 +1,12 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: operator
   namespace: system
   labels:
     name: gm-operator
 spec:
+  serviceName: gm-operator
   selector:
     matchLabels:
       name: gm-operator

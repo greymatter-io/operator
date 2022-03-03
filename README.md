@@ -9,7 +9,7 @@ short-form.
 
 ## Prerequisites
 
-It is assumed that you have [kubectl v1.21+](https://kubernetes.io/docs/tasks/tools/) installed with cluster administrator access.
+It is assumed that you have [kubectl v1.23+](https://kubernetes.io/docs/tasks/tools/) installed with cluster administrator access.
 
 Next, ensure you have the following environment variables sourced: `GREYMATTER_REGISTRY_USERNAME` and
 `GREYMATTER_REGISTRY_PASSWORD`. These require your credentials for pulling Grey Matter core service
@@ -21,7 +21,9 @@ To get the latest stable development version of the operator up and running in y
 cluster, run the following:
 
 ```
-kubectl apply -k config/context/kubernetes
+kubectl create namespace greymatter
+
+kubectl apply -k config/context/local-refactored
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
@@ -31,7 +33,8 @@ kubectl create secret docker-registry gm-docker-secret \
   -n gm-operator
 ```
 
-The operator will be running in a pod in the `gm-operator` namespace.
+The operator will be running in a pod in the `gm-operator` namespace, and shortly after installation, the default Mesh
+CR described in pkg/cuemodule/new_structure/inputs.cue will be automatically deployed.
 
 ## Inspecting Manifests
 

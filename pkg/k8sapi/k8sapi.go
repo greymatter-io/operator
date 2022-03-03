@@ -24,8 +24,8 @@ type ActionFunc func(client.Client, client.Object) (string, error)
 // Apply is a functional interface for interacting with the K8s apiserver in a consistent way.
 // Each sigs.k8s.io/controller-runtime/pkg/client.Object argument must implement the necessary
 // Reader/Writer interfaces implemented by sigs.k8s.io/controller-runtime/pkg/client.Client.
-func Apply(c client.Client, obj, owner client.Object, action ActionFunc) {
-	scheme := c.Scheme()
+func Apply(c *client.Client, obj, owner client.Object, action ActionFunc) {
+	scheme := (*c).Scheme()
 
 	var kind string
 	if gvk, err := apiutil.GVKForObject(obj.(runtime.Object), scheme); err != nil {
@@ -44,7 +44,7 @@ func Apply(c client.Client, obj, owner client.Object, action ActionFunc) {
 		}
 	}
 
-	act, err := action(c, obj)
+	act, err := action(*c, obj)
 	if err != nil {
 		if ownerName != "" {
 			logger.Error(err, act, "Owner", ownerName, kind, client.ObjectKeyFromObject(obj))

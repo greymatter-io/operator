@@ -41,14 +41,14 @@ type Loader struct {
 }
 
 func New(
-	cl client.Client,
+	cl *client.Client,
 	i *installer.Installer,
 	c *cli.CLI,
 	cs *cfsslsrv.CFSSLServer,
 	noCertGen bool,
 	get func() *webhook.Server) (*Loader, error) {
 
-	wl := &Loader{Client: cl, Installer: i, CLI: c, CFSSLServer: cs, noCertGen: noCertGen, getServer: get}
+	wl := &Loader{Client: *cl, Installer: i, CLI: c, CFSSLServer: cs, noCertGen: noCertGen, getServer: get}
 
 	if wl.noCertGen {
 		logger.Info("webhook server cert generation disabled; expecting webhook server certs to be mounted from external source")
@@ -62,7 +62,7 @@ func New(
 	wl.cert, wl.key, err = wl.RequestCert(csr.CertificateRequest{
 		CN:         "admission",
 		Hosts:      []string{defaultCSRHost},
-		KeyRequest: &csr.KeyRequest{A: "rsa", S: 2048},
+		KeyRequest: &csr.KeyRequest{A: "ecdsa", S: 256},
 	})
 	if err != nil {
 		logger.Error(err, "failed to retrieve certs for webhook server")
@@ -89,7 +89,7 @@ func (wl *Loader) Start(ctx context.Context) error {
 			Namespace: "gm-operator",
 		},
 	}
-	k8sapi.Apply(wl.Client, secret, nil, k8sapi.MkPatchAction(func(obj client.Object) client.Object {
+	k8sapi.Apply(&wl.Client, secret, nil, k8sapi.MkPatchAction(func(obj client.Object) client.Object {
 		s := obj.(*corev1.Secret)
 		if s.StringData == nil {
 			s.StringData = make(map[string]string)
@@ -103,7 +103,7 @@ func (wl *Loader) Start(ctx context.Context) error {
 	mwc := &admissionregistrationv1.MutatingWebhookConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: "gm-mutate-config"},
 	}
-	k8sapi.Apply(wl.Client, mwc, nil, k8sapi.MkPatchAction(func(obj client.Object) client.Object {
+	k8sapi.Apply(&wl.Client, mwc, nil, k8sapi.MkPatchAction(func(obj client.Object) client.Object {
 		m := obj.(*admissionregistrationv1.MutatingWebhookConfiguration)
 		for i := range m.Webhooks {
 			m.Webhooks[i].ClientConfig.CABundle = wl.caBundle
@@ -115,7 +115,7 @@ func (wl *Loader) Start(ctx context.Context) error {
 	vwc := &admissionregistrationv1.ValidatingWebhookConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: "gm-validate-config"},
 	}
-	k8sapi.Apply(wl.Client, vwc, nil, k8sapi.MkPatchAction(func(obj client.Object) client.Object {
+	k8sapi.Apply(&wl.Client, vwc, nil, k8sapi.MkPatchAction(func(obj client.Object) client.Object {
 		v := obj.(*admissionregistrationv1.ValidatingWebhookConfiguration)
 		for i := range v.Webhooks {
 			v.Webhooks[i].ClientConfig.CABundle = wl.caBundle

@@ -1,4 +1,4 @@
-package cueutils
+package cuemodule
 
 import (
 	"bytes"
@@ -68,7 +68,7 @@ func FromStruct(name string, s interface{}) (cue.Value, error) {
 // Extract pulls values out of CUE and encodes them into a Go struct with JSON tags.
 func Extract(v cue.Value, s interface{}) error {
 	//lint:ignore SA1019 will update to Context in next Cue version
-	codec := gocodec.New(&cue.Runtime{}, nil)
+	codec := gocodec.New((*cue.Runtime)(cuecontext.New()), nil)
 	return codec.Encode(v, s)
 }
 

@@ -2,6 +2,23 @@
 
 ## vNEXT
 
+### Changed
+
+- Completely new CUE for both Kubernetes manifests and Grey Matter config, currently still rooted
+  under `pkg/cuemodule/new_structure` (and will eventually be moved into the root once the Spire
+  support is complete) following a philosophy of readability and malleability.
+- Operator Go now loads CUE generically, such that nearly all changes to deployment configuration
+  require no changes to the Go.
+- Deployment assist is now opt-in, with labels `"greymatter.io/inject-sidecar-to": "<port num>"`
+  (default is to omit the label) and `"greymatter.io/configure-sidecar": "<boolean>"` (default
+  "true".)
+- Operator itself now runs as a StatefulSet rather than a Deployment.
+- One-Mesh/One-Operator - Multiple meshes require multiple operators (they do yet not play nicely
+  together, but the target for multi-mesh support is to support graceful interop.)
+- For now, automatically deploys the default Mesh described in the CUE source shortly after startup.
+  Later, this will be an opt-in flag in the CUE itself so users can decide.
+- Switch to ECDSA 256 certificates for speed and security.
+
 ### Added
 
 - Add a debug build mode that starts a pprof server automatically.

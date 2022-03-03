@@ -3,44 +3,51 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"time"
 
-	"cuelang.org/go/cue"
 	"github.com/google/uuid"
 	"github.com/greymatter-io/operator/api/v1alpha1"
-	"github.com/greymatter-io/operator/pkg/fabric"
 )
 
-type client struct {
+type Client struct {
 	mesh        string
 	flags       []string
-	controlCmds chan cmd
-	catalogCmds chan cmd
+	ControlCmds chan Cmd
+	CatalogCmds chan Cmd
 	ctx         context.Context
 	cancel      context.CancelFunc
-	f           *fabric.Fabric
 }
 
-func newClient(tmpl cue.Value, mesh *v1alpha1.Mesh, flags ...string) (*client, error) {
-	f, err := fabric.New(tmpl, mesh)
-	if err != nil {
-		return nil, err
-	}
+func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ...string) (*Client, error) {
 
 	ctxt, cancel := context.WithCancel(context.Background())
 
-	cl := &client{
+	client := &Client{
 		mesh:        mesh.Name,
 		flags:       flags,
-		controlCmds: make(chan cmd),
-		catalogCmds: make(chan cmd),
+		ControlCmds: make(chan Cmd),
+		CatalogCmds: make(chan Cmd),
 		ctx:         ctxt,
 		cancel:      cancel,
-		f:           f,
 	}
 
-	// Consume commands to send to Control
-	go func(ctx context.Context, controlCmds chan cmd) {
+	// Apply core Grey Matter components from CUE
+	// This just dumps them on the channel, so it will block until the consumer is ready
+	go func() {
+		// by this point, GM has already been unified with THE mesh this operator manages
+		// Extract correct GM config for options - for now there's only one
+
+		meshConfigs, kinds, err := operatorCUE.ExtractCoreMeshConfigs()
+		if err != nil {
+			logger.Error(err, "failed to extract while attempting to apply core components mesh config - ignoring")
+			return
+		}
+		ApplyAll(client, meshConfigs, kinds)
+	}()
+
+	// Consumer of commands to send to Control
+	go func(ctx context.Context, controlCmds chan Cmd) {
 		start := time.Now()
 
 		// Generate a random shared_rules object key to create a dummy object that ensures we can write to Control.
@@ -54,12 +61,12 @@ func newClient(tmpl cue.Value, mesh *v1alpha1.Mesh, flags ...string) (*client, e
 			case <-ctx.Done():
 				return
 			default:
-				if _, err := (cmd{
+				if _, err := (Cmd{
 					// Create a NOOP shared_rules object to ensure that we can write to Control.
 					// Using `greymatter create` is required because `greymatter apply` does not exit with an error code on failed actions.
 					args: fmt.Sprintf("create sharedrules --zone-key %s --shared-rules-key %s --name %s", mesh.Spec.Zone, srKey, srKey),
-				}).run(cl.flags); err != nil {
-					logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name)
+				}).run(client.flags); err != nil {
+					logger.Info("Waiting to connect to Control API", "Mesh", mesh.Name, "Issue", err)
 					time.Sleep(time.Second * 10)
 					continue PING_CONTROL_LOOP
 				}
@@ -70,9 +77,6 @@ func newClient(tmpl cue.Value, mesh *v1alpha1.Mesh, flags ...string) (*client, e
 			}
 		}
 
-		// Configure edge domain, since it is a dependency for all sidecar routes.
-		mkApply(mesh.Name, "domain", cl.f.EdgeDomain()).run(cl.flags)
-
 		// Then consume additional commands for control objects
 		for {
 			select {
@@ -80,16 +84,16 @@ func newClient(tmpl cue.Value, mesh *v1alpha1.Mesh, flags ...string) (*client, e
 				return
 			case c := <-controlCmds:
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
-				if _, err := c.run(cl.flags); err != nil && c.requeue {
+				if _, err := c.run(client.flags); err != nil && c.requeue {
 					logger.Info("requeued failed command", "args", c.args)
 					controlCmds <- c
 				}
 			}
 		}
-	}(cl.ctx, cl.controlCmds)
+	}(client.ctx, client.ControlCmds)
 
-	// Consume commands to send to Catalog
-	go func(ctx context.Context, catalogCmds chan cmd) {
+	// Consumer of commands to send to Catalog
+	go func(ctx context.Context, catalogCmds chan Cmd) {
 		start := time.Now()
 
 		// Ping Catalog every 5s until responsive (getting the Mesh's session status with Control).
@@ -99,10 +103,10 @@ func newClient(tmpl cue.Value, mesh *v1alpha1.Mesh, flags ...string) (*client, e
 			case <-ctx.Done():
 				return
 			default:
-				if _, err := (cmd{
+				if _, err := (Cmd{
 					args: fmt.Sprintf("get catalogmesh --mesh-id %s", mesh.Name),
-				}).run(cl.flags); err != nil {
-					logger.Info("Waiting to connect to Catalog API", "Mesh", mesh.Name)
+				}).run(client.flags); err != nil {
+					logger.Info("Waiting to connect to Catalog API", "Mesh", mesh.Name, "Issue", err)
 					time.Sleep(time.Second * 10)
 					continue PING_CATALOG_LOOP
 				}
@@ -120,13 +124,13 @@ func newClient(tmpl cue.Value, mesh *v1alpha1.Mesh, flags ...string) (*client, e
 				return
 			case c := <-catalogCmds:
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
-				if _, err := c.run(cl.flags); err != nil && c.requeue {
+				if _, err := c.run(client.flags); err != nil && c.requeue {
 					logger.Info("requeued failed command", "args", c.args)
 					catalogCmds <- c
 				}
 			}
 		}
-	}(cl.ctx, cl.catalogCmds)
+	}(client.ctx, client.CatalogCmds)
 
-	return cl, nil
+	return client, nil
 }
