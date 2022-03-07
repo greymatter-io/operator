@@ -4,6 +4,9 @@ steps:
       - ./scripts/cibuild test
       - ./scripts/cibuild build
       - ./scripts/cibuild release
-    key: trigger-nexus-push
+    retry:
+      automatic:
+        - exit_status: "*"
+          limit: 2
     agents:
       container_image: ubuntu-2110-ci
