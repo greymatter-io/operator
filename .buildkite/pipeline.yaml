@@ -6,4 +6,4 @@ steps:
       - ./scripts/cibuild release
     key: trigger-nexus-push
     agents:
-      container_image: ubuntu-2104-ci
+      container_image: ubuntu-2110-ci
