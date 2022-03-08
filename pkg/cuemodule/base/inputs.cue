@@ -5,7 +5,7 @@ import (
   "strings"
   "encoding/json"
 
-  "github.com/greymatter-io/operator/api/v1alpha1"
+  v1alpha1 "greymatter.io/greymatter.io/api"
 )
 
 // A Mesh CR being applied.

@@ -1,1 +1,1 @@
-module: "greymatter.io/operator"
+module: "greymatter.io"

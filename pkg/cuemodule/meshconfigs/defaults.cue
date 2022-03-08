@@ -1,6 +1,6 @@
 package meshconfigs
 
-import "greymatter.io/operator/greymatter-cue/greymatter"
+import greymatter "greymatter.io/greymatter.io/api"
 
 // Identify core service versions for each Grey Matter release
 _ServiceVersions: {
