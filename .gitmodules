@@ -1,3 +1,4 @@
 [submodule "pkg/cuemodule/greymatter-cue"]
+        branch = pre_refactor
 	path = pkg/cuemodule/greymatter-cue
 	url = https://github.com/greymatter-io/greymatter-cue
