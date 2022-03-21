@@ -1,104 +1,134 @@
 #!/bin/bash
 
-# Called by CI only
 set -e
 
-## Test
-
-run_test() {
+cmd_test () {
   go mod vendor
   ./scripts/test lint
-  install_cue_deps
+
+  (
+    cd ./pkg/cuemodule/cue.mod
+    cue get go github.com/greymatter-io/operator/api/...
+    cue get go k8s.io/api/...
+  )
+  git submodule update --init --recursive --remote
   ./scripts/test
 }
 
-# Downloads CUE dependencies for tests and for adding to the image.
-install_cue_deps() {
-  (cd ./pkg/cuemodule/cue.mod; cue get go github.com/greymatter-io/operator/api/...; cue get go k8s.io/api/...)
-  git submodule update --init --recursive --remote
+cmd_wait_for_k3s () {
+  set +e #allow errors temporarily
+  echo "Waiting for k3s to become available"
+  while true; do
+    echo "trying k3s..."
+    k3s kubectl get nodes
+    local exit_code=$?
+    if [ "$exit_code" -eq 0 ]; then
+      break
+    else
+      sleep 5
+    fi
+  done
+  set -e
 }
 
-## Build
+cmd_create_image_pull_secret () {
+  set -u
+  local name=$1
+  local ns=$2
+  k3s kubectl create secret docker-registry $name \
+    --docker-server=docker.greymatter.io \
+    --docker-username="$NEXUS_USER" \
+    --docker-password="$NEXUS_PASS" \
+    --docker-email=$NEXUS_USER -n $ns
+  set +u
+}
 
-run_build() {
+cmd_build () {
   # Login to Nexus in order to add the greymatter CLI to the image.
-  _nexus_login
+  container-registry-login $NEXUS_USER $NEXUS_PASS
   _build_image "docker.greymatter.io/development/gm-operator:latest" "Dockerfile"
 }
 
 _build_image () {
-  if type -p buildah  &>/dev/null; then
-    buildah bud --build-arg username=$NEXUS_USER --build-arg password=$NEXUS_PASS -t "$1" --layers -f $2 .
-  else
-    docker build --build-arg username=$NEXUS_USER --build-arg password=$NEXUS_PASS -t "$1" -f $2 .
-  fi
+  local tag=$1
+  local dockerfile=$2
+  #TODO(coleman): find a way to NOT pass creds into our container build
+  local build_args="--build-arg username=${NEXUS_USER} --build-arg password=${NEXUS_PASS}"
+  buildah bud $build_args -t "${tag}" --layers -f ${dockerfile} .
 }
 
-## Release
-
-run_release() {
-  if [[ -z "$BUILDKITE_BRANCH" ]]; then
-    echo "cibuild release: must be run in ci"
-    exit 1
-  fi
-
-  _nexus_login
-  release_image
-  release_bundle
-}
-
-_retag_image() {
-  local from=$1
-  local to=$2
-  if type -p buildah &>/dev/null; then
-    buildah tag $from $to
-  else
-    docker tag $from $to
-  fi
-}
-
-_push_image() {
-  if type -p buildah &>/dev/null; then
-    buildah push "$1"
-  else
-    docker push "$1"
-  fi
-}
-
-_nexus_login() {
-  if type -p buildah &>/dev/null; then
-    buildah login -u $NEXUS_USER -p $NEXUS_PASS docker.greymatter.io
-  else
-    docker login -u $NEXUS_USER -p $NEXUS_PASS docker.greymatter.io
-  fi
-}
-
-release_image() {
+_release_container () {
+  container-registry-login $NEXUS_USER $NEXUS_PASS
   local latest="docker.greymatter.io/development/gm-operator:latest"
   if [[ "$BUILDKITE_BRANCH" == "main" ]]; then
-    _push_image $latest
+    container-registry-push $latest
   fi
   if [[ -n "$BUILDKITE_TAG" ]]; then
     local tagged="docker.greymatter.io/development/gm-operator:${BUILDKITE_TAG:1}"
-    _retag_image $latest $tagged
-    _push_image $tagged
+    container-retag-image $latest $tagged
+    container-registry-push $tagged
   fi
 }
 
-# Build and push an OLM-compatible image of manifests for easy installation in OpenShift cluster contexts.
-# Note that the bundled deployment manifest points to a docker.greymatter.io/release/gm-operator:$1 image.
-_bundle() {
-  sed -i "s/SEMVER_VERSION/$1/" config/olm/manifests/kustomization.yaml
-	kubectl kustomize config/olm/manifests | operator-sdk generate bundle -q --package gm-operator --overwrite --version $1
-	operator-sdk bundle validate ./bundle
-  _build_image "docker.greymatter.io/development/gm-operator-bundle:$1" bundle.Dockerfile
-  _push_image "docker.greymatter.io/development/gm-operator-bundle:$1"
+cmd_export_container () {
+  local tarball=$1
+  local tag=$2
+  podman save --quiet -o $tarball $tag
+  buildkite-agent artifact upload $tarball
 }
 
-release_bundle() {
+# Build and push an OLM-compatible image of manifests for easy 
+# installation in OpenShift cluster contexts.
+_release_bundle() {
   if [[ -n "$BUILDKITE_TAG" ]]; then
-    _bundle ${BUILDKITE_TAG:1}
+    local version=${BUILDKITE_TAG:1}
+    sed -i "s/SEMVER_VERSION/${version}/" config/olm/manifests/kustomization.yaml
+    kubectl kustomize config/olm/manifests | operator-sdk generate bundle -q \
+      --package gm-operator --overwrite --version ${version}
+    operator-sdk bundle validate ./bundle
+    _build_image "docker.greymatter.io/development/gm-operator-bundle:${version}" bundle.Dockerfile
+    container-registry-push "docker.greymatter.io/development/gm-operator-bundle:${version}"
   fi
+}
+
+cmd_generate_integration_pipeline () {
+  # meant to be piped to buildkite-agent
+  echo "
+
+steps:
+  - label: \"k3s integration test\"
+    commands:
+      - scripts/cibuild wait_for_k3s
+      - buildkite-agent artifact download \"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /tmp/
+      - mv /tmp/\"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /opt/k3s-import/
+      - k3s kubectl apply -k config/context/kubernetes
+      - k3s kubectl create ns greymatter
+      - scripts/cibuild create_image_pull_secret gm-docker-secret gm-operator
+      - scripts/cibuild create_image_pull_secret gm-docker-secret greymatter
+      # TODO: get rid of this sleep
+      - sleep 240
+      - k3s kubectl get pods -A
+      - KUBECTL_CMD='k3s kubectl' ./scripts/test crd
+      - k3s kubectl get pods -A
+      - sudo systemctl poweroff
+    agents:
+      buildkite_build_number: $BUILDKITE_BUILD_NUMBER
+      buildkite_pipeline_slug: $BUILDKITE_PIPELINE_SLUG
+
+"
+}
+
+cmd_launch_k3s () {
+  # The tags payload will set EC2 tags that should be picked up by buildkite-agent
+  # running in the new EC2.
+  curl -X POST \
+    -d "{ \"tags\": { \"buildkite_pipeline_slug\": \"$BUILDKITE_PIPELINE_SLUG\", \"buildkite_build_number\": \"$BUILDKITE_BUILD_NUMBER\" }}" \
+    "$RELAYSH_LAUNCH_K3S_EC2_WEBHOOK" 
+}
+
+cmd_release () {
+  _release_container
+  _release_bundle
 }
 
 if [ $# -lt 1 ]
@@ -107,15 +137,11 @@ then
   exit 1
 fi
 
-case $1 in
-  test)
-    run_test
-    ;;
-  build)
-    run_build
-    ;;
-  release)
-    run_release
+CMD=$1
+shift
+case $CMD in
+  test|build|release|launch_k3s|generate_integration_pipeline|wait_for_k3s|export_container|create_image_pull_secret)
+    cmd_$CMD $@
     ;;
   *)
     echo "invalid argument $1"
