@@ -2,13 +2,63 @@
 
 set -e
 
-if [ $# -eq 0 ]; then
+test_lint () {
+  staticcheck ./...
+}
+
+test_fast () {
   go test ./config/...
   go test ./pkg/...
+}
+
+test_help () {
+  echo "usage:"
+  echo "  ./scripts/test [help|fast|lint|crd]"
+}
+
+# This command expects the greymatter namespace to exist
+# and the image pull secret to be created.
+test_crd () {
+  if [[ -z $KUBECTL_CMD ]]; then
+    echo "defaulting KUBECTL_CMD to \"kubectl\""
+    KUBECTL_CMD="kubectl"
+  fi
+  echo "
+apiVersion: greymatter.io/v1alpha1
+kind: Mesh
+metadata:
+  name: mesh-sample
+spec:
+  release_version: '1.7'
+  zone: default-zone
+  install_namespace: greymatter
+  watch_namespaces:
+    - default
+  image_pull_secrets:
+    - gm-docker-secret
+  images:
+    control: docker.greymatter.io/development/gm-control:latest
+" | $KUBECTL_CMD apply -f -
+
+  sleep 10
+  echo "Waiting for gm-control"
+  set +e
+  $KUBECTL_CMD wait --namespace greymatter --for condition=ready pod \
+    --selector "greymatter.io/component=control" --timeout 120s
+  set -e
+  echo "Final pod list"
+  $KUBECTL_CMD get pods -A
+
+}
+
+if [ $# -eq 0 ]; then
+  test_fast
 else
-  case $1 in
-  lint)
-    staticcheck ./...
+  ARG=$1
+  shift
+  case $ARG in
+  crd|lint|fast|help)
+    test_$ARG $@
     ;;
   *)
     echo "invalid argument $1"
