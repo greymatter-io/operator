@@ -98,6 +98,7 @@ cmd_generate_integration_pipeline () {
 steps:
   - label: \"k3s integration test\"
     commands:
+      - cue version
       - scripts/cibuild wait_for_k3s
       - buildkite-agent artifact download \"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /tmp/
       - mv /tmp/\"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /opt/k3s-import/
