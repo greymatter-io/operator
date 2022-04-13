@@ -6,6 +6,8 @@ import (
 	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"github.com/greymatter-io/operator/pkg/k8sapi"
 	"github.com/greymatter-io/operator/pkg/wellknown"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -19,8 +21,13 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		logger.Info("Upgrading Mesh", "Name", mesh.Name)
 	}
 
-	// Create a Docker image pull secret and service account in this namespace if this Mesh is new.
+	// Create Namespace and image pull secret if this Mesh is new.
 	if prev == nil {
+		namespace := &v1.Namespace{
+			TypeMeta:   metav1.TypeMeta{Kind: "Namespace", APIVersion: "v1"},
+			ObjectMeta: metav1.ObjectMeta{Name: mesh.Spec.InstallNamespace},
+		}
+		k8sapi.Apply(i.k8sClient, namespace, mesh, k8sapi.GetOrCreate)
 		secret := i.imagePullSecret.DeepCopy()
 		secret.Namespace = mesh.Spec.InstallNamespace
 		k8sapi.Apply(i.k8sClient, secret, mesh, k8sapi.GetOrCreate)

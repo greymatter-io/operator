@@ -37,7 +37,7 @@ func LoadAll(cuemoduleRoot string) (*OperatorCUE, *v1alpha1.Mesh) {
 	}, &load.Config{
 		Dir: cuemoduleRoot, // "If Dir is empty, the tool is run in the current directory"
 	})
-	var operatorCUE *OperatorCUE
+	operatorCUE := &OperatorCUE{}
 	operatorCUE.K8s = cuecontext.New().BuildInstance(allCUEInstances[0])
 	operatorCUE.GM = cuecontext.New().BuildInstance(allCUEInstances[1])
 	if err := operatorCUE.K8s.Err(); err != nil {
