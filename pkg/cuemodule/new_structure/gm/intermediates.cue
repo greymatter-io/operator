@@ -17,6 +17,9 @@ import "greymatter.io/operator/greymatter-cue/greymatter"
 
 #listener: greymatter.#Listener & {
   _tcp_upstream?: string // for TCP listeners, you can just specify the upstream cluster
+  _spire_self: string    // can specify current identity - defaults to "edge"
+  _spire_other: string // can specify an allowable downstream identity - defaults to "edge"
+
   listener_key: string
   name: listener_key
   ip: string | *"0.0.0.0"
@@ -51,6 +54,20 @@ import "greymatter.io/operator/greymatter-cue/greymatter"
       }
     }
   }
+
+  if flags.spire && _spire_self != _|_ {
+    secret: #spire_secret & {
+      // Expects _name and _subject to be passed in like so from above:
+      // _spire_self: "dashboard"
+      // _spire_other: "edge"  // but this defaults to "edge" and may be omitted
+      _name: _spire_self
+      _subject: _spire_other
+      // TODO I just copied the following two from the previous operator without knowing why -DC
+      set_current_client_cert_details: uri: true 
+      forward_client_cert_details: "APPEND_FORWARD"
+    }
+  }
+
   zone_key: mesh.spec.zone
   protocol: "http_auto" // vestigial
 }
@@ -59,12 +76,25 @@ import "greymatter.io/operator/greymatter-cue/greymatter"
   // You can either specify the upstream with these, or leave it to service discovery
   _upstream_host: string | *"127.0.0.1"
   _upstream_port: int
+  _spire_self: string    // can specify current identity - defaults to "edge"
+  _spire_other: string // can specify an allowable upstream identity - defaults to "edge"
   cluster_key: string
   name: cluster_key
   instances: [...greymatter.#Instance] | *[]
   if _upstream_port != _|_ {
     instances: [{ host: _upstream_host, port: _upstream_port }]
   } 
+
+  if flags.spire && _spire_other != _|_ {
+    require_tls: true
+    secret: #spire_secret & {
+      // Expects _name and _subject to be passed in like so from above:
+      // _spire_self: "redis"  // but this defaults to "edge" and may be omitted
+      // _spire_other: "dashboard"
+      _name: _spire_self | string
+      _subject: _spire_other
+    }
+  }
   zone_key: mesh.spec.zone
 }
 
@@ -95,14 +125,15 @@ import "greymatter.io/operator/greymatter-cue/greymatter"
 
 
 
-#secret: {
-	_name:    string
-	_subject: string
-	set_current_client_cert_details?: {...}
-	forward_client_cert_details?: string
+#spire_secret: {
+  _name:    string | *"edge" // at least one of these will be overridden
+  _subject: string | *"edge"
 
-	secret_validation_name: "spiffe://greymatter.io"
-	secret_name:            "spiffe://greymatter.io/\(mesh.metadata.name).\(_name)"
-	subject_names: ["spiffe://greymatter.io/\(mesh.metadata.name).\(_subject)"]
-	ecdh_curves: ["X25519:P-256:P-521:P-384"]
+  set_current_client_cert_details?: {...}
+  forward_client_cert_details?: string
+
+  secret_validation_name: "spiffe://greymatter.io"
+  secret_name:            "spiffe://greymatter.io/\(mesh.metadata.name).\(_name)"
+  subject_names: ["spiffe://greymatter.io/\(mesh.metadata.name).\(_subject)"]
+  ecdh_curves: ["X25519:P-256:P-521:P-384"]
 }
