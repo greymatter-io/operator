@@ -11,6 +11,7 @@ cmd_test () {
     cue get go github.com/greymatter-io/operator/api/...
     cue get go k8s.io/api/...
   )
+
   git submodule update --init --recursive --remote
   ./scripts/test
 }
@@ -103,10 +104,10 @@ steps:
       - mv /tmp/\"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /opt/k3s-import/
       - k3s kubectl create ns greymatter
       - k3s kubectl apply -k config/context/local-refactored
-      - cue eval -c ./new_structure/k8s/outputs --out text -e spire_manifests_yaml | kubectl apply -f -
-      - cue eval -c ./new_structure/k8s/outputs --out text -e operator_manifests_yaml | kubectl apply -f -
       - scripts/cibuild create_image_pull_secret gm-docker-secret gm-operator
       - scripts/cibuild create_image_pull_secret gm-docker-secret greymatter
+      - ( cd pkg/cuemodule && cue eval -c ./new_structure/k8s/outputs --out text -e spire_manifests_yaml | kubectl apply -f - )
+      - ( cd pkg/cuemodule && cue eval -c ./new_structure/k8s/outputs --out text -e operator_manifests_yaml | kubectl apply -f - )
       # TODO: get rid of this sleep
       - sleep 480
       - k3s kubectl get pods -A
