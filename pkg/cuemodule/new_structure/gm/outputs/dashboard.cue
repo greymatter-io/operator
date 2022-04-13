@@ -8,15 +8,15 @@ dashboard_config: [
   // sidecar->dashboard
   #domain & { domain_key: LocalName },
   #listener & {
-    listener_key: LocalName,
-    _spire_self: Name,
+    listener_key: LocalName
+    _spire_self: Name
   },
   #cluster & { cluster_key: LocalName, _upstream_port: 1337 },
   #route & { route_key: LocalName },
 
   // edge->sidecar
   #cluster & {
-    cluster_key: Name,
+    cluster_key: Name
     _spire_other: Name
   },
   #route & { domain_key: "edge", route_key: Name },
