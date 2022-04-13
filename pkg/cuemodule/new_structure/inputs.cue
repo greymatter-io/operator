@@ -31,7 +31,7 @@ mesh: v1alpha1.#Mesh & {
 }
 
 flags: {
-  spire: bool | *false
+  spire: bool | *true // DEBUG - the default should actually be false
 }
 
 defaults: {
