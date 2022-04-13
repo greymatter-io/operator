@@ -20,10 +20,16 @@ Docker images from `docker.greymatter.io`.
 To get the latest stable development version of the operator up and running in your Kubernetes
 cluster, run the following:
 
-```
+```bash
+./scripts/bootstrap # this makes sure you have the latest dependencies for the cue evaluation of manifests.
+
 kubectl create namespace greymatter
 
-kubectl apply -k config/context/local-refactored
+( 
+  cd pkg/cuemodule
+  cue eval -c ./new_structure/k8s/outputs --out text -e spire_manifests_yaml | kubectl apply -f -
+  cue eval -c ./new_structure/k8s/outputs --out text -e operator_manifests_yaml | kubectl apply -f -
+)
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
@@ -38,10 +44,20 @@ CR described in pkg/cuemodule/new_structure/inputs.cue will be automatically dep
 
 ## Inspecting Manifests
 
-The following command prints the manifests that should be applied to a Kubernetes cluster:
+The following commands print out manifests that can be applied to a Kubernetes cluster:
 
-```
-kubectl apply -k config/context/kubernetes --dry-run=client -o yaml
+```bash
+( 
+  cd pkg/cuemodule
+  cue eval -c ./new_structure/k8s/outputs --out text -e spire_manifests_yaml
+)
+
+# pick which manifests you'd like to inspect
+
+(
+  cd pkg/cuemodule
+  cue eval -c ./new_structure/k8s/outputs --out text -e operator_manifests_yaml
+)
 ```
 
 (NOTE: If deploying to OpenShift, you can replace `config/context/kubernetes` with
