@@ -8,7 +8,10 @@ controlensemble_config: [
 
   // Catalog HTTP ingress
   #domain & { domain_key: CatalogIngressName },
-  #listener & { listener_key: CatalogIngressName },
+  #listener & {
+    listener_key: CatalogIngressName
+    _spire_self: Name
+  },
   #cluster & { cluster_key: CatalogIngressName, _upstream_port: 8080 },
   #route & { route_key: CatalogIngressName }, // TODO needs special routematch
 
@@ -30,7 +33,10 @@ controlensemble_config: [
   },
 
   // Edge config for catalog ingress
-  #cluster & { cluster_key: Name},
+  #cluster & {
+    cluster_key: Name
+    _spire_other: Name
+    },
   #route & {
     domain_key: "edge",
     route_key: Name
