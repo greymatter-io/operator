@@ -95,4 +95,14 @@ import "greymatter.io/operator/greymatter-cue/greymatter"
 
 
 
-// Higher-level "functions" for convenience
+#secret: {
+	_name:    string
+	_subject: string
+	set_current_client_cert_details?: {...}
+	forward_client_cert_details?: string
+
+	secret_validation_name: "spiffe://greymatter.io"
+	secret_name:            "spiffe://greymatter.io/\(mesh.metadata.name).\(_name)"
+	subject_names: ["spiffe://greymatter.io/\(mesh.metadata.name).\(_subject)"]
+	ecdh_curves: ["X25519:P-256:P-521:P-384"]
+}

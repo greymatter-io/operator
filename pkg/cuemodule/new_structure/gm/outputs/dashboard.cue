@@ -30,11 +30,10 @@ dashboard_config: [
     _tcp_upstream: EgressToRedisName
   },
 
+  // shared proxy object
   #proxy & {
     proxy_key: Name,
     domain_keys: [LocalName, EgressToRedisName] // TODO seems like a mess now that defaults aren't for local. rework.
     listener_keys: [LocalName, EgressToRedisName]
   },
 ]
-
-// TODO egress->redis
