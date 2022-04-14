@@ -101,13 +101,14 @@ import "greymatter.io/operator/greymatter-cue/greymatter"
 #route: greymatter.#Route & {
   route_key: string
   domain_key: string | *route_key
+  _upstream_cluster_key: string | *route_key
   route_match: {
     path: string | *"/"
     match_type: string | *"prefix"
   }
   rules: [{
     constraints: light: [{
-      cluster_key: route_key
+      cluster_key: _upstream_cluster_key
       weight: 1
     }]
   }]
