@@ -30,7 +30,7 @@ import "greymatter.io/operator/greymatter-cue/greymatter"
   if _tcp_upstream != _|_ {
     active_network_filters: ["envoy.tcp_proxy"]
     network_filters: envoy_tcp_proxy: {
-      cluster: _tcp_upstream
+      cluster: _tcp_upstream // NB: contrary to the docs, this points at a cluster *name*, not a cluster_key
       stat_prefix: _tcp_upstream
     }
   }
@@ -78,20 +78,20 @@ import "greymatter.io/operator/greymatter-cue/greymatter"
   _upstream_port: int
   _spire_self: string    // can specify current identity - defaults to "edge"
   _spire_other: string // can specify an allowable upstream identity - defaults to "edge"
+
   cluster_key: string
-  name: cluster_key
+  name: string | *cluster_key
   instances: [...greymatter.#Instance] | *[]
   if _upstream_port != _|_ {
     instances: [{ host: _upstream_host, port: _upstream_port }]
   } 
-
   if flags.spire && _spire_other != _|_ {
     require_tls: true
     secret: #spire_secret & {
       // Expects _name and _subject to be passed in like so from above:
       // _spire_self: "redis"  // but this defaults to "edge" and may be omitted
       // _spire_other: "dashboard"
-      _name: _spire_self | string
+      _name: _spire_self
       _subject: _spire_other
     }
   }
@@ -129,12 +129,18 @@ import "greymatter.io/operator/greymatter-cue/greymatter"
 #spire_secret: {
   _name:    string | *"edge" // at least one of these will be overridden
   _subject: string | *"edge"
+  _subjects?: [...string]
 
   set_current_client_cert_details?: {...}
   forward_client_cert_details?: string
 
   secret_validation_name: "spiffe://greymatter.io"
   secret_name:            "spiffe://greymatter.io/\(mesh.metadata.name).\(_name)"
-  subject_names: ["spiffe://greymatter.io/\(mesh.metadata.name).\(_subject)"]
+  if _subjects == _|_ {
+    subject_names: ["spiffe://greymatter.io/\(mesh.metadata.name).\(_subject)"]
+  }
+  if _subjects != _|_ {
+    subject_names: [for s in _subjects {"spiffe://greymatter.io/\(mesh.metadata.name).\(s)"}]
+  }
   ecdh_curves: ["X25519:P-256:P-521:P-384"]
 }

@@ -31,7 +31,8 @@ mesh: v1alpha1.#Mesh & {
 }
 
 flags: {
-  spire: bool | *false // DEBUG - the default should be false
+  auto_apply_mesh: true // apply the default mesh specified above after a delay // TODO, not actually used yet - implement
+  spire: bool | *true // enable Spire-based mTLS DEBUG - the default should be false
 }
 
 defaults: {
