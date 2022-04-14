@@ -111,7 +111,7 @@ steps:
       # TODO: get rid of this sleep
       - sleep 480
       - k3s kubectl get pods -A
-      - KUBECTL_CMD='k3s kubectl' ./scripts/test crd
+      # - KUBECTL_CMD='k3s kubectl' ./scripts/test crd
       - k3s kubectl get pods -A
       - sudo systemctl poweroff
     agents:
