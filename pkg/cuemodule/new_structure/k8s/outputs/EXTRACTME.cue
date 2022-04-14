@@ -5,7 +5,7 @@ package only
 
 import "encoding/yaml"
 
-k8s_manifests: controlensemble + edge + dashboard
+k8s_manifests: controlensemble + catalog + redis + edge + dashboard
 operator_manifests: operator_namespace + operator_crd + operator_k8s // TODO rename
 spire_manifests: spire_namespace + spire_server + spire_agent
 

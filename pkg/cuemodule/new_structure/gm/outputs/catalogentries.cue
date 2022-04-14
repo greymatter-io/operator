@@ -38,23 +38,22 @@ catalog_entries: [
 		enable_instance_metrics: true
 		enable_historical_metrics: false
 	},
-	// TODO Because Control API and Catalog are behind the same sidecar, we have to choose, for now
-	// #CatalogService & {
-	// 	name:              "Grey Matter Control"
-	//  service_id: "control"
-	// 	mesh_id: mesh.metadata.name
-	// 	version:         strings.Split(mesh.spec.images.control_api, ":")[1]
-	// 	description:       "Manages the configuration of the Grey Matter data plane."
-	// 	api_endpoint:      "/services/control/api/v1.0/"
-	// 	api_spec_endpoint: "/services/control/api/"
-	// 	business_impact:   "critical"
-	// 	enable_instance_metrics: true
-	// 	enable_historical_metrics: false
-	// },
+	#CatalogService & {
+		name:              "Grey Matter Control"
+		mesh_id: mesh.metadata.name
+	  service_id: "controlensemble"
+		version:         strings.Split(mesh.spec.images.control_api, ":")[1]
+		description:       "Manages the configuration of the Grey Matter data plane."
+		api_endpoint:      "/services/control/api/v1.0/"
+		business_impact:   "critical"
+		api_spec_endpoint: "/services/control/api/"
+		enable_instance_metrics: true
+		enable_historical_metrics: false
+	},
 	#CatalogService & {
 		name:              "Grey Matter Catalog"
 		mesh_id: mesh.metadata.name
-		service_id: "controlensemble" // Catalog lives behind the controlensemble sidecar, for the moment
+		service_id: "catalog" // Catalog lives behind the controlensemble sidecar, for the moment
 		version:         strings.Split(mesh.spec.images.catalog, ":")[1]
 		description:       "Interfaces with the control plane to expose the current state of the mesh."
 		api_endpoint:      "/services/catalog/"

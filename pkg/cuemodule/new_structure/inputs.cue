@@ -31,13 +31,15 @@ mesh: v1alpha1.#Mesh & {
 }
 
 flags: {
-  spire: bool | *true // DEBUG - the default should actually be false
+  spire: bool | *false // DEBUG - the default should be false
 }
 
 defaults: {
   image_pull_secret_name: string | *"gm-docker-secret"
   image_pull_policy: corev1.#enumPullPolicy | *corev1.#PullAlways
   xds_host: "controlensemble.\(mesh.spec.install_namespace).svc.cluster.local"
+  redis_cluster_name: "redis"
+  redis_host: "\(redis_cluster_name).\(mesh.spec.install_namespace).svc.cluster.local"
 
   ports: {
     default_ingress: 10808

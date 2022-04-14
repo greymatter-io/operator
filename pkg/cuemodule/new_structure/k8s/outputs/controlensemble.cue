@@ -29,19 +29,8 @@ controlensemble: [
         }
         spec: {
           containers: [  
-            // there are multiple in this ensemble! proxy, control, control-api, catalog, and redis
 
-            #sidecar_container_block & {
-              _Name: Name
-              ports: [{
-                name: "proxy"
-                containerPort: defaults.ports.default_ingress
-              },
-              {
-                name: "redis"
-                containerPort: defaults.ports.redis_ingress
-              }]
-            },
+            #sidecar_container_block & { _Name: Name },
 
             {
               name: "control"
@@ -83,56 +72,14 @@ controlensemble: [
                 {name: "GM_CONTROL_API_PERSISTER_TYPE", value: "redis"},
                 {name: "GM_CONTROL_API_REDIS_MAX_RETRIES", value: "50"},
                 {name: "GM_CONTROL_API_REDIS_RETRY_DELAY", value: "5s"},
-                {name: "GM_CONTROL_API_REDIS_HOST", value: "127.0.0.1"},
+                // HACK - later use redis sidecar or external redis, but this keeps bootstrap simple for now
+                {name: "GM_CONTROL_API_REDIS_HOST", value: defaults.redis_host},
                 {name: "GM_CONTROL_API_REDIS_PORT", value: "6379"}, // local redis in this pod
                 {name: "GM_CONTROL_API_REDIS_DB", value: "0"},
               ]
               imagePullPolicy: defaults.image_pull_policy
             }, // control_api
 
-            {
-              name: "catalog"
-              image: mesh.spec.images.catalog
-              ports: [{
-                name: "catalog"
-                containerPort: 8080
-              }]
-              env: [
-                {name: "SEED_FILE_PATH", value: "/app/seed/seed.yaml"},
-                {name: "SEED_FILE_FORMAT", value: "yaml"},
-                {name: "CONFIG_SOURCE", value: "redis"},
-                {name: "REDIS_MAX_RETRIES", value: "10"},
-                {name: "REDIS_RETRY_DELAY", value: "5s"},
-                {name: "REDIS_HOST", value: "127.0.0.1"},
-                {name: "REDIS_PORT", value: "6379"}, // local redis in this pod
-                {name: "REDIS_DB", value: "0"},
-              ]
-              imagePullPolicy: defaults.image_pull_policy,
-              volumeMounts: [{
-                name: "catalog-seed",
-                mountPath: "/app/seed"
-              }]
-            }, // catalog
-
-            {
-              name: "redis"
-              image: mesh.spec.images.redis
-              command: ["redis-server"]
-              args: [
-                "--appendonly", "yes",
-                "--dir", "/data",
-                "--logLevel", "verbose"
-              ]
-              ports: [{
-                name: "redis"
-                containerPort: 6379
-              }]
-              imagePullPolicy: defaults.image_pull_policy,
-              volumeMounts: [{
-                name: "gm-redis-append-dir-\(mesh.metadata.name)",
-                mountPath: "/data"
-              }]
-            } // redis
 
           ] // containers
 
@@ -159,33 +106,6 @@ controlensemble: [
           }
         }
       ]
-    }
-  },
-
-  corev1.#ConfigMap & {
-    apiVersion: "v1"
-    kind: "ConfigMap"
-    metadata: {
-      name: "catalog-seed"
-      namespace: mesh.spec.install_namespace
-    }
-    data: {
-      "seed.yaml": """
-        \(mesh.metadata.name):
-          mesh_type: greymatter
-          sessions:
-            default:
-              url: 127.0.0.1:50000  # local control
-              zone: \(mesh.spec.zone)
-          labels:
-            zone_key: \(mesh.spec.zone)
-          extensions:
-            metrics:
-              sessions:
-                redis_example:
-                  client_type: redis
-                  connection_string: redis://127.0.0.1:6379  # local redis
-      """
     }
   },
 
@@ -248,21 +168,10 @@ controlensemble: [
           port: 50000,
           targetPort: 50000
         },
-        { // HACK to get to redis without service discovery
-          // (because catalog is taking up that function atm)
-          name: "redis",
-          port: defaults.ports.redis_ingress
-          targetPort: defaults.ports.redis_ingress
-        },
         { // HACK the operator needs direct access cli.go#66
           name: "controlapi",
           port: 5555,
           targetPort: 5555
-        },
-        { // HACK the operator needs direct access
-          name: "catalog",
-          port: 8080,
-          targetPort: 8080
         },
       ]
     }
