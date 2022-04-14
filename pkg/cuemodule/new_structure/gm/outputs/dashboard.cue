@@ -1,3 +1,5 @@
+// Grey Matter configuration for Dashboard's sidecar
+
 package only
 
 let Name= "dashboard"
@@ -13,13 +15,6 @@ dashboard_config: [
   },
   #cluster & { cluster_key: LocalName, _upstream_port: 1337 },
   #route & { route_key: LocalName },
-
-  // edge->sidecar
-  #cluster & {
-    cluster_key: Name
-    _spire_other: Name
-  },
-  #route & { domain_key: "edge", route_key: Name },
 
   // egress->redis
   #domain & { domain_key: EgressToRedisName, port: defaults.ports.redis_ingress },
@@ -41,4 +36,13 @@ dashboard_config: [
     domain_keys: [LocalName, EgressToRedisName] // TODO seems like a mess now that defaults aren't for local. rework.
     listener_keys: [LocalName, EgressToRedisName]
   },
+
+
+  // edge->sidecar
+  #cluster & {
+    cluster_key: Name
+    _spire_other: Name
+  },
+  #route & { domain_key: "edge", route_key: Name },
+
 ]

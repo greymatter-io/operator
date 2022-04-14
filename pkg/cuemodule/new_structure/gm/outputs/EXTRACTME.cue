@@ -5,7 +5,7 @@ package only
 
 import "encoding/yaml"
 
-mesh_configs: redis_config + edge_config + controlensemble_config + dashboard_config + catalog_entries
+mesh_configs: redis_config + edge_config + catalog_config + controlensemble_config + dashboard_config + catalog_entries
 // for CLI convenience
 mesh_configs_yaml: yaml.MarshalStream(mesh_configs)
 

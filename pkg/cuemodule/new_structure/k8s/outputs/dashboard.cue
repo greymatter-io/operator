@@ -37,7 +37,7 @@ dashboard: [
               env: [
                 {name: "BASE_URL", value: "/services/\(name)/"},
                 {name: "FABRIC_SERVER", value: "/services/catalog/"},
-                {name: "CONFIG_SERVER", value: "/services/control/api/"},
+                {name: "CONFIG_SERVER", value: "/services/control-api/"},
                 {name: "PROMETHEUS_SERVER", value: "/services/prometheus/api/v1/"},
                 {name: "REQUEST_TIMEOUT", value: "15000"},
                 {name: "USE_PROMETHEUS", value: "false"},

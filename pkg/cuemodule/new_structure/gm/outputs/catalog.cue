@@ -1,21 +1,22 @@
-// Grey Matter configuration for Control API's sidecar (inside the controlensemble pod)
+// Grey Matter configuration for Catalog's sidecar
 
 package only
 
-let Name = "controlensemble"
-let ControlAPIIngressName = "\(Name)_ingress_to_controlapi"
+let Name = "catalog"
+let CatalogIngressName = "\(Name)_local"
 let EgressToRedisName = "\(Name)_egress_to_redis"
 
-controlensemble_config: [
+catalog_config: [
 
-  // Control API HTTP ingress
-  #domain & { domain_key: ControlAPIIngressName },
+  // Catalog HTTP ingress
+  #domain & { domain_key: CatalogIngressName },
   #listener & {
-    listener_key: ControlAPIIngressName
+    listener_key: CatalogIngressName
     _spire_self: Name
   },
-  #cluster & { cluster_key: ControlAPIIngressName, _upstream_port: 5555 },
-  #route & { route_key: ControlAPIIngressName },
+  #cluster & { cluster_key: CatalogIngressName, _upstream_port: 8080 },
+  #route & { route_key: CatalogIngressName },
+
 
   // egress->redis
   #domain & { domain_key: EgressToRedisName, port: defaults.ports.redis_ingress },
@@ -34,11 +35,11 @@ controlensemble_config: [
   // shared proxy object
   #proxy & {
     proxy_key: Name
-    domain_keys: [ControlAPIIngressName, EgressToRedisName]
-    listener_keys: [ControlAPIIngressName, EgressToRedisName] 
+    domain_keys: [CatalogIngressName, EgressToRedisName]
+    listener_keys: [CatalogIngressName, EgressToRedisName]
   },
 
-  // Edge config for Control API
+  // Edge config for catalog ingress
   #cluster & {
     cluster_key: Name
     _spire_other: Name
@@ -47,11 +48,11 @@ controlensemble_config: [
     domain_key: "edge",
     route_key: Name
     route_match: {
-      path: "/services/control-api/"
+      path: "/services/catalog/"
     }
     redirects: [
       {
-        from: "^/services/control-api$"
+        from: "^/services/catalog$"
         to: route_match.path
         redirect_type: "permanent"
       }
