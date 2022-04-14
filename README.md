@@ -7,23 +7,23 @@ CRD to manage mesh deployments in a Kubernetes cluster.
 
 - [kubectl v1.23+](https://kubernetes.io/docs/tasks/tools/)
   - Cluster administrative access
-- [CUE](https://cuelang.org/)
+- [CUE CLI](https://cuelang.org/docs/install/)
 
 > NOTE: This project makes use of git submodules for dependency management.
 
 ## Getting Started
 
-- Make sure you have fetched all necessary dependencies:
+Make sure you have fetched all necessary dependencies:
 ```bash
 ./scripts/bootstrap # this makes sure you have the latest dependencies for the cue evaluation of manifests.
 ```
 
-- Create a Grey Matter namespace in your k8s cluster:
+Create a Grey Matter namespace in your k8s cluster:
 ```bash
 kubectl create namespace greymatter
 ```
 
-- Evaluate the kubernetes manifests using CUE: 
+Evaluate the kubernetes manifests using CUE: 
 ```bash
 ( 
   cd pkg/cuemodule
@@ -32,7 +32,7 @@ kubectl create namespace greymatter
 )
 ```
 
-- Create the necessary pull secret for the Grey Matter core services:
+Create the necessary pull secret for the Grey Matter core services:
 ```bash
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
@@ -95,7 +95,7 @@ nix-shell
 - [Go v1.17+](https://golang.org/dl/)
 - [Operator SDK v1.12+](https://sdk.operatorframework.io)
 - Grey Matter CLI 
-- [CUE](https://cuelang.org/)
+- [CUE CLI](https://cuelang.org/docs/install/)
 - [staticcheck](https://staticcheck.io/)
 - git
 
