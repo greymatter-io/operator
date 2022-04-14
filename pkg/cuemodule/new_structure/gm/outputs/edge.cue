@@ -1,5 +1,6 @@
-package only
+// Grey Matter configuration for Edge
 
+package only
 
 let Name= "edge"
 let EgressToRedisName = "\(Name)_egress_to_redis"
