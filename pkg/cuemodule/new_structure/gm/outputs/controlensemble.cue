@@ -19,17 +19,19 @@ controlensemble_config: [
 
   // egress->redis
   #domain & { domain_key: EgressToRedisName, port: defaults.ports.redis_ingress },
-  #route & { // unused route must exist for the cluster to be registered with sidecar
-    route_key: EgressToRedisName
-    _upstream_cluster_key: defaults.redis_cluster_name
+  #cluster & {
+    cluster_key: EgressToRedisName
+    name: defaults.redis_cluster_name
+    _spire_self: Name
+    _spire_other: defaults.redis_cluster_name
   },
+  #route & { route_key: EgressToRedisName }, // unused route must exist for the cluster to be registered with sidecar
   #listener & {
     listener_key: EgressToRedisName
     ip: "127.0.0.1" // egress listeners are local-only
     port: defaults.ports.redis_ingress
     _tcp_upstream: defaults.redis_cluster_name
   },
-  // (the actual reusable redis cluster was defined once in the redis config)
 
   // shared proxy object
   #proxy & {

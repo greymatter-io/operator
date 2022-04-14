@@ -67,7 +67,7 @@ func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
 		// control
 		fmt.Sprintf("http://controlensemble.%s.svc.cluster.local:5555", mesh.Spec.InstallNamespace),
 		// catalog
-		fmt.Sprintf("http://controlensemble.%s.svc.cluster.local:8080", mesh.Spec.InstallNamespace),
+		fmt.Sprintf("http://catalog.%s.svc.cluster.local:8080", mesh.Spec.InstallNamespace),
 		mesh.Name,
 	)
 	flags := []string{"--base64-config", conf}

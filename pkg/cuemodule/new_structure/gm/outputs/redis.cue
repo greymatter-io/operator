@@ -15,14 +15,17 @@ redis_config: [
     listener_key: RedisIngressName 
     port: defaults.ports.redis_ingress
     _tcp_upstream: RedisIngressName // this _actually_ connects the cluster to the listener
+    // custom secret instead of listener helpers because we need to accept multiple subjects in this listener
+    if flags.spire {
+      secret: #spire_secret & {
+        _name: Name
+        _subjects: ["dashboard", "catalog", "controlensemble", "edge"]
+      }
+    }
   },
   #proxy & {
     proxy_key: Name
     domain_keys: [RedisIngressName]
     listener_keys: [RedisIngressName] 
   },
-
-  // Reusable cluster for egress to redis - create a route to this cluster from each pod
-  // TODO For mTLS, we will need to programmatically fill the allowable subjects
-  #cluster & { cluster_key: Name },
 ]
