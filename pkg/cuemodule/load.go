@@ -32,8 +32,8 @@ type OperatorCUE struct {
 func LoadAll(cuemoduleRoot string) (*OperatorCUE, *v1alpha1.Mesh) {
 	//cwd, _ := os.Getwd()
 	allCUEInstances := load.Instances([]string{
-		"./new_structure/k8s/outputs",
-		"./new_structure/gm/outputs",
+		"./k8s/outputs",
+		"./gm/outputs",
 	}, &load.Config{
 		Dir: cuemoduleRoot, // "If Dir is empty, the tool is run in the current directory"
 	})

@@ -1,7 +1,9 @@
 
 package only
 
-import "greymatter.io/operator/greymatter-cue/greymatter"
+import (
+  greymatter "greymatter.io/api"
+)
 
 /////////////////////////////////////////////////////////////
 // "Functions" for Grey Matter config objects with defaults

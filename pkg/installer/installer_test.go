@@ -18,7 +18,7 @@ func TestLoading(t *testing.T) {
 	// K8S MANIFESTS LOADING TEST
 
 	//instances := load.Instances([]string{
-	//	"./new_structure/k8s/outputs",
+	//	"./k8s/outputs",
 	//}, &load.Config{
 	//	Dir: "/Users/danielpcox/projects/decipher/operator/pkg/cuemodule",
 	//})
@@ -111,7 +111,7 @@ func TestLoading(t *testing.T) {
 	// GREY MATTER CONFIG LOADING TEST
 
 	//instances := load.Instances([]string{
-	//	"./new_structure/gm/outputs",
+	//	"./gm/outputs",
 	//}, &load.Config{
 	//	Dir: "/Users/danielpcox/projects/decipher/operator/pkg/cuemodule",
 	//})
@@ -157,7 +157,7 @@ func TestLoading(t *testing.T) {
 	// ODDS AND ENDS LOADING TEST
 
 	//instances := load.Instances([]string{
-	//	"./new_structure",
+	//	"./",
 	//}, &load.Config{
 	//	Dir: "/Users/danielpcox/projects/decipher/operator/pkg/cuemodule",
 	//})
@@ -183,7 +183,7 @@ func TestLoading(t *testing.T) {
 	// MESH LOADING TEST
 
 	instances := load.Instances([]string{
-		"./new_structure",
+		"./",
 	}, &load.Config{
 		Dir: "/Users/danielpcox/projects/decipher/operator/pkg/cuemodule",
 	})
