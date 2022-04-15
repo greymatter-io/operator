@@ -124,7 +124,7 @@ func (i *Installer) Start(ctx context.Context) error {
 	// Immediately apply the default mesh from the CUE if the flag is set
 	go func() {
 		if i.Flags.AutoApplyMesh {
-			time.Sleep(100 * time.Second) // DEBUG - does this work if we wait long enough for it to register the webhooks?
+			time.Sleep(80 * time.Second) // DEBUG - does this work if we wait long enough for it to register the webhooks?
 			k8sapi.Apply(i.k8sClient, i.Mesh, nil, k8sapi.CreateOrUpdate)
 		}
 	}()
