@@ -160,7 +160,9 @@ func addClusterLabels(tmpl corev1.PodTemplateSpec, meshName, clusterName string)
 	if tmpl.Labels == nil {
 		tmpl.Labels = make(map[string]string)
 	}
+	// For service discovery
 	tmpl.Labels[wellknown.LABEL_CLUSTER] = clusterName
+	// For Spire identification
 	tmpl.Labels[wellknown.LABEL_WORKLOAD] = fmt.Sprintf("%s.%s", meshName, clusterName)
 	return tmpl
 }

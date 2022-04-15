@@ -1,10 +1,7 @@
 package installer
 
 import (
-	"cuelang.org/go/cue/cuecontext"
-	"cuelang.org/go/cue/load"
-	"github.com/greymatter-io/operator/api/v1alpha1"
-	"github.com/greymatter-io/operator/pkg/cuemodule"
+	"encoding/json"
 	"testing"
 	//"github.com/greymatter-io/operator/pkg/cueutils"
 	//"github.com/greymatter-io/operator/pkg/cuemodule"
@@ -182,43 +179,43 @@ func TestLoading(t *testing.T) {
 
 	// MESH LOADING TEST
 
-	instances := load.Instances([]string{
-		"./",
-	}, &load.Config{
-		Dir: "/Users/danielpcox/projects/decipher/operator/pkg/cuemodule",
-	})
-	if len(instances) < 1 {
-		t.Fatal("No go")
-	}
-
-	value := cuecontext.New().BuildInstance(instances[0])
-	//t.Logf("%#v", value)
-
-	var extracted struct {
-		Mesh v1alpha1.Mesh `json:"mesh"`
-	}
-
-	// TODO handle extraction error
-	_ = cuemodule.Extract(value, &extracted)
-	mesh := extracted.Mesh
-	t.Logf("watch_namespaces: %#v UID: %#v", mesh.Spec.WatchNamespaces, mesh.UID)
-
-	// then try tweaking the mesh and unifying, and seeing what we extract the second time
-	t.Logf("Original name: %s", mesh.Name)
-	mesh.Name = "different name"
-	newMeshValue, _ := cuemodule.FromStruct("mesh", mesh)
-	newValue := value.Unify(newMeshValue)
-	_ = cuemodule.Extract(newValue, &extracted)
-
-	t.Logf("New name: %s", extracted.Mesh.Name)
-	t.Logf("New value: %#v", newValue)
+	//instances := load.Instances([]string{
+	//	"./",
+	//}, &load.Config{
+	//	Dir: "/Users/danielpcox/projects/decipher/operator/pkg/cuemodule",
+	//})
+	//if len(instances) < 1 {
+	//	t.Fatal("No go")
+	//}
+	//
+	//value := cuecontext.New().BuildInstance(instances[0])
+	////t.Logf("%#v", value)
+	//
+	//var extracted struct {
+	//	Mesh v1alpha1.Mesh `json:"mesh"`
+	//}
+	//
+	//// TODO handle extraction error
+	//_ = cuemodule.Extract(value, &extracted)
+	//mesh := extracted.Mesh
+	//t.Logf("watch_namespaces: %#v UID: %#v", mesh.Spec.WatchNamespaces, mesh.UID)
+	//
+	//// then try tweaking the mesh and unifying, and seeing what we extract the second time
+	//t.Logf("Original name: %s", mesh.Name)
+	//mesh.Name = "different name"
+	//newMeshValue, _ := cuemodule.FromStruct("mesh", mesh)
+	//newValue := value.Unify(newMeshValue)
+	//_ = cuemodule.Extract(newValue, &extracted)
+	//
+	//t.Logf("New name: %s", extracted.Mesh.Name)
+	//t.Logf("New value: %#v", newValue)
 
 	// UNMARSHALL TEST
-	//data := []byte("{\"mesh_id\":\"Experiment\"}")
-	//var extracted struct {
-	//	MeshID string `json:"mesh_id"`
-	//}
-	//_ = json.Unmarshal(data, &extracted)
-	//t.Logf("meshid:%v", extracted.MeshID)
+	data := []byte("{\"mesh_id\":\"Experiment\"}")
+	var extracted struct {
+		MeshID string `json:"mesh_id"`
+	}
+	_ = json.Unmarshal(data, &extracted)
+	t.Logf("meshid:%v", extracted.MeshID)
 
 }

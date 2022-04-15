@@ -131,7 +131,7 @@ import (
 #spire_secret: {
   _name:    string | *"edge" // at least one of these will be overridden
   _subject: string | *"edge"
-  _subjects?: [...string]
+  _subjects?: [...string] // If provided, this list of strings will be used instead of _subject
 
   set_current_client_cert_details?: {...}
   forward_client_cert_details?: string

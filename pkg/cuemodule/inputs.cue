@@ -42,6 +42,11 @@ defaults: {
   redis_cluster_name: "redis"
   redis_host: "\(redis_cluster_name).\(mesh.spec.install_namespace).svc.cluster.local"
 
+  // as new sidecars need to beacon metrics to Redis, this list will be updated dynamically
+  // it is used in gm/outputs/redis.cue
+  redis_spire_subjects: [...string] | *["dashboard", "catalog", "controlensemble", "edge"]
+
+
   ports: {
     default_ingress: 10808
     redis_ingress: 10910

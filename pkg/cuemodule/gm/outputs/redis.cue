@@ -2,8 +2,6 @@ package only
 
 let Name = defaults.redis_cluster_name
 let RedisIngressName = "\(Name)_local"
-// TODO spire mTLS config on redis listener with dynamically filled subjects
-
 
 redis_config: [
 
@@ -11,7 +9,21 @@ redis_config: [
   #domain & { domain_key: RedisIngressName, port: defaults.ports.redis_ingress },
   #cluster & { cluster_key: RedisIngressName, _upstream_port: 6379},
   #route & { route_key: RedisIngressName }, // unused route must exist for the cluster to be registered
-  #listener & {
+  redis_listener, // see below
+  #proxy & {
+    proxy_key: Name
+    domain_keys: [RedisIngressName]
+    listener_keys: [RedisIngressName] 
+  },
+]
+
+
+
+
+// The Redis listener is special among Grey Matter config because we have to update it with new Spire
+// configuration every time we add a sidecar to the mesh (for metrics beacons). That's why it's separated
+// out here: We need to be able to unify a new defaults.redis_spire_subjects and re-apply this listener.
+redis_listener: #listener & {
     listener_key: RedisIngressName 
     port: defaults.ports.redis_ingress
     _tcp_upstream: RedisIngressName // this _actually_ connects the cluster to the listener
@@ -19,13 +31,7 @@ redis_config: [
     if flags.spire {
       secret: #spire_secret & {
         _name: Name
-        _subjects: ["dashboard", "catalog", "controlensemble", "edge"]
+        _subjects: defaults.redis_spire_subjects
       }
     }
   },
-  #proxy & {
-    proxy_key: Name
-    domain_keys: [RedisIngressName]
-    listener_keys: [RedisIngressName] 
-  },
-]
