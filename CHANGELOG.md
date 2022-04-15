@@ -4,9 +4,9 @@
 
 ### Changed
 
-- Completely new CUE for both Kubernetes manifests and Grey Matter config, currently still rooted
-  under `pkg/cuemodule/new_structure` (and will eventually be moved into the root once the Spire
-  support is complete) following a philosophy of readability and malleability.
+- Completely new CUE for both Kubernetes manifests and Grey Matter config, rooted under
+  `pkg/cuemodule` (`inputs.cue`, and `gm/` and `k8s/` subdirectories) following a philosophy of
+  readability and malleability.
 - Operator Go now loads CUE generically, such that nearly all changes to deployment configuration
   require no changes to the Go.
 - Deployment assist is now opt-in, with labels `"greymatter.io/inject-sidecar-to": "<port num>"`
