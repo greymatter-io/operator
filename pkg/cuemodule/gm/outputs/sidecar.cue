@@ -7,29 +7,33 @@ package only
   Name: string
   Port: int
   LocalName: "\(Name)_local"
-  EgressToRedisName: "\(Name)_to_redis"
+  EgressToRedisName: "\(Name)_egress_to_redis"
 
   objects: [
     // sidecar -> local service
     #domain & { domain_key: LocalName },
-    #listener & { listener_key: LocalName },
+    #listener & {
+      listener_key: LocalName,
+      _spire_self: Name
+    },
     #cluster & { cluster_key: LocalName, _upstream_port: Port },
     #route & { route_key: LocalName},
 
-    // egress -> redis
-    #domain & { domain_key: EgressToRedisName, port: defaults.ports.redis_ingress },
-    #route & { route_key: EgressToRedisName }, // unused route must exist for the cluster to be registered
-    #cluster & {
-      cluster_key: EgressToRedisName,
-      _upstream_host: "controlensemble.\(mesh.spec.install_namespace).svc.cluster.local"
-      _upstream_port: defaults.ports.redis_ingress
-    },
-    #listener & {
-      listener_key: EgressToRedisName
-      ip: "127.0.0.1" // egress listeners are local-only
-      port: defaults.ports.redis_ingress
-      _tcp_upstream: EgressToRedisName
-    },
+  // egress->redis
+  #domain & { domain_key: EgressToRedisName, port: defaults.ports.redis_ingress },
+  #cluster & {
+    cluster_key: EgressToRedisName
+    name: defaults.redis_cluster_name
+    _spire_self: Name
+    _spire_other: defaults.redis_cluster_name
+  },
+  #route & { route_key: EgressToRedisName }, // unused route must exist for the cluster to be registered with sidecar
+  #listener & {
+    listener_key: EgressToRedisName
+    ip: "127.0.0.1" // egress listeners are local-only
+    port: defaults.ports.redis_ingress
+    _tcp_upstream: defaults.redis_cluster_name // NB this points at a cluster name, not key
+  },
 
   // proxy shared between local ingress and redis egress
     #proxy & {
@@ -39,7 +43,10 @@ package only
     },
 
     // edge->sidecar
-    #cluster & { cluster_key: Name},
+    #cluster & {
+      cluster_key: Name,
+      _spire_other: Name
+    },
     #route & {
       domain_key: "edge",
       route_key: Name // destination cluster name is the same as route_key by default

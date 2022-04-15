@@ -59,6 +59,28 @@ func LoadAll(cuemoduleRoot string) (*OperatorCUE, *v1alpha1.Mesh) {
 	return operatorCUE, &extracted.Mesh
 }
 
+type Flags struct {
+	AutoApplyMesh bool `json:"auto_apply_mesh"`
+	Spire         bool `json:"spire"`
+}
+type Defaults struct {
+	RedisSpireSubjects []string `json:"redis_spire_subjects"`
+}
+
+func (operatorCUE *OperatorCUE) ExtractFlagsAndDefaults() (Flags, Defaults) {
+	var extracted struct {
+		Flags    Flags    `json:"flags"`
+		Defaults Defaults `json:"defaults"`
+	}
+
+	err := Extract(operatorCUE.K8s, &extracted)
+	if err != nil {
+		panic(err)
+	}
+
+	return extracted.Flags, extracted.Defaults
+}
+
 // TODO who should be responsible for logging errors - these, or the calling functions? I've been inconsistent about it
 
 func (operatorCUE *OperatorCUE) UnifyWithMesh(mesh *v1alpha1.Mesh) {
@@ -152,7 +174,7 @@ func (operatorCUE *OperatorCUE) UnifyAndExtractSidecar(clusterLabel string) (con
 	return extracted.SidecarContainer.Container, extracted.SidecarContainer.Volumes, err
 }
 
-func (operatorCUE *OperatorCUE) UnifyAndExtractSidecarConfig(name string, port int) ([]json.RawMessage, []string, error) {
+func (operatorCUE *OperatorCUE) UnifyAndExtractSidecarConfig(name string, port int, sidecarList []string) (configObjects []json.RawMessage, kinds []string, err error) {
 
 	// Unify with Name and Port
 	injectNameAndPort := struct {
@@ -161,6 +183,10 @@ func (operatorCUE *OperatorCUE) UnifyAndExtractSidecarConfig(name string, port i
 	}{Name: name, Port: port}
 	withNameAndPort, _ := FromStruct("sidecar_config", injectNameAndPort)
 	unifiedValue := operatorCUE.GM.Unify(withNameAndPort) // bit overkill, but it shouldn't matter
+
+	// Unify with updated list of Redis' Spire subjects
+	withNewRedisSpireSubjects, _ := FromStruct("defaults", Defaults{RedisSpireSubjects: sidecarList})
+	unifiedValue = unifiedValue.Unify(withNewRedisSpireSubjects)
 	if err := unifiedValue.Err(); err != nil {
 		return nil, nil, fmt.Errorf("error while attempting to unify provided workload parameters with Grey Matter config CUE: %w", err)
 	}
@@ -174,14 +200,29 @@ func (operatorCUE *OperatorCUE) UnifyAndExtractSidecarConfig(name string, port i
 	var extracted struct {
 		SidecarConfig sidecarConfig `json:"sidecar_config"`
 	}
-	err := Extract(unifiedValue, &extracted)
+	err = Extract(unifiedValue, &extracted)
 	// Extract sidecar container and (spire) volume
 	if err != nil {
 		return nil, nil, fmt.Errorf("extraction from CUE failed after workload value unification: %w", err)
 	}
 
-	kinds := IdentifyGMConfigObjects(extracted.SidecarConfig.ConfigObjects)
-	return extracted.SidecarConfig.ConfigObjects, kinds, nil
+	// Extract new Redis listener
+	var extracted2 struct {
+		RedisListener json.RawMessage `json:"redis_listener"`
+	}
+	err = Extract(unifiedValue, &extracted2)
+	// Extract sidecar container and (spire) volume
+	if err != nil {
+		return nil, nil, fmt.Errorf("extraction from CUE failed after workload value unification: %w", err)
+	}
+
+	kinds = IdentifyGMConfigObjects(extracted.SidecarConfig.ConfigObjects)
+
+	// Just add the new redis listener and its kind to the list of config objects to be applied
+	allConfigObjects := append(extracted.SidecarConfig.ConfigObjects, extracted2.RedisListener)
+	kinds = append(kinds, "listener")
+
+	return allConfigObjects, kinds, nil
 }
 
 type justKeys struct {

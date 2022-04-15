@@ -26,7 +26,11 @@ type CLI struct {
 	*sync.RWMutex
 	client      *Client
 	operatorCUE *cuemodule.OperatorCUE
-	mTLSEnabled bool
+	mTLSEnabled bool // TODO: see if we still need this when it's now handled in the Spire flag
+
+	// List of sidecars in the mesh (including core components)
+	// currently only used for populating Spire subjects for Redis ingress
+	SidecarList []string
 }
 
 // New returns a new *CLI instance.
@@ -139,7 +143,8 @@ func (c *CLI) ConfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string, 
 		return
 	}
 
-	configObjects, kinds, err := operatorCUE.UnifyAndExtractSidecarConfig(name, injectedSidecarPort)
+	c.SidecarList = append(c.SidecarList, name)
+	configObjects, kinds, err := operatorCUE.UnifyAndExtractSidecarConfig(name, injectedSidecarPort, c.SidecarList)
 	if err != nil {
 		logger.Error(err, "Failed to unify or extract CUE", "name", name, "injectedSidecarPort", injectedSidecarPort)
 	}
@@ -170,10 +175,24 @@ func (c *CLI) UnconfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string
 		return
 	}
 
-	configObjects, kinds, err := operatorCUE.UnifyAndExtractSidecarConfig(name, injectedSidecarPort)
+	// filter out `name` from c.SidecarList before unifying it with the redis listener and getting new config to apply
+	var filtered []string
+	for _, sidecarName := range c.SidecarList {
+		if sidecarName != name {
+			filtered = append(filtered, sidecarName)
+		}
+	}
+	c.SidecarList = filtered
+	configObjects, kinds, err := operatorCUE.UnifyAndExtractSidecarConfig(name, injectedSidecarPort, c.SidecarList)
 	if err != nil {
 		logger.Error(err, "Failed to unify or extract CUE", "name", name, "injectedSidecarPort", injectedSidecarPort)
 	}
+
+	// HACK - This is kind of a silly way to get the redis listener out of here, but it lets me reuse UnifyAndExtractSidecarConfig as-is
+	redisListener := configObjects[len(configObjects)-1]
+	configObjects = configObjects[:len(configObjects)-1]
+	kinds = kinds[:len(kinds)-1]
+	c.client.ControlCmds <- MkApply("listener", redisListener)
 
 	UnApplyAll(c.client, configObjects, kinds)
 }

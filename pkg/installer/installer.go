@@ -47,14 +47,20 @@ type Installer struct {
 	// Container for all K8s and GM CUE cue.Values
 	OperatorCUE *cuemodule.OperatorCUE
 
+	// Root on disk of the operator CUE. Used for reloading the default configs on teardown
 	CueRoot string
 
 	// The cluster ingress domain
 	clusterIngressDomain string
+
+	// Flags loadable from CUE
+	Flags cuemodule.Flags
 }
 
 // New returns a new *Installer instance for installing Grey Matter components and dependencies.
 func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1alpha1.Mesh, cueRoot string, gmcli *cli.CLI, cfssl *cfsslsrv.CFSSLServer, clusterIngressName string) (*Installer, error) {
+	flags, defaults := operatorCUE.ExtractFlagsAndDefaults()
+	gmcli.SidecarList = defaults.RedisSpireSubjects
 	return &Installer{
 		CLI:                gmcli,
 		k8sClient:          c,
@@ -63,6 +69,7 @@ func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1al
 		OperatorCUE:        operatorCUE,
 		Mesh:               initialMesh,
 		CueRoot:            cueRoot,
+		Flags:              flags,
 	}, nil
 }
 
@@ -93,19 +100,16 @@ func (i *Installer) Start(ctx context.Context) error {
 			Namespace: "spire",
 		},
 	}
-	spireSecret, err = injectPKI(spireSecret, i.cfssl)
-	if err != nil {
-		logger.Error(err, "Error while attempting to apply spire server-ca secret", "secret object", spireSecret)
-		return err
-	}
-	k8sapi.Apply(i.k8sClient, spireSecret, i.owner, k8sapi.CreateOrUpdate)
 
-	// TODO bring this back when we re-enable spire and mTLS (but pull it into the new_structure CUE, and only apply if yes spire)
-	//// Ensure our cluster-scoped RBAC permissions and SPIRE resources are created.
-	//applyClusterRBAC(i.k8sClient, i.owner)
-	//if i.cfssl != nil {
-	//	applySpire(i.k8sClient, i.owner, i.cfssl)
-	//}
+	// TODO the operator itself can launch _all_ the Spire manifests, as before, after a check that they aren't already there.
+	if i.Flags.Spire {
+		spireSecret, err = injectPKI(spireSecret, i.cfssl)
+		if err != nil {
+			logger.Error(err, "Error while attempting to apply spire server-ca secret", "secret object", spireSecret)
+			return err
+		}
+		k8sapi.Apply(i.k8sClient, spireSecret, i.owner, k8sapi.CreateOrUpdate)
+	}
 
 	// TODO bring this back when you get to re-enabling (testing with) OpenShift
 	// Try to get the OpenShift cluster ingress domain if it exists.
@@ -117,12 +121,12 @@ func (i *Installer) Start(ctx context.Context) error {
 		i.clusterIngressDomain = clusterIngressDomain
 	}
 
-	// DEBUG Immediately apply the default mesh from the CUE
-	// TODO do we want to keep this, maybe with a flag in the CUE?
-	// Create it
+	// Immediately apply the default mesh from the CUE if the flag is set
 	go func() {
-		time.Sleep(100 * time.Second) // DEBUG - does this work if we wait long enough for it to register the webhooks?
-		k8sapi.Apply(i.k8sClient, i.Mesh, nil, k8sapi.CreateOrUpdate)
+		if i.Flags.AutoApplyMesh {
+			time.Sleep(100 * time.Second) // DEBUG - does this work if we wait long enough for it to register the webhooks?
+			k8sapi.Apply(i.k8sClient, i.Mesh, nil, k8sapi.CreateOrUpdate)
+		}
 	}()
 	//// Look it back up to get its ID (for use as an owner of other resources)
 	//meshList := &v1alpha1.MeshList{}
