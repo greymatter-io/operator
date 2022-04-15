@@ -27,7 +27,6 @@ Evaluate the kubernetes manifests using CUE:
 ```bash
 ( 
   cd pkg/cuemodule
-  cue eval -c ./k8s/outputs --out text -e spire_manifests_yaml | kubectl apply -f -
   cue eval -c ./k8s/outputs --out text -e operator_manifests_yaml | kubectl apply -f -
 )
 ```
