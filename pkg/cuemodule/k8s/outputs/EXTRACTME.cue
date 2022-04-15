@@ -5,14 +5,14 @@ package only
 
 import "encoding/yaml"
 
-k8s_manifests: controlensemble + catalog + redis + edge + dashboard
-operator_manifests: operator_namespace + operator_crd + operator_k8s // TODO rename
 spire_manifests: spire_namespace + spire_server + spire_agent
+operator_manifests: operator_namespace + operator_crd + operator_k8s + [for x in spire_manifests if flags.spire {x}] // HACK but cleaner than a pile of ifs
+k8s_manifests: controlensemble + catalog + redis + edge + dashboard
 
 // for CLI convenience
-k8s_manifests_yaml: yaml.MarshalStream(k8s_manifests)
 operator_manifests_yaml: yaml.MarshalStream(operator_manifests)
 spire_manifests_yaml: yaml.MarshalStream(spire_manifests)
+k8s_manifests_yaml: yaml.MarshalStream(k8s_manifests)
 
 // TODO this was only necessary because I don't know how to pass _Name into #sidecar_container_block
 // from Go. Then I decided to kill two birds with one stone and also put the sidecar_socket_volume in there.
