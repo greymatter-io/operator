@@ -15,8 +15,8 @@
 - Operator itself now runs as a StatefulSet rather than a Deployment.
 - One-Mesh/One-Operator - Multiple meshes require multiple operators (they do yet not play nicely
   together, but the target for multi-mesh support is to support graceful interop.)
-- For now, automatically deploys the default Mesh described in the CUE source shortly after startup.
-  Later, this will be an opt-in flag in the CUE itself so users can decide.
+- Opt-in flag that causes the operator to automatically deploy the default mesh defined in the CUE,
+  after a delay. Turn the flag off to manually deploy a Mesh CR.
 - Switch to ECDSA 256 certificates for speed and security.
 - Checked in `pkg/cuemodule/cue.mod/gen/k8s.io/`, the result of `cue get go k8s.io/api/...`,
   for the CI build.
