@@ -1,4 +1,4 @@
-package installer
+package mesh_install
 
 import (
 	"context"

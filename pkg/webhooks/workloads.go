@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/greymatter-io/operator/pkg/cli"
-	"github.com/greymatter-io/operator/pkg/installer"
+	"github.com/greymatter-io/operator/pkg/gmapi"
+	"github.com/greymatter-io/operator/pkg/mesh_install"
 	"github.com/greymatter-io/operator/pkg/wellknown"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -18,8 +18,8 @@ import (
 )
 
 type workloadDefaulter struct {
-	*installer.Installer
-	*cli.CLI
+	*mesh_install.Installer
+	*gmapi.CLI
 	*admission.Decoder
 }
 

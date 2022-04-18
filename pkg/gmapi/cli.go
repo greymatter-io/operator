@@ -1,7 +1,7 @@
-// Package cli executes greymatter CLI commands to configure mesh behavior
+// Package gmapi executes greymatter CLI commands to configure mesh behavior
 // in Control and Catalog APIs in each install namespace for each mesh.
 // It enables Mesh CR specifications to define how a mesh should be configured.
-package cli
+package gmapi
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	logger = ctrl.Log.WithName("cli")
+	logger = ctrl.Log.WithName("gmapi")
 )
 
 // CLI exposes methods for configuring clients that execute greymatter CLI commands.
@@ -26,7 +26,6 @@ type CLI struct {
 	*sync.RWMutex
 	client      *Client
 	operatorCUE *cuemodule.OperatorCUE
-	mTLSEnabled bool // TODO: see if we still need this when it's now handled in the Spire flag
 
 	// List of sidecars in the mesh (including core components)
 	// currently only used for populating Spire subjects for Redis ingress
@@ -35,7 +34,7 @@ type CLI struct {
 
 // New returns a new *CLI instance.
 // It receives a context for cleaning up goroutines started by the *CLI.
-func New(ctx context.Context, operatorCUE *cuemodule.OperatorCUE, mTLSEnabled bool) (*CLI, error) {
+func New(ctx context.Context, operatorCUE *cuemodule.OperatorCUE) (*CLI, error) {
 	v, err := cliversion()
 	if err != nil {
 		logger.Error(err, "Failed to initialize greymatter CLI")
@@ -48,7 +47,6 @@ func New(ctx context.Context, operatorCUE *cuemodule.OperatorCUE, mTLSEnabled bo
 		RWMutex:     &sync.RWMutex{},
 		client:      nil,
 		operatorCUE: operatorCUE,
-		mTLSEnabled: mTLSEnabled,
 	}
 
 	// Cancel all Client goroutines if package context is done.

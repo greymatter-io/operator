@@ -20,11 +20,10 @@ import (
 	"flag"
 	"fmt"
 	"github.com/greymatter-io/operator/api/v1alpha1"
-	"github.com/greymatter-io/operator/pkg/bootstrap"
 	"github.com/greymatter-io/operator/pkg/cfsslsrv"
-	"github.com/greymatter-io/operator/pkg/cli"
 	"github.com/greymatter-io/operator/pkg/cuemodule"
-	"github.com/greymatter-io/operator/pkg/installer"
+	"github.com/greymatter-io/operator/pkg/gmapi"
+	"github.com/greymatter-io/operator/pkg/mesh_install"
 	"github.com/greymatter-io/operator/pkg/webhooks"
 	"os"
 
@@ -37,10 +36,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	basecfg "k8s.io/component-base/config/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	cfg "sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	//+kubebuilder:scaffold:imports
@@ -61,7 +58,6 @@ func init() {
 
 // Global config flags
 var (
-	configPath string
 	cueRoot    string
 	zapDevMode bool
 	pprofAddr  string
@@ -76,7 +72,6 @@ func main() {
 
 func run() error {
 
-	flag.StringVar(&configPath, "configPath", "", "The operator will load its initial configuration from this file if defined.")
 	flag.StringVar(&cueRoot, "cueRoot", "", "Path to the CUE module with Grey Matter config. Defaults to the current working directory.")
 	flag.BoolVar(&zapDevMode, "zapDevMode", false, "Configure zap logger in development mode.")
 	flag.StringVar(&pprofAddr, "pprofAddr", ":1234", "Address for pprof server; has no effect on release builds")
@@ -98,31 +93,11 @@ func run() error {
 	options := ctrl.Options{
 		Scheme:                  scheme,
 		LeaderElection:          true,
-		LeaderElectionID:        "715805a0.greymatter.io",
+		LeaderElectionID:        "715805a0.greymatter.io", // TODO shouldn't this be generated?
 		LeaderElectionNamespace: "gm-operator",
 		Port:                    9443,
 		MetricsBindAddress:      ":8080",
 		HealthProbeBindAddress:  ":8081",
-	}
-
-	// Default bootstrap config values
-	defaultBootstrapConfig := bootstrap.BootstrapConfig{
-		// LeaderElection is required as an empty config since it cannot be nil.
-		ControllerManagerConfigurationSpec: cfg.ControllerManagerConfigurationSpec{
-			LeaderElection: &basecfg.LeaderElectionConfiguration{},
-		},
-		ClusterIngressName: "cluster",
-	}
-
-	// Attempt to read a configPath if one has been configured.
-	cfg := defaultBootstrapConfig
-	var err error
-	if configPath != "" {
-		options, err = options.AndFrom(ctrl.ConfigFile().AtPath(configPath).OfKind(&cfg))
-		if err != nil {
-			return fmt.Errorf("failed to load bootstrap config at path %s: %w", configPath, err)
-		}
-		logger.Info("Loaded bootstrap config", "Path", configPath)
 	}
 
 	// Start up our CFSSL server for issuing two certs:
@@ -140,8 +115,7 @@ func run() error {
 	ctx := ctrl.SetupSignalHandler()
 
 	// Initialize interface with greymatter CLI
-	// For now, mTLSEnabled is always true since we install SPIRE by default.
-	gmcli, err := cli.New(ctx, operatorCUE, true)
+	gmcli, err := gmapi.New(ctx, operatorCUE)
 	if err != nil {
 		return err
 	}
@@ -161,19 +135,19 @@ func run() error {
 		return fmt.Errorf("failed to initialize controller-manager: %w", err)
 	}
 
-	// Initialize manifests installer.
-	inst, err := installer.New(&c, operatorCUE, initialMesh, cueRoot, gmcli, cfssl, cfg.ClusterIngressName)
+	// Initialize manifests mesh_install.
+	inst, err := mesh_install.New(&c, operatorCUE, initialMesh, cueRoot, gmcli, cfssl)
 	if err != nil {
-		return fmt.Errorf("failed to initialize manifest installer: %w", err)
+		return fmt.Errorf("failed to initialize manifest mesh_install: %w", err)
 	}
 
 	// Initialize the webhooks loader.
-	wl, err := webhooks.New(&c, inst, gmcli, cfssl, cfg.DisableWebhookCertGeneration, mgr.GetWebhookServer)
+	wl, err := webhooks.New(&c, inst, gmcli, cfssl, mgr.GetWebhookServer)
 	if err != nil {
 		return err
 	}
 
-	// Register our webhooks loader and manifests installer into the controller manager's start process queue.
+	// Register our webhooks loader and manifests mesh_install into the controller manager's start process queue.
 	mgr.Add(wl)
 	mgr.Add(inst)
 

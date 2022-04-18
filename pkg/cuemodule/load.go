@@ -47,7 +47,7 @@ func LoadAll(cuemoduleRoot string) (*OperatorCUE, *v1alpha1.Mesh) {
 		panic(err)
 	}
 
-	// load default mesh and store it in installer. Later, one operator, one mesh.
+	// load default mesh and store it in mesh_install. Later, one operator, one mesh.
 	var extracted struct {
 		Mesh v1alpha1.Mesh `json:"mesh"`
 	}
@@ -59,17 +59,22 @@ func LoadAll(cuemoduleRoot string) (*OperatorCUE, *v1alpha1.Mesh) {
 	return operatorCUE, &extracted.Mesh
 }
 
-type Flags struct {
-	AutoApplyMesh bool `json:"auto_apply_mesh"`
-	Spire         bool `json:"spire"`
+type Config struct {
+	// Flags
+	Spire                bool `json:"spire"`
+	AutoApplyMesh        bool `json:"auto_apply_mesh"`
+	GenerateWebhookCerts bool `json:"generate_webhook_certs"`
+
+	// Values
+	ClusterIngressName string `json:"cluster_ingress_name"`
 }
 type Defaults struct {
 	RedisSpireSubjects []string `json:"redis_spire_subjects"`
 }
 
-func (operatorCUE *OperatorCUE) ExtractFlagsAndDefaults() (Flags, Defaults) {
+func (operatorCUE *OperatorCUE) ExtractFlagsAndDefaults() (Config, Defaults) {
 	var extracted struct {
-		Flags    Flags    `json:"flags"`
+		Config   Config   `json:"config"`
 		Defaults Defaults `json:"defaults"`
 	}
 
@@ -78,7 +83,7 @@ func (operatorCUE *OperatorCUE) ExtractFlagsAndDefaults() (Flags, Defaults) {
 		panic(err)
 	}
 
-	return extracted.Flags, extracted.Defaults
+	return extracted.Config, extracted.Defaults
 }
 
 // TODO who should be responsible for logging errors - these, or the calling functions? I've been inconsistent about it

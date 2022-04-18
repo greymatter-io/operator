@@ -15,8 +15,7 @@ CRD to manage mesh deployments in a Kubernetes cluster.
 
 Make sure you have fetched all necessary dependencies:
 ```bash
-./scripts/bootstrap # this makes sure you have the latest dependencies for the cue evaluation of manifests.
-```
+./scripts/bootstrap # checks that you have the latest dependencies for the cue evaluation of manifests.
 
 Create a Grey Matter namespace in your k8s cluster:
 ```bash

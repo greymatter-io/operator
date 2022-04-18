@@ -7,9 +7,9 @@ import (
 
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/greymatter-io/operator/pkg/cfsslsrv"
-	"github.com/greymatter-io/operator/pkg/cli"
-	"github.com/greymatter-io/operator/pkg/installer"
+	"github.com/greymatter-io/operator/pkg/gmapi"
 	"github.com/greymatter-io/operator/pkg/k8sapi"
+	"github.com/greymatter-io/operator/pkg/mesh_install"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,10 +30,9 @@ const (
 
 type Loader struct {
 	client.Client
-	*installer.Installer
-	*cli.CLI
+	*mesh_install.Installer
+	*gmapi.CLI
 	*cfsslsrv.CFSSLServer
-	noCertGen bool
 	getServer func() *webhook.Server
 	caBundle  []byte
 	cert      []byte
@@ -42,15 +41,14 @@ type Loader struct {
 
 func New(
 	cl *client.Client,
-	i *installer.Installer,
-	c *cli.CLI,
+	i *mesh_install.Installer,
+	c *gmapi.CLI,
 	cs *cfsslsrv.CFSSLServer,
-	noCertGen bool,
 	get func() *webhook.Server) (*Loader, error) {
 
-	wl := &Loader{Client: *cl, Installer: i, CLI: c, CFSSLServer: cs, noCertGen: noCertGen, getServer: get}
+	wl := &Loader{Client: *cl, Installer: i, CLI: c, CFSSLServer: cs, getServer: get}
 
-	if wl.noCertGen {
+	if !i.Config.GenerateWebhookCerts {
 		logger.Info("webhook server cert generation disabled; expecting webhook server certs to be mounted from external source")
 		return wl, nil
 	}
@@ -77,7 +75,7 @@ func New(
 func (wl *Loader) Start(ctx context.Context) error {
 
 	// If webhook cert generation is disabled, just register the webhook handlers and exit
-	if wl.noCertGen {
+	if !wl.Config.GenerateWebhookCerts {
 		wl.register()
 		return nil
 	}
