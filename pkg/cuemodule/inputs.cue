@@ -1,4 +1,5 @@
-// Contains nothing but the keys that need values from the outside. It is valuable to preserve the nearly flat, no-computation nature of this file
+// Contains keys that need values from the outside (i.e., from the Go) and defaults for each.
+// Intended to be the single place where values are injected from the Go, though it overlaps a bit with config.cue.
 
 package only
 
@@ -30,11 +31,6 @@ mesh: v1alpha1.#Mesh & {
   }
 }
 
-flags: {
-  auto_apply_mesh: bool | *true // apply the default mesh specified above after a delay // TODO, not actually used yet - implement
-  spire: bool | *true // enable Spire-based mTLS DEBUG - the default should be false
-}
-
 defaults: {
   image_pull_secret_name: string | *"gm-docker-secret"
   image_pull_policy: corev1.#enumPullPolicy | *corev1.#PullAlways
@@ -44,6 +40,7 @@ defaults: {
 
   // as new sidecars need to beacon metrics to Redis, this list will be updated dynamically
   // it is used in gm/outputs/redis.cue
+  // TODO I don't like that this gets *read* by the Go, but it's not in EXTRACTME
   redis_spire_subjects: [...string] | *["dashboard", "catalog", "controlensemble", "edge"]
 
 

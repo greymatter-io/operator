@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
-	"github.com/greymatter-io/operator/pkg/installer"
+	"github.com/greymatter-io/operator/pkg/mesh_install"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,7 +15,7 @@ import (
 )
 
 type meshDefaulter struct {
-	*installer.Installer
+	*mesh_install.Installer
 	*admission.Decoder
 }
 
@@ -41,7 +41,7 @@ func (md *meshDefaulter) Handle(ctx context.Context, req admission.Request) admi
 }
 
 type meshValidator struct {
-	*installer.Installer
+	*mesh_install.Installer
 	*admission.Decoder
 	ctrlclient.Client
 }

@@ -168,7 +168,7 @@ controlensemble: [
           port: 50000,
           targetPort: 50000
         },
-        { // HACK the operator needs direct access cli.go#66
+        { // HACK the operator needs direct access gmapi.go#66
           name: "controlapi",
           port: 5555,
           targetPort: 5555

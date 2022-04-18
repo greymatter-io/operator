@@ -57,7 +57,7 @@ import (
     }
   }
 
-  if flags.spire && _spire_self != _|_ {
+  if config.spire && _spire_self != _|_ {
     secret: #spire_secret & {
       // Expects _name and _subject to be passed in like so from above:
       // _spire_self: "dashboard"
@@ -87,7 +87,7 @@ import (
   if _upstream_port != _|_ {
     instances: [{ host: _upstream_host, port: _upstream_port }]
   } 
-  if flags.spire && _spire_other != _|_ {
+  if config.spire && _spire_other != _|_ {
     require_tls: true
     secret: #spire_secret & {
       // Expects _name and _subject to be passed in like so from above:

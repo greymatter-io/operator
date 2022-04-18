@@ -200,9 +200,6 @@ operator_k8s: [
         metadata: labels: name: "gm-operator"
         spec: {
           containers: [{
-            args: [
-              "--configPath=config/bootstrap_config.yaml",
-            ]
             command: [
               "/app/operator",
             ]
@@ -245,10 +242,6 @@ operator_k8s: [
               mountPath: "/tmp/k8s-webhook-server/serving-certs"
               name:      "webhook-cert"
               readOnly:  true
-            }, {
-              mountPath: "/app/config/bootstrap_config.yaml"
-              name:      "operator-config"
-              subPath:   "bootstrap_config.yaml"
             }]
           }]
           imagePullSecrets: []
@@ -268,9 +261,6 @@ operator_k8s: [
               }]
               secretName: "gm-webhook-cert"
             }
-          }, {
-            configMap: name: "gm-operator-config"
-            name: "operator-config"
           }]
         }
       }
@@ -578,19 +568,6 @@ operator_k8s: [
       name:      "gm-operator"
       namespace: "gm-operator"
     }]
-  },
-  corev1.#ConfigMap & {
-    apiVersion: "v1"
-    data: "bootstrap_config.yaml": """
-      disableWebhookCertGeneration: false
-
-      """
-
-    kind: "ConfigMap"
-    metadata: {
-      name:      "gm-operator-config"
-      namespace: "gm-operator"
-    }
   },
   corev1.#Secret & { // the values here get filled in programmatically by the operator
     apiVersion: "v1"

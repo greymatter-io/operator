@@ -9,6 +9,8 @@
   readability and malleability.
 - Operator Go now loads CUE generically, such that nearly all changes to deployment configuration
   require no changes to the Go.
+- Launch the operator with CUE-generated manifests, which also include the Spire manifests if the
+  spire config flag is set.
 - Deployment assist is now opt-in, with labels `"greymatter.io/inject-sidecar-to": "<port num>"`
   (default is to omit the label) and `"greymatter.io/configure-sidecar": "<boolean>"` (default
   "true".)
