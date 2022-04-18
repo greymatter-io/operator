@@ -39,8 +39,6 @@ type Installer struct {
 	owner *extv1.CustomResourceDefinition
 	// The Docker image pull secret to create in namespaces where core services are installed.
 	imagePullSecret *corev1.Secret
-	// The name of a configured cluster ingress name for OpenShift environments.
-	clusterIngressName string
 
 	// Container for THE mesh (on the way to an experimental 1:1 operator:mesh paradigm)
 	// Contains the default after load
