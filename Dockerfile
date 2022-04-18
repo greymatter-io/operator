@@ -30,7 +30,6 @@ WORKDIR /app
 COPY --from=builder /workspace/operator /app/operator
 COPY --from=builder /workspace/pkg/cuemodule/cue.mod /app/cue.mod
 COPY --from=builder /workspace/pkg/cuemodule/inputs.cue /app/inputs.cue
-COPY --from=builder /workspace/pkg/cuemodule/config.cue /app/config.cue
 COPY --from=builder /workspace/pkg/cuemodule/gm /app/gm
 COPY --from=builder /workspace/pkg/cuemodule/k8s /app/k8s
 COPY --from=builder /workspace/greymatter /bin/greymatter
