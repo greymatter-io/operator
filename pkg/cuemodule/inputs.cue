@@ -8,6 +8,16 @@ import (
   "github.com/greymatter-io/operator/api/v1alpha1"
 )
 
+config: {
+  // Flags
+  spire: bool | *true // enable Spire-based mTLS DEBUG - the default should be false
+  auto_apply_mesh: bool | *true // apply the default mesh specified above after a delay // TODO, not actually used yet - implement
+  generate_webhook_certs: bool | *true
+
+  // Values
+  cluster_ingress_name: "cluster" // For OpenShift deployments, this is used to look up the configured ingress domain
+}
+
 mesh: v1alpha1.#Mesh & {
   metadata: {
     name: string | *"mymesh"
