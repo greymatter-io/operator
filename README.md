@@ -25,13 +25,9 @@ kubectl create namespace greymatter
 Evaluate the kubernetes manifests using CUE: 
 ```bash
 ( 
-  cd pkg/cuemodule
-  cue eval -c ./k8s/outputs --out text -e operator_manifests_yaml | kubectl apply -f -
-)
-```
+cd pkg/cuemodule
+cue eval -c ./k8s/outputs --out text -e operator_manifests_yaml | kubectl apply -f -
 
-Create the necessary pull secret for the Grey Matter core services:
-```bash
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
   --docker-username=$GREYMATTER_REGISTRY_USERNAME \

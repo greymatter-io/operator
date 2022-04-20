@@ -11,7 +11,7 @@ import (
 config: {
   // Flags
   spire: bool | *true // enable Spire-based mTLS DEBUG - the default should be false
-  auto_apply_mesh: bool | *true // apply the default mesh specified above after a delay // TODO, not actually used yet - implement
+  auto_apply_mesh: bool | *true // apply the default mesh specified above after a delay
   generate_webhook_certs: bool | *true
 
   // Values
@@ -60,7 +60,8 @@ defaults: {
   }
 
   images: {
-      operator: string | *"docker.greymatter.io/internal/gm-operator:local_refactored"
+    // TODO this is not the default image we actually want for 1.0, so update this later
+    operator: string | *"docker.greymatter.io/internal/gm-operator:local_refactored"
   }
 
 }
