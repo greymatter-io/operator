@@ -59,7 +59,7 @@ type Installer struct {
 
 // New returns a new *Installer instance for installing Grey Matter components and dependencies.
 func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1alpha1.Mesh, cueRoot string, gmcli *gmapi.CLI, cfssl *cfsslsrv.CFSSLServer) (*Installer, error) {
-	config, defaults := operatorCUE.ExtractFlagsAndDefaults()
+	config, defaults := operatorCUE.ExtractConfigAndDefaults()
 	gmcli.SidecarList = defaults.RedisSpireSubjects
 	return &Installer{
 		CLI:         gmcli,
@@ -100,9 +100,8 @@ func (i *Installer) Start(ctx context.Context) error {
 		},
 	}
 
-	// TODO the operator itself can launch _all_ the Spire manifests, as before, after a check that they aren't already there.
 	if i.Config.Spire {
-		spireSecret, err = injectPKI(spireSecret, i.cfssl)
+		spireSecret, err = injectGeneratedCertificates(spireSecret, i.cfssl)
 		if err != nil {
 			logger.Error(err, "Error while attempting to apply spire server-ca secret", "secret object", spireSecret)
 			return err
@@ -192,7 +191,7 @@ func isSupportedKubernetesIngressClassPresent(c client.Client) bool {
 	return false
 }
 
-func injectPKI(secret *corev1.Secret, cs *cfsslsrv.CFSSLServer) (*corev1.Secret, error) {
+func injectGeneratedCertificates(secret *corev1.Secret, cs *cfsslsrv.CFSSLServer) (*corev1.Secret, error) {
 	root := cs.GetRootCA()
 	ca, caKey, err := cs.RequestIntermediateCA(csr.CertificateRequest{
 		CN:         "Grey Matter SPIFFE Intermediate CA",
