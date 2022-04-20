@@ -10,9 +10,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"os"
-	"path"
-	"runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -21,6 +18,8 @@ var (
 	logger = ctrl.Log.WithName("cuemodule")
 )
 
+// OperatorCUE holds the two top-level cue.Values that configure the operator,
+// according to the major split between K8s and GM configuration
 type OperatorCUE struct {
 	// cue.Value for all of k8s/outputs containing k8s manifest objects
 	K8s cue.Value
@@ -29,6 +28,7 @@ type OperatorCUE struct {
 	GM cue.Value
 }
 
+// LoadAll loads the provided CUE for configuring the operator into an OperatorCUE and a Mesh
 func LoadAll(cuemoduleRoot string) (*OperatorCUE, *v1alpha1.Mesh) {
 	//cwd, _ := os.Getwd()
 	allCUEInstances := load.Instances([]string{
@@ -59,6 +59,7 @@ func LoadAll(cuemoduleRoot string) (*OperatorCUE, *v1alpha1.Mesh) {
 	return operatorCUE, &extracted.Mesh
 }
 
+// Config represents the `config` struct from the operator CUE in inputs.cue
 type Config struct {
 	// Flags
 	Spire                bool `json:"spire"`
@@ -68,11 +69,15 @@ type Config struct {
 	// Values
 	ClusterIngressName string `json:"cluster_ingress_name"`
 }
+
+// Defaults represents select keys from the `defaults` struct in inputs.cue
 type Defaults struct {
 	RedisSpireSubjects []string `json:"redis_spire_subjects"`
 }
 
-func (operatorCUE *OperatorCUE) ExtractFlagsAndDefaults() (Config, Defaults) {
+// ExtractConfigAndDefaults pulls the values from the CUE into Go Config and Defaults structs in Go
+// for use in various places in the operator
+func (operatorCUE *OperatorCUE) ExtractConfigAndDefaults() (Config, Defaults) {
 	var extracted struct {
 		Config   Config   `json:"config"`
 		Defaults Defaults `json:"defaults"`
@@ -88,6 +93,7 @@ func (operatorCUE *OperatorCUE) ExtractFlagsAndDefaults() (Config, Defaults) {
 
 // TODO who should be responsible for logging errors - these, or the calling functions? I've been inconsistent about it
 
+// UnifyWithMesh unifies the operatorCUE with a Mesh CR to fill in values
 func (operatorCUE *OperatorCUE) UnifyWithMesh(mesh *v1alpha1.Mesh) {
 	meshValue, _ := FromStruct("mesh", mesh)
 	k8sManifestsValue := operatorCUE.K8s.Unify(meshValue)
@@ -115,6 +121,7 @@ func (operatorCUE *OperatorCUE) UnifyWithMesh(mesh *v1alpha1.Mesh) {
 
 // K8s Manifests
 
+// ExtractCoreK8sManifests extracts the K8s manifests for a mesh from the top-level array in the k8s/outputs/EXTRACTME.cue
 func (operatorCUE *OperatorCUE) ExtractCoreK8sManifests() (manifestObjects []client.Object, err error) {
 
 	// Extract correct K8s config for options - for now there's only one
@@ -127,12 +134,13 @@ func (operatorCUE *OperatorCUE) ExtractCoreK8sManifests() (manifestObjects []cli
 		return nil, err
 	}
 
-	manifestObjects = ExtractK8sManifestObjects(extracted.K8sManifests)
+	manifestObjects = ExtractAndTypeK8sManifestObjects(extracted.K8sManifests)
 	return manifestObjects, nil
 }
 
 // Mesh Configs
 
+// ExtractCoreMeshConfigs extracts the GM config objects for a mesh from the top-level array in the gm/outputs/EXTRACTME.cue
 func (operatorCUE *OperatorCUE) ExtractCoreMeshConfigs() (meshConfigs []json.RawMessage, kinds []string, err error) {
 	var extracted struct {
 		MeshConfigs []json.RawMessage `json:"mesh_configs"`
@@ -147,6 +155,9 @@ func (operatorCUE *OperatorCUE) ExtractCoreMeshConfigs() (meshConfigs []json.Raw
 }
 
 // Deployment assist sidecar K8s and GM
+
+// UnifyAndExtractSidecar unifies the cluster meant for a deployment with the CUE for a to-be-injected sidecar,
+// and extracts the K8s manifest components to be injected
 func (operatorCUE *OperatorCUE) UnifyAndExtractSidecar(clusterLabel string) (container corev1.Container, volumes []corev1.Volume, err error) {
 	// By this point, we can assume GM has *already* been unified with THE mesh that this operator manages,
 	// when the mesh was created.
@@ -179,6 +190,9 @@ func (operatorCUE *OperatorCUE) UnifyAndExtractSidecar(clusterLabel string) (con
 	return extracted.SidecarContainer.Container, extracted.SidecarContainer.Volumes, err
 }
 
+// UnifyAndExtractSidecarConfig unifies a name, port, and sidecarList (a list of *all sidecars that need an egress to
+// Redis for health checks*) with the Grey Matter sidecar condfiguration CUE for injected sidecars, and returns those
+// configuration objects, along with their kinds (e.g., listener, cluster, etc.)
 func (operatorCUE *OperatorCUE) UnifyAndExtractSidecarConfig(name string, port int, sidecarList []string) (configObjects []json.RawMessage, kinds []string, err error) {
 
 	// Unify with Name and Port
@@ -239,6 +253,7 @@ type justKeys struct {
 	ServiceID   string `json:"service_id"` // CatalogService
 }
 
+// IdentifyGMConfigObjects takes a list of raw objects and identifies them as particular GreyMatter config object types
 func IdentifyGMConfigObjects(rawObjects []json.RawMessage) (kinds []string) {
 	var extracted2 justKeys
 
@@ -264,7 +279,9 @@ func IdentifyGMConfigObjects(rawObjects []json.RawMessage) (kinds []string) {
 	return kinds
 }
 
-func ExtractK8sManifestObjects(manifests []json.RawMessage) (manifestObjects []client.Object) {
+// ExtractAndTypeK8sManifestObjects takes a list of raw k8s manifest objects, determines their types, and unmarshals
+// each one into an object of the correct type.
+func ExtractAndTypeK8sManifestObjects(manifests []json.RawMessage) (manifestObjects []client.Object) {
 
 	var ke struct {
 		Kind string `json:"kind"`
@@ -331,43 +348,43 @@ func ExtractK8sManifestObjects(manifests []json.RawMessage) (manifestObjects []c
 	return manifestObjects
 }
 
-// TODO remove old stuff once we've adjusted the tests vvvvv
-
-// Loader loads a package from our CUE module.
-type Loader func(string) (cue.Value, error)
-
-// LoadPackage loads a package from our Cue module.
-// Packages are added to subdirectories and declared with the same name as the subdirectory.
-func LoadPackage(pkgName string) (cue.Value, error) {
-	dirPath, err := os.Getwd()
-	if err != nil {
-		return cue.Value{}, err
-	}
-
-	return loadPackage(pkgName, dirPath)
-}
-
-// LoadPackageForTest loads a package from our Cue module within a test context.
-func LoadPackageForTest(pkgName string) (cue.Value, error) {
-	_, filename, _, _ := runtime.Caller(0)
-	dirPath := path.Dir(filename)
-
-	return loadPackage(pkgName, dirPath)
-}
-
-func loadPackage(pkgName, dirPath string) (cue.Value, error) {
-	instances := load.Instances([]string{"greymatter.io/operator/" + pkgName}, &load.Config{
-		ModuleRoot: dirPath,
-	})
-
-	if len(instances) != 1 {
-		return cue.Value{}, fmt.Errorf("did not load expected package %s", pkgName)
-	}
-
-	value := cuecontext.New().BuildInstance(instances[0])
-	if err := value.Err(); err != nil {
-		return cue.Value{}, err
-	}
-
-	return value, nil
-}
+//// TODO remove old stuff once we've adjusted the tests vvvvv
+//
+//// Loader loads a package from our CUE module.
+//type Loader func(string) (cue.Value, error)
+//
+//// LoadPackage loads a package from our Cue module.
+//// Packages are added to subdirectories and declared with the same name as the subdirectory.
+//func LoadPackage(pkgName string) (cue.Value, error) {
+//	dirPath, err := os.Getwd()
+//	if err != nil {
+//		return cue.Value{}, err
+//	}
+//
+//	return loadPackage(pkgName, dirPath)
+//}
+//
+//// LoadPackageForTest loads a package from our Cue module within a test context.
+//func LoadPackageForTest(pkgName string) (cue.Value, error) {
+//	_, filename, _, _ := runtime.Caller(0)
+//	dirPath := path.Dir(filename)
+//
+//	return loadPackage(pkgName, dirPath)
+//}
+//
+//func loadPackage(pkgName, dirPath string) (cue.Value, error) {
+//	instances := load.Instances([]string{"greymatter.io/operator/" + pkgName}, &load.Config{
+//		ModuleRoot: dirPath,
+//	})
+//
+//	if len(instances) != 1 {
+//		return cue.Value{}, fmt.Errorf("did not load expected package %s", pkgName)
+//	}
+//
+//	value := cuecontext.New().BuildInstance(instances[0])
+//	if err := value.Err(); err != nil {
+//		return cue.Value{}, err
+//	}
+//
+//	return value, nil
+//}
