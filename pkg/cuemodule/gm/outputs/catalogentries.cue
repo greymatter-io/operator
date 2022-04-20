@@ -53,7 +53,7 @@ catalog_entries: [
 	#CatalogService & {
 		name:              "Grey Matter Catalog"
 		mesh_id: mesh.metadata.name
-		service_id: "catalog" // Catalog lives behind the controlensemble sidecar, for the moment
+		service_id: "catalog"
 		version:         strings.Split(mesh.spec.images.catalog, ":")[1]
 		description:       "Interfaces with the control plane to expose the current state of the mesh."
 		api_endpoint:      "/services/catalog/"
