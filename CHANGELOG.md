@@ -18,6 +18,7 @@
 - For now, automatically deploys the default Mesh described in the CUE source shortly after startup.
   Later, this will be an opt-in flag in the CUE itself so users can decide.
 - Switch to ECDSA 256 certificates for speed and security.
+- Checked in `pkg/cuemodule/cue.mod/gen/k8s.io/` for CI build.
 
 ### Added
 
