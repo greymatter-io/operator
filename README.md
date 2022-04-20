@@ -16,10 +16,6 @@ CRD to manage mesh deployments in a Kubernetes cluster.
 Make sure you have fetched all necessary dependencies:
 ```bash
 ./scripts/bootstrap # checks that you have the latest dependencies for the cue evaluation of manifests.
-
-Create a Grey Matter namespace in your k8s cluster:
-```bash
-kubectl create namespace greymatter
 ```
 
 Evaluate the kubernetes manifests using CUE: 
@@ -34,6 +30,7 @@ kubectl create secret docker-registry gm-docker-secret \
   --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
   --docker-email=$GREYMATTER_REGISTRY_USERNAME \
   -n gm-operator
+)
 ```
 > HINT: Your username and password are your Grey Matter credentials.
 
