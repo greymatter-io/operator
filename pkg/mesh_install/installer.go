@@ -121,21 +121,18 @@ func (i *Installer) Start(ctx context.Context) error {
 	// Immediately apply the default mesh from the CUE if the flag is set
 	go func() {
 		if i.Config.AutoApplyMesh {
-			time.Sleep(100 * time.Second) // DEBUG - does this work if we wait long enough for it to register the webhooks?
-			k8sapi.Apply(i.k8sClient, i.Mesh, nil, k8sapi.CreateOrUpdate)
+			logger.Info("Waiting 30 seconds to apply loaded default Mesh resource to cluster.")
+			time.Sleep(30 * time.Second) // Sleep for an arbitrary initial duration
+			for {
+				err := k8sapi.Apply(i.k8sClient, i.Mesh, nil, k8sapi.CreateOrUpdate)
+				if err == nil {
+					break
+				}
+				logger.Info("Temporary failure to apply Mesh resource. Will retry in 10 seconds.")
+				time.Sleep(10 * time.Second)
+			}
 		}
 	}()
-	//// Look it back up to get its ID (for use as an owner of other resources)
-	//meshList := &v1alpha1.MeshList{}
-	//if err := i.k8sClient.List(context.TODO(), meshList); err != nil {
-	//	return err
-	//}
-	//if len(meshList.Items) > 0 {
-	//	for _, mesh := range meshList.Items {
-	//		i.Mesh = &mesh
-	//	}
-	//	go i.ApplyMesh(nil, i.Mesh)
-	//}
 
 	return nil
 }

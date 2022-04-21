@@ -24,7 +24,7 @@ type ActionFunc func(client.Client, client.Object) (string, error)
 // Apply is a functional interface for interacting with the K8s apiserver in a consistent way.
 // Each sigs.k8s.io/controller-runtime/pkg/client.Object argument must implement the necessary
 // Reader/Writer interfaces implemented by sigs.k8s.io/controller-runtime/pkg/client.Client.
-func Apply(c *client.Client, obj, owner client.Object, action ActionFunc) {
+func Apply(c *client.Client, obj, owner client.Object, action ActionFunc) error {
 	scheme := (*c).Scheme()
 
 	var kind string
@@ -40,7 +40,7 @@ func Apply(c *client.Client, obj, owner client.Object, action ActionFunc) {
 		ownerName = client.ObjectKeyFromObject(owner).Name
 		if err := controllerutil.SetOwnerReference(owner, obj, scheme); err != nil {
 			logger.Error(err, "Failed to set owner reference", "Owner", ownerName, kind, client.ObjectKeyFromObject(obj))
-			return
+			return err
 		}
 	}
 
@@ -51,7 +51,7 @@ func Apply(c *client.Client, obj, owner client.Object, action ActionFunc) {
 		} else {
 			logger.Error(err, act, kind, client.ObjectKeyFromObject(obj))
 		}
-		return
+		return err
 	}
 
 	if ownerName != "" {
@@ -59,6 +59,7 @@ func Apply(c *client.Client, obj, owner client.Object, action ActionFunc) {
 	} else {
 		logger.Info(act, kind, client.ObjectKeyFromObject(obj))
 	}
+	return nil
 }
 
 // CreateOrUpdate is an Action that applies a resource in the K8s apiserver.
