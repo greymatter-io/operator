@@ -102,13 +102,14 @@ steps:
       - scripts/cibuild wait_for_k3s
       - buildkite-agent artifact download \"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /tmp/
       - mv /tmp/\"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /opt/k3s-import/
-      - ( cd pkg/cuemodule && cue eval -c ./k8s/outputs --out text -e operator_manifests_yaml | kubectl apply -f - )
+      - ( cd pkg/cuemodule && cue eval -c ./k8s/outputs -t operator_image='docker.greymatter.io/development/gm-operator:latest' --out text -e operator_manifests_yaml | kubectl apply -f - )
       - scripts/cibuild create_image_pull_secret gm-docker-secret gm-operator
-      # TODO: get rid of this sleep
-      - sleep 480
-      - k3s kubectl get pods -A
+      # TODO remove this sleep
+      - sleep 500
+      # - k3s kubectl get pods -A
       # - KUBECTL_CMD='k3s kubectl' ./scripts/test crd
       - k3s kubectl get pods -A
+      - k3s kubectl logs -n gm-operator sts/gm-operator
       - sudo systemctl poweroff
     agents:
       buildkite_build_number: $BUILDKITE_BUILD_NUMBER

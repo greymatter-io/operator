@@ -61,7 +61,7 @@ defaults: {
 
   images: {
     // TODO this is not the default image we actually want for 1.0, so update this later
-    operator: string | *"docker.greymatter.io/internal/gm-operator:local_refactored"
+    operator: string | *"docker.greymatter.io/internal/gm-operator:local_refactored" @tag(operator_image) // cibuild uses the tag
   }
 
 }
