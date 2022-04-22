@@ -1,9 +1,16 @@
 steps:
-  - label: ":shipit: build and release"
+  - label: "run unit tests"
     agents:
       container_image: ubuntu-2110-ci
     commands: 
+      - ./scripts/cibuild bootstrap
       - ./scripts/cibuild test
+  - wait
+  - label: ":shipit: build and release"
+    agents:
+      container_image: ubuntu-2110-ci
+    commands:
+      - ./scripts/cibuild bootstrap
       - ./scripts/cibuild build
       - ./scripts/cibuild export_container "${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar" "docker.greymatter.io/development/gm-operator:latest"
       - ./scripts/cibuild release
@@ -12,8 +19,6 @@ steps:
         - exit_status: "*"
           limit: 2
   - wait
-  - label: "launch ec2 and run integration tests"
+  - label: "run integration tests"
     commands:
-      - ./scripts/cibuild launch_k3s
-      - ./scripts/cibuild generate_integration_pipeline | buildkite-agent pipeline upload
-
+      - ./scripts/cibuild generate_integration_tests

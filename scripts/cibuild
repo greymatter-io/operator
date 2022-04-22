@@ -2,10 +2,8 @@
 
 set -e
 
-cmd_test () {
+cmd_bootstrap () {
   go mod vendor
-  ./scripts/test lint
-
   (
     cd ./pkg/cuemodule/cue.mod
     cue get go github.com/greymatter-io/operator/api/...
@@ -13,9 +11,15 @@ cmd_test () {
   )
 
   git submodule update --init --recursive --remote
+}
+
+# Runs go tests
+cmd_test () {
+  ./scripts/test lint
   ./scripts/test
 }
 
+# Polls the ec2 for k3s ready state
 cmd_wait_for_k3s () {
   set +e #allow errors temporarily
   echo "Waiting for k3s to become available"
@@ -32,6 +36,7 @@ cmd_wait_for_k3s () {
   set -e
 }
 
+# Creates image secrets inside k3s cluster
 cmd_create_image_pull_secret () {
   set -u
   local name=$1
@@ -44,12 +49,14 @@ cmd_create_image_pull_secret () {
   set +u
 }
 
+# Builds docker image
 cmd_build () {
   # Login to Nexus in order to add the greymatter CLI to the image.
   container-registry-login $NEXUS_USER $NEXUS_PASS
   _build_image "docker.greymatter.io/development/gm-operator:latest" "Dockerfile"
 }
 
+# Build docker image helper
 _build_image () {
   local tag=$1
   local dockerfile=$2
@@ -58,6 +65,7 @@ _build_image () {
   buildah bud $build_args -t "${tag}" --layers -f ${dockerfile} .
 }
 
+# Logs into Nexus, checks if CI is running during a tag release or merge into main and if so pushes assets
 _release_container () {
   container-registry-login $NEXUS_USER $NEXUS_PASS
   local latest="docker.greymatter.io/development/gm-operator:latest"
@@ -71,6 +79,7 @@ _release_container () {
   fi
 }
 
+# Exports docker image into tar
 cmd_export_container () {
   local tarball=$1
   local tag=$2
@@ -78,7 +87,7 @@ cmd_export_container () {
   buildkite-agent artifact upload $tarball
 }
 
-# Build and push an OLM-compatible image of manifests for easy 
+# Build and push an OLM-compatible image of manifests for easy
 # installation in OpenShift cluster contexts.
 _release_bundle() {
   if [[ -n "$BUILDKITE_TAG" ]]; then
@@ -92,40 +101,48 @@ _release_bundle() {
   fi
 }
 
-cmd_generate_integration_pipeline () {
-  # meant to be piped to buildkite-agent
-  echo "
+# Creates the dynamic pipeline that starts up the greymatter mesh environment
+#  in the ephemeral ec2s. The output of the echo commands runs on the ec2, not the original machine running the rest of the pipeline.
 
-steps:
-  - label: \"k3s integration test\"
+cmd_generate_integration_tests () {
+  declare steps_yaml
+  cases=('default' 'no_spire' 'tear_down')
+
+  for C in "${cases[@]}"; do
+    launch_cluster $C
+    steps_yaml+=("""
+  - label: \"integration test: $C\"
     commands:
       - scripts/cibuild wait_for_k3s
       - buildkite-agent artifact download \"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /tmp/
       - mv /tmp/\"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /opt/k3s-import/
-      - ( cd pkg/cuemodule && cue eval -c ./k8s/outputs -t operator_image='docker.greymatter.io/development/gm-operator:latest' --out text -e operator_manifests_yaml | kubectl apply -f - )
+      - k3s kubectl create namespace gm-operator
       - scripts/cibuild create_image_pull_secret gm-docker-secret gm-operator
-      # TODO remove this sleep
-      - sleep 500
-      # - k3s kubectl get pods -A
-      # - KUBECTL_CMD='k3s kubectl' ./scripts/test crd
+      - sleep 5
+      - KUBECTL_CMD='k3s kubectl' ./scripts/test integration $C
       - k3s kubectl get pods -A
-      - k3s kubectl logs -n gm-operator sts/gm-operator
       - sudo systemctl poweroff
     agents:
       buildkite_build_number: $BUILDKITE_BUILD_NUMBER
       buildkite_pipeline_slug: $BUILDKITE_PIPELINE_SLUG
-
-"
+      integration_test_case: $C""")
+  done
+  echo "
+steps: ${steps_yaml[@]}
+  " | buildkite-agent pipeline upload
 }
 
-cmd_launch_k3s () {
+# Sends a POST request to a relay.sh webhook which triggers a process to spin up k3s cluster running on an ec2
+launch_cluster () {
   # The tags payload will set EC2 tags that should be picked up by buildkite-agent
   # running in the new EC2.
-  curl -X POST \
-    -d "{ \"tags\": { \"buildkite_pipeline_slug\": \"$BUILDKITE_PIPELINE_SLUG\", \"buildkite_build_number\": \"$BUILDKITE_BUILD_NUMBER\" }}" \
-    "$RELAYSH_LAUNCH_K3S_EC2_WEBHOOK" 
+  test_case=$1
+  curl -sSL -X POST \
+    -d "{ \"tags\": { \"buildkite_pipeline_slug\": \"$BUILDKITE_PIPELINE_SLUG\", \"buildkite_build_number\": \"$BUILDKITE_BUILD_NUMBER\", \"integration_test_case\": \"$test_case\"}}" \
+    "$RELAYSH_LAUNCH_K3S_EC2_WEBHOOK"
 }
 
+# Releases the docker iamge and binaries if pipeline is running in the correct context
 cmd_release () {
   _release_container
   _release_bundle
@@ -140,7 +157,7 @@ fi
 CMD=$1
 shift
 case $CMD in
-  test|build|release|launch_k3s|generate_integration_pipeline|wait_for_k3s|export_container|create_image_pull_secret)
+  test|build|release|generate_integration_tests|wait_for_k3s|export_container|create_image_pull_secret|bootstrap)
     cmd_$CMD $@
     ;;
   *)

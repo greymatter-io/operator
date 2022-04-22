@@ -1,6 +1,8 @@
 #!/bin/bash
 
-set -e
+
+declare -A pods=( [control]='greymatter.io/cluster=controlensemble' [catalog]='greymatter.io/cluster=catalog' [edge]='greymatter.io/cluster=edge' \
+    [redis]='greymatter.io/cluster=redis' [dashboard]='greymatter.io/cluster=dashboard' [edge svc]=' app=svclb-edge')
 
 test_lint () {
   staticcheck ./...
@@ -16,14 +18,46 @@ test_help () {
   echo "  ./scripts/test [help|fast|lint|crd]"
 }
 
-# This command expects the greymatter namespace to exist
-# and the image pull secret to be created.
-test_crd () {
-  if [[ -z $KUBECTL_CMD ]]; then
-    echo "defaulting KUBECTL_CMD to \"kubectl\""
-    KUBECTL_CMD="kubectl"
+_wait_for_resouce() {
+  selector=$1
+  namespace=$2
+  timeout=$3
+  if [ -z $3 ]; then
+    timeout=300
   fi
-  echo "
+
+  while [ "$($KUBECTL_CMD get -n ${namespace} pods --selector ${selector} -o jsonpath='{.items[*].status.containerStatuses[0].ready}')" != "true" ]; do
+    if [ $timeout -eq 0 ]; then
+      echo "Failed while waiting for ${pod}: pod timed out"
+      exit 1
+    fi
+
+    timeout=$(($timeout-5))
+    sleep 5
+  done
+}
+
+install_operator () {
+  tags=$1
+  ( cd pkg/cuemodule && cue eval -c ./k8s/outputs -t operator_image='docker.greymatter.io/development/gm-operator:latest' $tags  --out text -e operator_manifests_yaml | kubectl apply -f - )
+}
+
+test_no_mesh() {
+  echo "===> Test Case ${FUNCNAME[0]}"
+
+  if [ $($KUBECTL_CMD get -n greymatter Mesh -o=jsonpath='{.items}' | jq 'length') -gt 0 ]; then
+    echo "TEST ${FUNCNAME[0]} FAILED: Mesh CRD exists"
+    exit 1
+  fi
+
+  echo
+  echo "Test ${FUNCNAME[0]}............PASSED"
+}
+
+test_install_remove_mesh () {
+  echo "===> Test Case ${FUNCNAME[0]}"
+
+  echo """
 apiVersion: greymatter.io/v1alpha1
 kind: Mesh
 metadata:
@@ -33,23 +67,213 @@ spec:
   zone: default-zone
   install_namespace: greymatter
   watch_namespaces:
-    - default
-  image_pull_secrets:
-    - gm-docker-secret
-  images:
-    control: docker.greymatter.io/development/gm-control:latest
-" | $KUBECTL_CMD apply -f -
+  - default
+""" | $KUBECTL_CMD apply -f -
 
-  sleep 10
-  echo "Waiting for gm-control"
-  set +e
-  $KUBECTL_CMD wait --namespace greymatter --for condition=ready pod \
-    --selector "greymatter.io/component=control" --timeout 120s
-  set -e
-  echo "Final pod list"
-  $KUBECTL_CMD get pods -A
+  test_mesh_startup
 
+  test_reachable_mesh
+
+  pids=()
+  for pod in "${!pods[@]}"; do
+    $KUBECTL_CMD wait pod --for=delete --timeout=120s --selector ${pods[$pod]} &
+    pids+=($!)
+  done
+  $KUBECTL_CMD wait namespace/greymatter --for=delete --timeout=120s &
+  pids+=($!)
+
+  $KUBECTL_CMD delete Mesh mesh-sample
+  wait "${pids[@]}"
+
+  if [ $? -gt 0 ]; then
+    echo "TEST ${FUNCNAME[0]} FAILED: pods were not cleaned up after mesh teardown"
+  fi
+
+  test_no_mesh
+
+    echo """
+apiVersion: greymatter.io/v1alpha1
+kind: Mesh
+metadata:
+  name: new-mesh
+spec:
+  release_version: '1.7'
+  zone: default-zone
+  install_namespace: greymatter
+  watch_namespaces:
+  - default
+""" | $KUBECTL_CMD apply -f -
+
+  $KUBECTL_CMD get -n greymatter Mesh | grep -q "new-mesh"
+  if [ $? -gt 0 ]; then
+    echo "TEST ${FUNCNAME[0]} FAILED: new mesh resource not found"
+    exit 1
+  fi
+  test_mesh_startup
+
+  echo
+  echo "Test ${FUNCNAME[0]}............PASSED"
 }
+
+test_no_spire() {
+  echo "===> Test Case ${FUNCNAME[0]}"
+
+  $KUBECTL_CMD get pods -A | grep -q "spire"
+
+  if [ $? -eq 0 ]; then
+    echo "TEST ${FUNCNAME[0]} FAILED: spire installation was detected"
+    exit 1
+  fi
+
+  echo
+  echo "Test ${FUNCNAME[0]}............PASSED"
+}
+
+test_operator_install() {
+  echo "==> Test Case ${FUNCNAME[0]}"
+
+  echo "Waiting for operator..."
+  _wait_for_resouce 'name=gm-operator' 'gm-operator' &
+
+  wait $!
+
+  if [ $? -gt 0 ]; then
+    echo "TEST ${FUNCNAME[0]} FAILED. \noperator install: timed out"
+    exit 1
+  fi
+
+  $KUBECTL_CMD logs -n gm-operator sts/gm-operator > operator_logs.txt 
+  buildkite-agent artifact upload operator_logs.txt
+
+  echo
+  echo "Test ${FUNCNAME[0]}............PASSED"
+}
+
+test_mesh_startup() {
+  echo "==> Test Case ${FUNCNAME[0]}"
+
+  declare pids=()
+
+  for pod in "${!pods[@]}"; do
+    echo "Waiting for ${pod}..."
+    _wait_for_resouce ${pods[$pod]} 'greymatter' &
+    pids+=($!)
+  done
+  wait "${pids[@]}"
+
+  if [ $? -gt 0 ];  then
+    echo "TEST ${FUNCNAME[0]} FAILED"
+    exit 1
+  fi
+
+  echo
+  echo "Test ${FUNCNAME[0]}............PASSED"
+}
+
+test_reachable_mesh() {
+  curl_retry() {
+    url=$1
+    timeout=120
+    retry="true"
+    result=""
+    while [ $retry = "true" ]; do
+      if [ $timeout -eq 0 ]; then
+        echo "could not reach $url: timed out"
+        return 1
+      fi
+
+      result=$(curl -4 -sSLf -D - -o /dev/null $url)
+      err=$?
+      if [ $err -gt 0 ]; then
+        sleep 10
+        timeout=$(($timeout-10))
+      else 
+        retry="false"
+      fi
+    done
+    echo $result
+  }
+
+  echo "==> Test Case ${FUNCNAME[0]}"
+
+  PORT=$(kubectl get -n greymatter svc --output=jsonpath="{.spec.ports[0].nodePort}" edge)
+  echo
+  echo "Trying Dashboard..."
+
+  curl_retry "http://localhost:$PORT"
+  if [ $? -gt 0 ]; then
+    echo "TEST ${FUNCNAME[0]} FAILED."
+    echo "An error occured while attempting to access the dashboard"
+    exit 1
+  fi
+
+  echo "Successfully reached Dashboard"
+  
+  echo
+  echo "Trying control..."
+  res=$( curl_retry "http://localhost:$PORT/services/control-api/v1.0/zone")
+  echo $res
+  echo $res | grep -q "content-type: application/json"
+  if [ $? -gt 0 ]; then
+    echo "TEST ${FUNCNAME[0]} FAILED."
+    echo "Control was unreachable or did not return the correct response from GET /zone"
+    exit 1
+  fi
+  echo "Successfully reached Control"
+
+  echo
+  echo "Trying Catalog..."
+  res=$( curl_retry "http://localhost:$PORT/services/catalog/summary")
+  echo $res | grep -q 'content-type: application/json'
+  if [ $? -gt 0 ]; then
+    echo "TEST ${FUNCNAME[0]} FAILED."
+    echo "Catalog was unreachable or did not return the correct response from GET /summary"
+    exit 1
+  fi
+  echo "Successfully reached Catalog"
+
+  echo
+  echo "Test ${FUNCNAME[0]}............PASSED"
+}
+
+test_integration() {
+  TEST=$1
+  case $TEST in
+    default)
+      install_operator
+      test_operator_install
+      test_mesh_startup
+      test_reachable_mesh
+      ;;
+    no_spire)
+      install_operator "-t spire=false"
+      test_operator_install
+      test_no_spire
+      test_mesh_startup
+      test_reachable_mesh
+      ;;
+    tear_down)
+      install_operator "-t auto_apply_mesh=false"
+      test_operator_install
+      test_no_mesh
+      test_install_remove_mesh
+      # TODO: re-instate after config refresh bug is fixed
+      # test_reachable_mesh
+    ;;
+    *) 
+      echo "invalid argument $TEST"
+      exit 1
+      ;;
+  esac
+
+  echo
+  echo "ALL TESTS COMPLETED"
+}
+
+if [[ -z $KUBECTL_CMD ]]; then
+    echo "defaulting KUBECTL_CMD to \"kubectl\""
+    KUBECTL_CMD="kubectl"
+fi
 
 if [ $# -eq 0 ]; then
   test_fast
@@ -57,7 +281,7 @@ else
   ARG=$1
   shift
   case $ARG in
-  crd|lint|fast|help)
+  crd|lint|fast|integration|help)
     test_$ARG $@
     ;;
   *)
