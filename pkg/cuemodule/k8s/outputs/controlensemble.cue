@@ -94,18 +94,6 @@ controlensemble: [
           serviceAccountName: "gm-control"
         }
       }
-      volumeClaimTemplates: [
-        {
-          apiVersion: "v1"
-          kind: "PersistentVolumeClaim"
-          metadata: name: "gm-redis-append-dir-\(mesh.metadata.name)"
-          spec: {
-            accessModes: ["ReadWriteOnce"],
-            resources: requests: storage: "1Gi"
-            volumeMode: "Filesystem"
-          }
-        }
-      ]
     }
   },
 
