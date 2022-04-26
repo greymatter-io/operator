@@ -28,9 +28,9 @@ mesh: v1alpha1.#Mesh & {
     release_version: string | *"1.7" // no longer does anything, for the moment
     zone: string | *"default-zone"
     images: { // TODO start with defaults from below
-      proxy: string | *"docker.greymatter.io/release/gm-proxy:1.7.0-rc.4"
-      catalog: string | *"docker.greymatter.io/release/gm-catalog:3.0.0-rc.3"
-      dashboard: string | *"docker.greymatter.io/release/gm-dashboard:6.0.0-rc.2"
+      proxy: string | *"docker.greymatter.io/release/gm-proxy:1.7.0"
+      catalog: string | *"docker.greymatter.io/release/gm-catalog:3.0.0"
+      dashboard: string | *"docker.greymatter.io/release/gm-dashboard:6.0.0"
 
       control: string | *"docker.greymatter.io/internal/gm-control:1.7.1"
       control_api: string | *"docker.greymatter.io/internal/gm-control-api:1.7.1"
