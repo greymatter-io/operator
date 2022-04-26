@@ -21,8 +21,6 @@ operator_namespace: [
   }
 ]
 
-operator_overrides: string | *"" @tag(operator_overrides) // Used to populate the operator_overrides configmap below
-
 operator_crd: [
   // TODO we need the #CustomResourceDefinition definition
   {
@@ -290,7 +288,14 @@ operator_k8s: [
       namespace: "gm-operator"
     }
     data: {
-      "overrides.cue": operator_overrides
+      "overrides.cue": """
+      package only
+
+      config: {
+        spire: \(config.spire)
+        auto_apply_mesh: \(config.auto_apply_mesh)
+      }
+      """
     }
   },
 
