@@ -35,4 +35,4 @@ COPY --from=builder /workspace/pkg/cuemodule/k8s /app/k8s
 COPY --from=builder /workspace/greymatter /bin/greymatter
 USER 1000:1000
 
-ENTRYPOINT ["/app/operator"]
+CMD ["/app/operator"]

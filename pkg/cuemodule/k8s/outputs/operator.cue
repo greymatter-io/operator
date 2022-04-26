@@ -21,6 +21,8 @@ operator_namespace: [
   }
 ]
 
+operator_overrides: string | *"" @tag(operator_overrides) // Used to populate the operator_overrides configmap below
+
 operator_crd: [
   // TODO we need the #CustomResourceDefinition definition
   {
@@ -238,34 +240,60 @@ operator_k8s: [
               }
             }
             securityContext: allowPrivilegeEscalation: false
-            volumeMounts: [{
-              mountPath: "/tmp/k8s-webhook-server/serving-certs"
-              name:      "webhook-cert"
-              readOnly:  true
-            }]
+            volumeMounts: [
+              {
+                mountPath: "/tmp/k8s-webhook-server/serving-certs"
+                name:      "webhook-cert"
+                readOnly:  true
+              },
+              {
+                name: "overrides-cue",
+                mountPath: "/app/overrides.cue"
+                subPath: "overrides.cue"
+              }
+            ]
           }]
           imagePullSecrets: []
           securityContext: runAsNonRoot: true
           serviceAccountName:            "gm-operator"
           terminationGracePeriodSeconds: 10
-          volumes: [{
-            name: "webhook-cert"
-            secret: {
-              defaultMode: 420
-              items: [{
-                key:  "tls.crt"
-                path: "tls.crt"
-              }, {
-                key:  "tls.key"
-                path: "tls.key"
-              }]
-              secretName: "gm-webhook-cert"
+          volumes: [
+            {
+              name: "webhook-cert"
+              secret: {
+                defaultMode: 420
+                items: [{
+                  key:  "tls.crt"
+                  path: "tls.crt"
+                }, {
+                  key:  "tls.key"
+                  path: "tls.key"
+                }]
+                secretName: "gm-webhook-cert"
+              }
+            },
+            {
+              name: "overrides-cue",
+              configMap: {name: "overrides-cue"}
             }
-          }]
+          ]
         }
       }
     }
   },
+
+  corev1.#ConfigMap & {
+    apiVersion: "v1"
+    kind: "ConfigMap"
+    metadata: {
+      name: "overrides-cue"
+      namespace: "gm-operator"
+    }
+    data: {
+      "overrides.cue": operator_overrides
+    }
+  },
+
   corev1.#ServiceAccount & {
     apiVersion: "v1"
     imagePullSecrets: [{

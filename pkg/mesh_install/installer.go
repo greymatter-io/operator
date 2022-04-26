@@ -88,19 +88,18 @@ func (i *Installer) Start(ctx context.Context) error {
 		return err
 	}
 
-	logger.Info("Attempting to apply spire server-ca secret")
-	spireSecret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "server-ca",
-			Namespace: "spire",
-		},
-	}
-
 	if i.Config.Spire {
+		logger.Info("Attempting to apply spire server-ca secret")
+		spireSecret := &corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "server-ca",
+				Namespace: "spire",
+			},
+		}
 		spireSecret, err = injectGeneratedCertificates(spireSecret, i.cfssl)
 		if err != nil {
 			logger.Error(err, "Error while attempting to apply spire server-ca secret", "secret object", spireSecret)
@@ -124,7 +123,7 @@ func (i *Installer) Start(ctx context.Context) error {
 			logger.Info("Waiting 30 seconds to apply loaded default Mesh resource to cluster.")
 			time.Sleep(30 * time.Second) // Sleep for an arbitrary initial duration
 			for {
-				err := k8sapi.Apply(i.k8sClient, i.Mesh, nil, k8sapi.CreateOrUpdate)
+				err := k8sapi.Apply(i.k8sClient, i.Mesh, nil, k8sapi.GetOrCreate)
 				if err == nil {
 					break
 				}
