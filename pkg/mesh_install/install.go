@@ -18,7 +18,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	if prev == nil {
 		logger.Info("Installing Mesh", "Name", mesh.Name)
 	} else {
-		logger.Info("Upgrading Mesh", "Name", mesh.Name)
+		logger.Info("Updating Mesh", "Name", mesh.Name)
 	}
 
 	// Create Namespace and image pull secret if this Mesh is new.
@@ -80,8 +80,13 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		}
 	}
 
-	// Do unification between the Mesh and K8s CUE here before extraction
-	// Store unified versions for later
+	// If we're updating an existing mesh, we need to reload the CUE before unification to avoid a situation
+	// where the old concrete values conflict with the new ones
+	if prev != nil {
+		freshLoadOperatorCUE, _ := cuemodule.LoadAll(i.CueRoot)
+		i.OperatorCUE = freshLoadOperatorCUE
+	}
+	// Do unification between the Mesh and K8s CUE here before extraction, and save the unified values
 	i.OperatorCUE.UnifyWithMesh(mesh)
 	i.Mesh = mesh // set this mesh as THE mesh managed by the operator
 
