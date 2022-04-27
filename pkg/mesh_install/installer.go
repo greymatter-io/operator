@@ -117,9 +117,27 @@ func (i *Installer) Start(ctx context.Context) error {
 		i.clusterIngressDomain = clusterIngressDomain
 	}
 
+	// If this operator's Mesh CR already exists in the environment, load it
+	meshAlreadyDeployed := false
+	meshList := &v1alpha1.MeshList{}
+	if err := (*i.k8sClient).List(context.TODO(), meshList); err != nil {
+		logger.Error(err, "failed to list all meshes for state restoration - check operator permissions")
+	}
+	for _, mesh := range meshList.Items {
+		if mesh.Name == i.Mesh.Name {
+			logger.Info("Mesh already deployed. Reloading values.", "Name", mesh.Name)
+			i.Mesh = &mesh // load the live version of the mesh
+			// immediately update OperatorCUE and the SidecarList
+			i.OperatorCUE.UnifyWithMesh(i.Mesh)
+			//i.SidecarList =  // TODO update the SidecarList from the Mesh
+			meshAlreadyDeployed = true
+			break
+		}
+	}
+
 	// Immediately apply the default mesh from the CUE if the flag is set
 	go func() {
-		if i.Config.AutoApplyMesh {
+		if i.Config.AutoApplyMesh && !meshAlreadyDeployed {
 			logger.Info("Waiting 30 seconds to apply loaded default Mesh resource to cluster.")
 			time.Sleep(30 * time.Second) // Sleep for an arbitrary initial duration
 			for {
