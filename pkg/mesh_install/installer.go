@@ -1,5 +1,5 @@
 // Package mesh_install exposes functions for applying resources to a Kubernetes cluster.
-// Its exposed functions receive a k8sClient for communicating with the cluster.
+// Its exposed functions receive a K8sClient for communicating with the cluster.
 package mesh_install
 
 import (
@@ -30,7 +30,7 @@ var (
 // Installer stores a map of version.Version and a distinct version.Sidecar for each mesh.
 type Installer struct {
 	*gmapi.CLI // Grey Matter CLI
-	k8sClient  *client.Client
+	K8sClient  *client.Client
 
 	cfssl *cfsslsrv.CFSSLServer
 
@@ -59,11 +59,10 @@ type Installer struct {
 
 // New returns a new *Installer instance for installing Grey Matter components and dependencies.
 func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1alpha1.Mesh, cueRoot string, gmcli *gmapi.CLI, cfssl *cfsslsrv.CFSSLServer) (*Installer, error) {
-	config, defaults := operatorCUE.ExtractConfigAndDefaults()
-	gmcli.SidecarList = defaults.RedisSpireSubjects
+	config := operatorCUE.ExtractConfig()
 	return &Installer{
 		CLI:         gmcli,
-		k8sClient:   c,
+		K8sClient:   c,
 		cfssl:       cfssl,
 		OperatorCUE: operatorCUE,
 		Mesh:        initialMesh,
@@ -76,13 +75,15 @@ func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1al
 // It implements the controller-runtime Runnable interface.
 func (i *Installer) Start(ctx context.Context) error {
 
+	logger.Info("Mesh SidecarList when Installer is first Started", "list", i.Mesh.Status.SidecarList) // DEBUG
+
 	// Retrieve the operator image secret from the apiserver (block until it's retrieved).
 	// This secret will be re-created in each install namespace and watch namespaces where core services are pulled.
-	i.imagePullSecret = getImagePullSecret(i.k8sClient)
+	i.imagePullSecret = getImagePullSecret(i.K8sClient)
 
 	// Get our Mesh CRD to set as an owner for cluster-scoped resources
 	i.owner = &extv1.CustomResourceDefinition{}
-	err := (*i.k8sClient).Get(ctx, client.ObjectKey{Name: "meshes.greymatter.io"}, i.owner)
+	err := (*i.K8sClient).Get(ctx, client.ObjectKey{Name: "meshes.greymatter.io"}, i.owner)
 	if err != nil {
 		logger.Error(err, "Failed to get CustomResourceDefinition meshes.greymatter.io")
 		return err
@@ -105,11 +106,11 @@ func (i *Installer) Start(ctx context.Context) error {
 			logger.Error(err, "Error while attempting to apply spire server-ca secret", "secret object", spireSecret)
 			return err
 		}
-		k8sapi.Apply(i.k8sClient, spireSecret, i.owner, k8sapi.CreateOrUpdate)
+		k8sapi.Apply(i.K8sClient, spireSecret, i.owner, k8sapi.CreateOrUpdate)
 	}
 
 	// Try to get the OpenShift cluster ingress domain if it exists.
-	clusterIngressDomain, ok := getOpenshiftClusterIngressDomain(i.k8sClient, i.Config.ClusterIngressName)
+	clusterIngressDomain, ok := getOpenshiftClusterIngressDomain(i.K8sClient, i.Config.ClusterIngressName)
 	if ok {
 		// TODO: When not in OpenShift, check for other supported ingress class types such as Nginx or Voyager.
 		// If no supported ingress types are found, just assume the user will configure ingress on their own.
@@ -120,7 +121,7 @@ func (i *Installer) Start(ctx context.Context) error {
 	// If this operator's Mesh CR already exists in the environment, load it
 	meshAlreadyDeployed := false
 	meshList := &v1alpha1.MeshList{}
-	if err := (*i.k8sClient).List(context.TODO(), meshList); err != nil {
+	if err := (*i.K8sClient).List(context.TODO(), meshList); err != nil {
 		logger.Error(err, "failed to list all meshes for state restoration - check operator permissions")
 	}
 	for _, mesh := range meshList.Items {
@@ -129,7 +130,6 @@ func (i *Installer) Start(ctx context.Context) error {
 			i.Mesh = &mesh // load the live version of the mesh
 			// immediately update OperatorCUE and the SidecarList
 			i.OperatorCUE.UnifyWithMesh(i.Mesh)
-			//i.SidecarList =  // TODO update the SidecarList from the Mesh
 			meshAlreadyDeployed = true
 			break
 		}
@@ -141,10 +141,11 @@ func (i *Installer) Start(ctx context.Context) error {
 			logger.Info("Waiting 30 seconds to apply loaded default Mesh resource to cluster.")
 			time.Sleep(30 * time.Second) // Sleep for an arbitrary initial duration
 			for {
-				err := k8sapi.Apply(i.k8sClient, i.Mesh, nil, k8sapi.GetOrCreate)
+				err := k8sapi.Apply(i.K8sClient, i.Mesh.DeepCopy(), nil, k8sapi.GetOrCreate)
 				if err == nil {
 					break
 				}
+				logger.Info("Mesh SidecarList while trying to auto-apply", "list", i.Mesh.Status.SidecarList) // DEBUG
 				logger.Info("Temporary failure to apply Mesh resource. Will retry in 10 seconds.")
 				time.Sleep(10 * time.Second)
 			}

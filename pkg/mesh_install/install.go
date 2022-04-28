@@ -27,24 +27,30 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 			TypeMeta:   metav1.TypeMeta{Kind: "Namespace", APIVersion: "v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: mesh.Spec.InstallNamespace},
 		}
-		k8sapi.Apply(i.k8sClient, namespace, mesh, k8sapi.GetOrCreate)
+		k8sapi.Apply(i.K8sClient, namespace, mesh, k8sapi.GetOrCreate)
 		secret := i.imagePullSecret.DeepCopy()
 		secret.Namespace = mesh.Spec.InstallNamespace
-		k8sapi.Apply(i.k8sClient, secret, mesh, k8sapi.GetOrCreate)
+		k8sapi.Apply(i.K8sClient, secret, mesh, k8sapi.GetOrCreate)
 		// TODO reverse-Chesterton's fence: I don't understand why this _wasn't_ done in the old operator
 		for _, watched_ns := range mesh.Spec.WatchNamespaces {
 			secret := i.imagePullSecret.DeepCopy()
 			secret.Namespace = watched_ns
-			k8sapi.Apply(i.k8sClient, secret, mesh, k8sapi.GetOrCreate)
+			k8sapi.Apply(i.K8sClient, secret, mesh, k8sapi.GetOrCreate)
 		}
+
+		// If we're applying a new mesh, pull the initial sidecar list for redis metrics ingress from the default
+		// mesh in the initially-loaded CUE. This is important only when we're not already auto-applying the mesh in
+		// the CUE, but doesn't hurt either way
+		logger.Info("Mesh SidecarList right before we try to Apply it", "list", i.Mesh.Status.SidecarList)                // DEBUG
+		logger.Info("Webhook-provided Mesh SidecarList right before we try to Apply it", "list", mesh.Status.SidecarList) // DEBUG
+		mesh.Status.SidecarList = i.Mesh.Status.SidecarList
 	}
 
-	// TODO we need to store the namespaces that belong to this mesh? I deleted that for now
 	// The idea is a) one operator per mesh, and b) the sidecar template comes from unification with global OperatorCUE
 
 	// Label existing deployments and statefulsets in this Mesh's namespaces
 	deployments := &appsv1.DeploymentList{}
-	(*i.k8sClient).List(context.TODO(), deployments)
+	(*i.K8sClient).List(context.TODO(), deployments)
 	for _, deployment := range deployments.Items {
 		watched := false
 		for _, ns := range mesh.Spec.WatchNamespaces {
@@ -58,11 +64,11 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 				deployment.Annotations = make(map[string]string)
 			}
 			deployment.Annotations[wellknown.ANNOTATION_LAST_APPLIED] = time.Now().String()
-			k8sapi.Apply(i.k8sClient, &deployment, nil, k8sapi.CreateOrUpdate)
+			k8sapi.Apply(i.K8sClient, &deployment, nil, k8sapi.CreateOrUpdate)
 		}
 	}
 	statefulsets := &appsv1.StatefulSetList{}
-	(*i.k8sClient).List(context.TODO(), statefulsets)
+	(*i.K8sClient).List(context.TODO(), statefulsets)
 	for _, statefulset := range statefulsets.Items {
 		watched := false
 		for _, ns := range mesh.Spec.WatchNamespaces {
@@ -76,7 +82,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 				statefulset.Annotations = make(map[string]string)
 			}
 			statefulset.Annotations[wellknown.ANNOTATION_LAST_APPLIED] = time.Now().String()
-			k8sapi.Apply(i.k8sClient, &statefulset, nil, k8sapi.CreateOrUpdate)
+			k8sapi.Apply(i.K8sClient, &statefulset, nil, k8sapi.CreateOrUpdate)
 		}
 	}
 
@@ -89,6 +95,8 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	// Do unification between the Mesh and K8s CUE here before extraction, and save the unified values
 	i.OperatorCUE.UnifyWithMesh(mesh)
 	i.Mesh = mesh // set this mesh as THE mesh managed by the operator
+
+	logger.Info("Mesh SidecarList when mesh is first Applied", "list", i.Mesh.Status.SidecarList) // DEBUG
 
 	// Once that's done, we can get the Grey Matter configurator going concurrently
 	go i.ConfigureMeshClient(mesh) // Applies the Grey Matter configuration once Control and Catalog are up
@@ -106,7 +114,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 			"Name", manifest.GetName(),
 			"Repr", manifest)
 
-		k8sapi.Apply(i.k8sClient, manifest, mesh, k8sapi.CreateOrUpdate)
+		k8sapi.Apply(i.K8sClient, manifest, mesh, k8sapi.CreateOrUpdate)
 	}
 
 }
@@ -126,7 +134,7 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 
 	// Remove label for existing deployments and statefulsets
 	deployments := &appsv1.DeploymentList{}
-	(*i.k8sClient).List(context.TODO(), deployments)
+	(*i.K8sClient).List(context.TODO(), deployments)
 	for _, deployment := range deployments.Items {
 		watched := false
 		for _, ns := range mesh.Spec.WatchNamespaces {
@@ -150,13 +158,13 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 				delete(deployment.Spec.Template.Labels, wellknown.LABEL_WORKLOAD)
 			}
 			if dirty {
-				k8sapi.Apply(i.k8sClient, &deployment, nil, k8sapi.CreateOrUpdate)
+				k8sapi.Apply(i.K8sClient, &deployment, nil, k8sapi.CreateOrUpdate)
 			}
 		}
 	}
 
 	statefulsets := &appsv1.StatefulSetList{}
-	(*i.k8sClient).List(context.TODO(), statefulsets)
+	(*i.K8sClient).List(context.TODO(), statefulsets)
 	for _, statefulset := range statefulsets.Items {
 		watched := false
 		for _, ns := range mesh.Spec.WatchNamespaces {
@@ -180,7 +188,7 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 				delete(statefulset.Spec.Template.Labels, wellknown.LABEL_WORKLOAD)
 			}
 			if dirty {
-				k8sapi.Apply(i.k8sClient, &statefulset, nil, k8sapi.CreateOrUpdate)
+				k8sapi.Apply(i.K8sClient, &statefulset, nil, k8sapi.CreateOrUpdate)
 			}
 		}
 	}

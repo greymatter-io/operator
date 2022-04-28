@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"net/http"
 	"time"
 
@@ -95,7 +96,7 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 
 // TODO: Modification should happen using a CUE package.
 func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Response {
-	meshName := wd.Installer.Mesh.Name                 // wd.WatchedBy(req.Namespace)
+	meshName := wd.Mesh.Name                           // wd.WatchedBy(req.Namespace)
 	if meshName == "" || wd.Installer.Mesh.UID == "" { // If the mesh isn't actually applied, don't assist deployments
 		return admission.ValidationResponse(true, "allowed")
 	}
@@ -120,11 +121,22 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
 
-			go wd.ConfigureSidecar(wd.OperatorCUE, req.Name, deployment.ObjectMeta)
+			annotations := deployment.ObjectMeta.Annotations
+			_, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
+			if injectSidecar {
+				wd.addToMeshSidecarList(req.Name)
+				go wd.ConfigureSidecar(wd.OperatorCUE, req.Name, deployment.ObjectMeta)
+			}
 
 		} else { // if this Deployment is being deleted...
 			wd.DecodeRaw(req.OldObject, deployment)
-			go wd.UnconfigureSidecar(wd.OperatorCUE, req.Name, deployment.ObjectMeta)
+
+			annotations := deployment.ObjectMeta.Annotations
+			_, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
+			if injectSidecar {
+				wd.removeFromMeshSidecarList(req.Name)
+				go wd.UnconfigureSidecar(wd.OperatorCUE, req.Name, deployment.ObjectMeta)
+			}
 			return admission.ValidationResponse(true, "allowed")
 		}
 
@@ -144,16 +156,56 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
 
-			go wd.ConfigureSidecar(wd.OperatorCUE, req.Name, statefulset.ObjectMeta)
+			annotations := statefulset.ObjectMeta.Annotations
+			_, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
+			if injectSidecar {
+				wd.addToMeshSidecarList(req.Name)
+				go wd.ConfigureSidecar(wd.OperatorCUE, req.Name, statefulset.ObjectMeta)
+			}
 
 		} else { // if this StatefulSet is being deleted...
 			wd.DecodeRaw(req.OldObject, statefulset)
-			go wd.UnconfigureSidecar(wd.OperatorCUE, req.Name, statefulset.ObjectMeta)
+
+			annotations := statefulset.ObjectMeta.Annotations
+			_, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
+			if injectSidecar {
+				wd.removeFromMeshSidecarList(req.Name)
+				go wd.UnconfigureSidecar(wd.OperatorCUE, req.Name, statefulset.ObjectMeta)
+			}
 			return admission.ValidationResponse(true, "allowed")
 		}
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, rawUpdate)
+}
+
+func (wd *workloadDefaulter) addToMeshSidecarList(name string) {
+	// apply the new sidecar list to the Mesh status
+	logger.Info("Mesh SidecarList at time of addition", "list", wd.Mesh.Status.SidecarList, "addition", name)
+	wd.Mesh.Status.SidecarList = append(wd.Mesh.Status.SidecarList, name)
+	// save the sidecar list to the deployed CR
+	(*wd.K8sClient).Status().Update(context.TODO(), wd.Mesh)
+
+	// Update the mesh inside the OperatorCUE with the new sidecar_list
+	freshLoadOperatorCUE, _ := cuemodule.LoadAll(wd.CueRoot)
+	wd.OperatorCUE = freshLoadOperatorCUE
+	wd.OperatorCUE.UnifyWithMesh(wd.Mesh)
+}
+
+func (wd *workloadDefaulter) removeFromMeshSidecarList(name string) {
+	var filtered []string
+	for _, sidecarName := range wd.Mesh.Status.SidecarList {
+		if sidecarName != name {
+			filtered = append(filtered, sidecarName)
+		}
+	}
+	wd.Mesh.Status.SidecarList = filtered
+	(*wd.K8sClient).Status().Update(context.TODO(), wd.Mesh)
+
+	// Update the mesh inside the OperatorCUE with the new sidecar_list
+	freshLoadOperatorCUE, _ := cuemodule.LoadAll(wd.CueRoot)
+	wd.OperatorCUE = freshLoadOperatorCUE
+	wd.OperatorCUE.UnifyWithMesh(wd.Mesh)
 }
 
 func addClusterLabels(tmpl corev1.PodTemplateSpec, meshName, clusterName string) corev1.PodTemplateSpec {

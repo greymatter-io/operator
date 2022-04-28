@@ -26,10 +26,6 @@ type CLI struct {
 	*sync.RWMutex
 	client      *Client
 	operatorCUE *cuemodule.OperatorCUE
-
-	// List of sidecars in the mesh (including core components)
-	// currently only used for populating Spire subjects for Redis ingress
-	SidecarList []string
 }
 
 // New returns a new *CLI instance.
@@ -135,14 +131,13 @@ func (c *CLI) ConfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string, 
 		return
 	}
 
-	// we also skip configuration if we're explicitly told to
+	// we skip configuration if we're explicitly told to
 	configureSidecar := annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR]
 	if configureSidecar == "false" {
 		return
 	}
 
-	c.SidecarList = append(c.SidecarList, name)
-	configObjects, kinds, err := operatorCUE.UnifyAndExtractSidecarConfig(name, injectedSidecarPort, c.SidecarList)
+	configObjects, kinds, err := operatorCUE.UnifyAndExtractSidecarConfig(name, injectedSidecarPort)
 	if err != nil {
 		logger.Error(err, "Failed to unify or extract CUE", "name", name, "injectedSidecarPort", injectedSidecarPort)
 	}
@@ -173,15 +168,7 @@ func (c *CLI) UnconfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string
 		return
 	}
 
-	// filter out `name` from c.SidecarList before unifying it with the redis listener and getting new config to apply
-	var filtered []string
-	for _, sidecarName := range c.SidecarList {
-		if sidecarName != name {
-			filtered = append(filtered, sidecarName)
-		}
-	}
-	c.SidecarList = filtered
-	configObjects, kinds, err := operatorCUE.UnifyAndExtractSidecarConfig(name, injectedSidecarPort, c.SidecarList)
+	configObjects, kinds, err := operatorCUE.UnifyAndExtractSidecarConfig(name, injectedSidecarPort)
 	if err != nil {
 		logger.Error(err, "Failed to unify or extract CUE", "name", name, "injectedSidecarPort", injectedSidecarPort)
 	}
