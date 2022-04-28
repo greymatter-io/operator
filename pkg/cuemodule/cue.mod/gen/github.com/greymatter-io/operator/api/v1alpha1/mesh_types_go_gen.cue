@@ -56,6 +56,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // MeshStatus describes the observed state of a Grey Matter mesh.
 #MeshStatus: {
+	sidecar_list?: [...string] @go(SidecarList,[]string)
 }
 
 // Mesh defines a Grey Matter mesh's desired state and describes its observed state.

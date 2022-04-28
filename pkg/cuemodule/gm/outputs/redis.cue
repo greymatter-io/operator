@@ -22,7 +22,7 @@ redis_config: [
 
 // The Redis listener is special among Grey Matter config because we have to update it with new Spire
 // configuration every time we add a sidecar to the mesh (for metrics beacons). That's why it's separated
-// out here: We need to be able to unify a new defaults.redis_spire_subjects and re-apply this listener.
+// out here: We need to be able to unify a new mesh.status.sidecar_list and re-apply this listener.
 redis_listener_object: #listener & {
     listener_key: RedisIngressName 
     port: defaults.ports.redis_ingress
@@ -31,7 +31,7 @@ redis_listener_object: #listener & {
     if config.spire {
       secret: #spire_secret & {
         _name: Name
-        _subjects: defaults.redis_spire_subjects
+        _subjects: mesh.status.sidecar_list
       }
     }
   },

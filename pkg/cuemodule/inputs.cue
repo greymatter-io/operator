@@ -22,6 +22,11 @@ mesh: v1alpha1.#Mesh & {
   metadata: {
     name: string | *"mymesh"
   }
+  status: {
+    // as new sidecars need to beacon metrics to Redis, this list will be updated dynamically
+    // it is used in gm/outputs/redis.cue
+    sidecar_list: [...string] | *["dashboard", "catalog", "controlensemble", "edge"]
+  }
   spec: {
     install_namespace: string | *"greymatter"
     watch_namespaces: [...string] | *["default"]
@@ -48,10 +53,8 @@ defaults: {
   redis_cluster_name: "redis"
   redis_host: "\(redis_cluster_name).\(mesh.spec.install_namespace).svc.cluster.local"
 
-  // as new sidecars need to beacon metrics to Redis, this list will be updated dynamically
-  // it is used in gm/outputs/redis.cue
   // TODO I don't like that this gets *read* by the Go, but it's not in EXTRACTME
-  redis_spire_subjects: [...string] | *["dashboard", "catalog", "controlensemble", "edge"]
+  // redis_spire_subjects: 
 
 
   ports: {

@@ -70,17 +70,11 @@ type Config struct {
 	ClusterIngressName string `json:"cluster_ingress_name"`
 }
 
-// Defaults represents select keys from the `defaults` struct in inputs.cue
-type Defaults struct {
-	RedisSpireSubjects []string `json:"redis_spire_subjects"`
-}
-
-// ExtractConfigAndDefaults pulls the values from the CUE into Go Config and Defaults structs in Go
+// ExtractConfig pulls the values from the CUE into the Config struct in Go
 // for use in various places in the operator
-func (operatorCUE *OperatorCUE) ExtractConfigAndDefaults() (Config, Defaults) {
+func (operatorCUE *OperatorCUE) ExtractConfig() Config {
 	var extracted struct {
-		Config   Config   `json:"config"`
-		Defaults Defaults `json:"defaults"`
+		Config Config `json:"config"`
 	}
 
 	err := Extract(operatorCUE.K8s, &extracted)
@@ -88,7 +82,7 @@ func (operatorCUE *OperatorCUE) ExtractConfigAndDefaults() (Config, Defaults) {
 		panic(err)
 	}
 
-	return extracted.Config, extracted.Defaults
+	return extracted.Config
 }
 
 // TODO who should be responsible for logging errors - these, or the calling functions? I've been inconsistent about it
@@ -190,10 +184,12 @@ func (operatorCUE *OperatorCUE) UnifyAndExtractSidecar(clusterLabel string) (con
 	return extracted.SidecarContainer.Container, extracted.SidecarContainer.Volumes, err
 }
 
-// UnifyAndExtractSidecarConfig unifies a name, port, and sidecarList (a list of *all sidecars that need an egress to
-// Redis for health checks*) with the Grey Matter sidecar condfiguration CUE for injected sidecars, and returns those
-// configuration objects, along with their kinds (e.g., listener, cluster, etc.)
-func (operatorCUE *OperatorCUE) UnifyAndExtractSidecarConfig(name string, port int, sidecarList []string) (configObjects []json.RawMessage, kinds []string, err error) {
+// UnifyAndExtractSidecarConfig unifies a name and port with the Grey Matter sidecar configuration CUE for injected
+// sidecars, and returns those configuration objects, along with their kinds (e.g., listener, cluster, etc.)
+// It also extracts the special redis_listener object.
+// NB: This method expects that the embedded Mesh in the CUE has already been updated with a status.sidecar_list
+// for that redis_listener
+func (operatorCUE *OperatorCUE) UnifyAndExtractSidecarConfig(name string, port int) (configObjects []json.RawMessage, kinds []string, err error) {
 
 	// Unify with Name and Port
 	injectNameAndPort := struct {
@@ -202,13 +198,6 @@ func (operatorCUE *OperatorCUE) UnifyAndExtractSidecarConfig(name string, port i
 	}{Name: name, Port: port}
 	withNameAndPort, _ := FromStruct("sidecar_config", injectNameAndPort)
 	unifiedValue := operatorCUE.GM.Unify(withNameAndPort) // bit overkill, but it shouldn't matter
-
-	// Unify with updated list of Redis' Spire subjects
-	withNewRedisSpireSubjects, _ := FromStruct("defaults", Defaults{RedisSpireSubjects: sidecarList})
-	unifiedValue = unifiedValue.Unify(withNewRedisSpireSubjects)
-	if err := unifiedValue.Err(); err != nil {
-		return nil, nil, fmt.Errorf("error while attempting to unify provided workload parameters with Grey Matter config CUE: %w", err)
-	}
 
 	type sidecarConfig struct {
 		LocalName         string            `json:"LocalName"`

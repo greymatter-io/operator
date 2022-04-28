@@ -87,6 +87,7 @@ func run() error {
 	// Immediately load all CUE
 	operatorCUE, initialMesh := cuemodule.LoadAll(cueRoot) // panics if unsuccessful
 	logger.Info(fmt.Sprintf("Loaded CUE module from %s", cueRoot))
+	logger.Info("Mesh SidecarList when mesh is first LoadAll'd", "list", initialMesh.Status.SidecarList) // DEBUG
 
 	// Initialize operator options with set values.
 	// These values will not be replaced by any values set in a read configPath.

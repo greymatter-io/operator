@@ -74,6 +74,7 @@ type Images struct {
 
 // MeshStatus describes the observed state of a Grey Matter mesh.
 type MeshStatus struct {
+	SidecarList []string `json:"sidecar_list,omitempty"`
 }
 
 // +kubebuilder:object:root=true

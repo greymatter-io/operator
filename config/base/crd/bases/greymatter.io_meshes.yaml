@@ -119,6 +119,11 @@ spec:
           status:
             description: MeshStatus describes the observed state of a Grey Matter
               mesh.
+            properties:
+              sidecar_list:
+                items:
+                  type: string
+                type: array
             type: object
         type: object
     served: true

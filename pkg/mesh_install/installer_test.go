@@ -38,7 +38,7 @@ func TestLoading(t *testing.T) {
 	//	Kind string `json:"kind"`
 	//}
 	//
-	//var manifestObjects []k8sClient.Object
+	//var manifestObjects []K8sClient.Object
 	//
 	//for _, manifest := range extracted.K8sManifests {
 	//	_ = json.Unmarshal(manifest, &extracted2)

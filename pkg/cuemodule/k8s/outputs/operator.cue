@@ -161,8 +161,13 @@ operator_crd: [
             }
             status: {
               description: "MeshStatus describes the observed state of a Grey Matter mesh."
-
               type: "object"
+              properties: {
+                sidecar_list: {
+                  type: "array"
+                  items: type: "string"
+                }
+              }
             }
           }
           type: "object"
