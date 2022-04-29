@@ -20,15 +20,20 @@ test_help () {
 
 # Polls a pod for a ready status. Errors on timeout
 _wait_for_resouce() {
-  selector=$1
-  namespace=$2
-  timeout=$3
+  # technically only waits for a pod but can be extended easily by accepting a resource type argument. This function 
+  # imitates the kubectl wait command, except it will not fail if there does not exist a pod with a matching selector. 
+  # This is useful in our case since we often want to wait for resources which may not be present at the exact moment of the function
+  #  call, but will be present some small but indeterminate amount of time later
+  
+  local selector=$1
+  local namespace=$2
+  local timeout=$3
   if [ -z $3 ]; then
     timeout=300
   fi
 
   while [ "$($KUBECTL_CMD get -n ${namespace} pods --selector ${selector} -o jsonpath='{.items[*].status.containerStatuses[0].ready}')" != "true" ]; do
-    if [ $timeout -eq 0 ]; then
+    if [ $timeout -le 0 ]; then
       echo "Failed while waiting for ${pod}: pod timed out"
       exit 1
     fi
@@ -38,14 +43,17 @@ _wait_for_resouce() {
   done
 }
 
-# A helper function     Installs the operator with provided tags
+# A helper function     Evaluates the CUE files to install the operator, overriding the config definitions with the values found in the tags
 install_operator () {
-  tags=$1
+  local tags=$1
   ( cd pkg/cuemodule && cue eval -c ./k8s/outputs -t operator_image='docker.greymatter.io/development/gm-operator:latest' $tags  --out text -e operator_manifests_yaml | $KUBECTL_CMD apply -f - )
 }
 
 #  A test case.   Asserts there are no mesh CRs present
 test_no_mesh() {
+  # get the mesh crs from kubectl and check the items array. if the length is greater than 0, then there is at least 1 mesh installed
+  # and the test fails
+
   echo "===> Test Case ${FUNCNAME[0]}"
 
   if [ $($KUBECTL_CMD get -n greymatter Mesh -o=jsonpath='{.items}' | jq 'length') -gt 0 ]; then
@@ -59,13 +67,21 @@ test_no_mesh() {
 
 #  A test case.   Manually installs a mesh, removes it, and installs another to test correct lifecycle behavior
 test_install_remove_mesh () {
+# This test should run with the auto_apply_mesh operator config option set to false and assumes the operator is ready. It first
+# creates a mesh custom resource by applying the mesh resource yaml definition on the k3s cluster
+# The operator will detect the creation of the object and spin up the gm service. The test waits for those services to come online
+# before testing their accessibility. Both checks are used in other test cases. If those succeed, then the test moves to the tear down.
+# Using the kubectl wait command, each gm sevice is waited upon in the background until it is deleted. After sending out the background jobs
+# the test deletes the mesh cr and waits for every job to finish. The test then repeats the process of creating a mesh, this time, with a different name
+# to check if the operator works correctly when dealing with a fresh install in a non-fresh cluster.
+
   echo "===> Test Case ${FUNCNAME[0]}"
 
   echo """
 apiVersion: greymatter.io/v1alpha1
 kind: Mesh
 metadata:
-  name: mesh-sample
+  name: mesh-1
 spec:
   release_version: '1.7'
   zone: default-zone
@@ -80,7 +96,7 @@ spec:
 
   # spawn jobs in the background for each wait command and keep track of their pid
  
-  pids=()
+  local pids=()
   for pod in "${!pods[@]}"; do
     $KUBECTL_CMD wait pod --for=delete --timeout=120s --selector ${pods[$pod]} &
     pids+=($!)
@@ -104,7 +120,7 @@ spec:
 apiVersion: greymatter.io/v1alpha1
 kind: Mesh
 metadata:
-  name: new-mesh
+  name: mesh-2
 spec:
   release_version: '1.7'
   zone: default-zone
@@ -126,10 +142,14 @@ spec:
 
 #  A test case.   Checks if spire is running on the cluster, fail if it is
 test_no_spire() {
+  # This test runs when no-spire operator config value is set to true. When the operator deploys, it will immediately start spire in its own namespace
+  # The spire deployment will consist of just the agent and the server. The test simply checks for the existence of spire in the cluster by listing all
+  # pods across all namespaces and searching the output for the string 'spire'. grep -q will return an exit code of 0 if it found a match or a 1 if it did not.
+
   echo "===> Test Case ${FUNCNAME[0]}"
 
   $KUBECTL_CMD get pods -A | grep -q "spire"
-
+  # We do NOT want a match -- match == 0 , then log error
   if [ $? -eq 0 ]; then
     echo "TEST ${FUNCNAME[0]} FAILED: spire installation was detected"
     exit 1
@@ -141,21 +161,22 @@ test_no_spire() {
 
 #  A test case.   Checks operator installation completes before timeout
 test_operator_install() {
+  # Tests whether the operator pod reports a ready status within a time period. The wait_for_resource function allows for a optimized 
+  # waiting scheme by polling the kubectl for pod statuses every 5 seconds. If the timeout occurs, then there is probably something wrong with the operator
+
   echo "==> Test Case ${FUNCNAME[0]}"
 
   echo "Waiting for operator..."
-  _wait_for_resouce 'name=gm-operator' 'gm-operator' &
-
-  # $! = pid of last bg job
-  wait $!
+  _wait_for_resouce 'name=gm-operator' 'gm-operator'
 
   if [ $? -gt 0 ]; then
-    echo "TEST ${FUNCNAME[0]} FAILED. \noperator install: timed out"
+    echo "TEST ${FUNCNAME[0]} FAILED."
+    echo "operator install: timed out"
     exit 1
   fi
 
   # save and upload logs
-  $KUBECTL_CMD logs -n gm-operator sts/gm-operator > operator_logs.txt 
+  $KUBECTL_CMD logs -n gm-operator sts/gm-operator > operator_logs.txt
   buildkite-agent artifact upload operator_logs.txt
 
   echo
@@ -164,6 +185,11 @@ test_operator_install() {
 
 #  A test case.   Checks if all gm services start before a timeout
 test_mesh_startup() {
+  # This test starts by iterating over the service-to-selector mapping. For each mapping, spin off a background job which polls for the pod's readiness
+  # once all pods are ready (or timeout) the wait command finishes and exits with 0 if all jobs were successfuly, or 1 if one failed (timed out). Just like
+  # for the operator install, wait_for_resource is used instead of kubectl wait because the services don't get applied deterministically after the operator.
+  # After the test, we can assume that every gm service pod is ready and running.
+
   echo "==> Test Case ${FUNCNAME[0]}"
 
   declare pids=()
@@ -186,13 +212,19 @@ test_mesh_startup() {
 
 # A test case.   Checks the network accesibility of gm services
 test_reachable_mesh() {
-  # Runs curl in a retry loop. GM services have a slight lag between when the pod is ready and when proxies accept connections
-  # curl --retry et al is not robust enough for the tests
+  # The goal here is to not just trust that a pod was successfully configured just because it reports a ready status to k8s.
+  # The test curls gm service endpoints and checks their response codes and content-type (could test more in the future) to ensure that
+  # they are reachable. If they are reachable then we know they were probably configured correctly and their container has crashed
+  # or entered some bad state. The test is simple, grab the dynamcially set ingress port, and just curl catalog, dashboard, and control. Curl will return a non-zero
+  # exit code if the request fails (5XX, 4XX, or closed socket). Grep is used to match simple strings in the headers.
+
   curl_retry() {
-    url=$1
-    timeout=120
-    retry="true"
-    result=""
+    # Runs curl in a retry loop. GM services have a slight lag between when the pod is ready and when proxies accept connections
+    # curl --retry (and its options) is not robust enough for our needs
+    local url=$1
+    local timeout=120
+    local retry="true"
+    local result=""
     while [ $retry = "true" ]; do
       if [ $timeout -eq 0 ]; then
         echo "could not reach $url: timed out"
@@ -215,12 +247,12 @@ test_reachable_mesh() {
   echo "==> Test Case ${FUNCNAME[0]}"
 
   # ingress port is dynamic
-  PORT=$(kubectl get -n greymatter svc --output=jsonpath="{.spec.ports[0].nodePort}" edge)
+  local port=$(kubectl get -n greymatter svc --output=jsonpath="{.spec.ports[0].nodePort}" edge)
 
   echo
   echo "Trying Dashboard..."
 
-  curl_retry "http://localhost:$PORT"
+  curl_retry "http://localhost:$port"
   if [ $? -gt 0 ]; then
     echo "TEST ${FUNCNAME[0]} FAILED."
     echo "An error occured while attempting to access the dashboard"
@@ -233,7 +265,7 @@ test_reachable_mesh() {
   echo "Trying control..."
 
   # Check if control sends JSON; gives us better assurance that the response was correct
-  res=$( curl_retry "http://localhost:$PORT/services/control-api/v1.0/zone")
+  local res=$( curl_retry "http://localhost:$port/services/control-api/v1.0/zone")
   echo $res | grep -q "content-type: application/json"
   if [ $? -gt 0 ]; then
     echo "TEST ${FUNCNAME[0]} FAILED."
@@ -245,7 +277,7 @@ test_reachable_mesh() {
   echo
   echo "Trying Catalog..."
 
-  res=$( curl_retry "http://localhost:$PORT/services/catalog/summary")
+  res=$( curl_retry "http://localhost:$port/services/catalog/summary")
   echo $res | grep -q 'content-type: application/json'
   if [ $? -gt 0 ]; then
     echo "TEST ${FUNCNAME[0]} FAILED."
@@ -260,8 +292,15 @@ test_reachable_mesh() {
 
 # Integration test "dispatcher" function
 test_integration() {
-  TEST=$1
-  case $TEST in
+  # This function is responsible for mapping integration tests commands to the corresponding barrage of tests and also for 
+  # making any configuration changes to the operator.
+  # default: just install the operator without changing any configuration options.
+  # no_spire: install the operator with spire disabled
+  # tear down: install the operator without automatically applying the mesh cr, manually apply one ourselves
+  #             delete it, and then create another one. 
+
+  local test=$1
+  case $test in
     default)
       install_operator
       test_operator_install
@@ -283,7 +322,7 @@ test_integration() {
       # TODO: re-instate after config refresh bug is fixed
       # test_reachable_mesh
     ;;
-    *) 
+    *)
       echo "invalid argument $TEST"
       exit 1
       ;;

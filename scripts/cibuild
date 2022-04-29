@@ -103,7 +103,6 @@ _release_bundle() {
 
 # Creates the dynamic pipeline that starts up the greymatter mesh environment
 #  in the ephemeral ec2s. The output of the echo commands runs on the ec2, not the original machine running the rest of the pipeline.
-
 cmd_generate_integration_tests () {
   declare steps_yaml
   cases=('default' 'no_spire' 'tear_down')
