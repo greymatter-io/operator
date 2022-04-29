@@ -19,7 +19,7 @@ test_help () {
 }
 
 # Polls a pod for a ready status. Errors on timeout
-_wait_for_resouce() {
+_wait_for_resource() {
   # technically only waits for a pod but can be extended easily by accepting a resource type argument. This function 
   # imitates the kubectl wait command, except it will not fail if there does not exist a pod with a matching selector. 
   # This is useful in our case since we often want to wait for resources which may not be present at the exact moment of the function
@@ -71,7 +71,7 @@ test_install_remove_mesh () {
 # creates a mesh custom resource by applying the mesh resource yaml definition on the k3s cluster
 # The operator will detect the creation of the object and spin up the gm service. The test waits for those services to come online
 # before testing their accessibility. Both checks are used in other test cases. If those succeed, then the test moves to the tear down.
-# Using the kubectl wait command, each gm sevice is waited upon in the background until it is deleted. After sending out the background jobs
+# Using the kubectl wait command, each gm service is waited upon in the background until it is deleted. After sending out the background jobs
 # the test deletes the mesh cr and waits for every job to finish. The test then repeats the process of creating a mesh, this time, with a different name
 # to check if the operator works correctly when dealing with a fresh install in a non-fresh cluster.
 
@@ -167,7 +167,7 @@ test_operator_install() {
   echo "==> Test Case ${FUNCNAME[0]}"
 
   echo "Waiting for operator..."
-  _wait_for_resouce 'name=gm-operator' 'gm-operator'
+  _wait_for_resource 'name=gm-operator' 'gm-operator'
 
   if [ $? -gt 0 ]; then
     echo "TEST ${FUNCNAME[0]} FAILED."
@@ -186,7 +186,7 @@ test_operator_install() {
 #  A test case.   Checks if all gm services start before a timeout
 test_mesh_startup() {
   # This test starts by iterating over the service-to-selector mapping. For each mapping, spin off a background job which polls for the pod's readiness
-  # once all pods are ready (or timeout) the wait command finishes and exits with 0 if all jobs were successfuly, or 1 if one failed (timed out). Just like
+  # once all pods are ready (or timeout) the wait command finishes and exits with 0 if all jobs were successfully, or 1 if one failed (timed out). Just like
   # for the operator install, wait_for_resource is used instead of kubectl wait because the services don't get applied deterministically after the operator.
   # After the test, we can assume that every gm service pod is ready and running.
 
@@ -196,7 +196,7 @@ test_mesh_startup() {
 
   for pod in "${!pods[@]}"; do
     echo "Waiting for ${pod}..."
-    _wait_for_resouce ${pods[$pod]} 'greymatter' &
+    _wait_for_resource ${pods[$pod]} 'greymatter' &
     pids+=($!)
   done
   wait "${pids[@]}"
