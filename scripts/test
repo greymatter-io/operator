@@ -104,7 +104,7 @@ spec:
   $KUBECTL_CMD wait namespace/greymatter --for=delete --timeout=120s &
   pids+=($!)
  # We start waiting for k8s to delete resources before we delete the mesh since kubectl wait must have a resource available
-  $KUBECTL_CMD delete Mesh mesh-sample
+  $KUBECTL_CMD delete Mesh mesh-1
   # wait will return error codes if the pids are explicitly listed
   wait "${pids[@]}"
 
@@ -129,7 +129,7 @@ spec:
   - default
 """ | $KUBECTL_CMD apply -f -
 
-  $KUBECTL_CMD get -n greymatter Mesh | grep -q "new-mesh"
+  $KUBECTL_CMD get -n greymatter Mesh | grep -q "mesh-2"
   if [ $? -gt 0 ]; then
     echo "TEST ${FUNCNAME[0]} FAILED: new mesh resource not found"
     exit 1
