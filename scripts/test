@@ -1,6 +1,6 @@
 #!/bin/bash
 
-
+# an associative array mapping service name to k8s selector - this allows for querying without needing the pod name
 declare -A pods=( [control]='greymatter.io/cluster=controlensemble' [catalog]='greymatter.io/cluster=catalog' [edge]='greymatter.io/cluster=edge' \
     [redis]='greymatter.io/cluster=redis' [dashboard]='greymatter.io/cluster=dashboard' [edge svc]=' app=svclb-edge')
 
@@ -18,6 +18,7 @@ test_help () {
   echo "  ./scripts/test [help|fast|lint|crd]"
 }
 
+# Polls a pod for a ready status. Errors on timeout
 _wait_for_resouce() {
   selector=$1
   namespace=$2
@@ -37,16 +38,18 @@ _wait_for_resouce() {
   done
 }
 
+# A helper function     Installs the operator with provided tags
 install_operator () {
   tags=$1
-  ( cd pkg/cuemodule && cue eval -c ./k8s/outputs -t operator_image='docker.greymatter.io/development/gm-operator:latest' $tags  --out text -e operator_manifests_yaml | kubectl apply -f - )
+  ( cd pkg/cuemodule && cue eval -c ./k8s/outputs -t operator_image='docker.greymatter.io/development/gm-operator:latest' $tags  --out text -e operator_manifests_yaml | $KUBECTL_CMD apply -f - )
 }
 
+#  A test case.   Asserts there are no mesh CRs present
 test_no_mesh() {
   echo "===> Test Case ${FUNCNAME[0]}"
 
   if [ $($KUBECTL_CMD get -n greymatter Mesh -o=jsonpath='{.items}' | jq 'length') -gt 0 ]; then
-    echo "TEST ${FUNCNAME[0]} FAILED: Mesh CRD exists"
+    echo "TEST ${FUNCNAME[0]} FAILED: Mesh CR exists"
     exit 1
   fi
 
@@ -54,6 +57,7 @@ test_no_mesh() {
   echo "Test ${FUNCNAME[0]}............PASSED"
 }
 
+#  A test case.   Manually installs a mesh, removes it, and installs another to test correct lifecycle behavior
 test_install_remove_mesh () {
   echo "===> Test Case ${FUNCNAME[0]}"
 
@@ -74,6 +78,8 @@ spec:
 
   test_reachable_mesh
 
+  # spawn jobs in the background for each wait command and keep track of their pid
+ 
   pids=()
   for pod in "${!pods[@]}"; do
     $KUBECTL_CMD wait pod --for=delete --timeout=120s --selector ${pods[$pod]} &
@@ -81,8 +87,9 @@ spec:
   done
   $KUBECTL_CMD wait namespace/greymatter --for=delete --timeout=120s &
   pids+=($!)
-
+ # We start waiting for k8s to delete resources before we delete the mesh since kubectl wait must have a resource available
   $KUBECTL_CMD delete Mesh mesh-sample
+  # wait will return error codes if the pids are explicitly listed
   wait "${pids[@]}"
 
   if [ $? -gt 0 ]; then
@@ -90,6 +97,8 @@ spec:
   fi
 
   test_no_mesh
+
+  # Now that a mesh was created and destroyed, create another one
 
     echo """
 apiVersion: greymatter.io/v1alpha1
@@ -115,6 +124,7 @@ spec:
   echo "Test ${FUNCNAME[0]}............PASSED"
 }
 
+#  A test case.   Checks if spire is running on the cluster, fail if it is
 test_no_spire() {
   echo "===> Test Case ${FUNCNAME[0]}"
 
@@ -129,12 +139,14 @@ test_no_spire() {
   echo "Test ${FUNCNAME[0]}............PASSED"
 }
 
+#  A test case.   Checks operator installation completes before timeout
 test_operator_install() {
   echo "==> Test Case ${FUNCNAME[0]}"
 
   echo "Waiting for operator..."
   _wait_for_resouce 'name=gm-operator' 'gm-operator' &
 
+  # $! = pid of last bg job
   wait $!
 
   if [ $? -gt 0 ]; then
@@ -142,6 +154,7 @@ test_operator_install() {
     exit 1
   fi
 
+  # save and upload logs
   $KUBECTL_CMD logs -n gm-operator sts/gm-operator > operator_logs.txt 
   buildkite-agent artifact upload operator_logs.txt
 
@@ -149,6 +162,7 @@ test_operator_install() {
   echo "Test ${FUNCNAME[0]}............PASSED"
 }
 
+#  A test case.   Checks if all gm services start before a timeout
 test_mesh_startup() {
   echo "==> Test Case ${FUNCNAME[0]}"
 
@@ -170,7 +184,10 @@ test_mesh_startup() {
   echo "Test ${FUNCNAME[0]}............PASSED"
 }
 
+# A test case.   Checks the network accesibility of gm services
 test_reachable_mesh() {
+  # Runs curl in a retry loop. GM services have a slight lag between when the pod is ready and when proxies accept connections
+  # curl --retry et al is not robust enough for the tests
   curl_retry() {
     url=$1
     timeout=120
@@ -182,6 +199,7 @@ test_reachable_mesh() {
         return 1
       fi
 
+      # use ipv4, suppress output, fail on all error codes, and show header info
       result=$(curl -4 -sSLf -D - -o /dev/null $url)
       err=$?
       if [ $err -gt 0 ]; then
@@ -196,7 +214,9 @@ test_reachable_mesh() {
 
   echo "==> Test Case ${FUNCNAME[0]}"
 
+  # ingress port is dynamic
   PORT=$(kubectl get -n greymatter svc --output=jsonpath="{.spec.ports[0].nodePort}" edge)
+
   echo
   echo "Trying Dashboard..."
 
@@ -211,8 +231,9 @@ test_reachable_mesh() {
   
   echo
   echo "Trying control..."
+
+  # Check if control sends JSON; gives us better assurance that the response was correct
   res=$( curl_retry "http://localhost:$PORT/services/control-api/v1.0/zone")
-  echo $res
   echo $res | grep -q "content-type: application/json"
   if [ $? -gt 0 ]; then
     echo "TEST ${FUNCNAME[0]} FAILED."
@@ -223,6 +244,7 @@ test_reachable_mesh() {
 
   echo
   echo "Trying Catalog..."
+
   res=$( curl_retry "http://localhost:$PORT/services/catalog/summary")
   echo $res | grep -q 'content-type: application/json'
   if [ $? -gt 0 ]; then
@@ -236,6 +258,7 @@ test_reachable_mesh() {
   echo "Test ${FUNCNAME[0]}............PASSED"
 }
 
+# Integration test "dispatcher" function
 test_integration() {
   TEST=$1
   case $TEST in
