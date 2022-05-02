@@ -106,7 +106,6 @@ _release_bundle() {
 cmd_generate_integration_tests () {
   declare steps_yaml
   cases=('default' 'no_spire' 'tear_down')
-
   for C in "${cases[@]}"; do
     launch_cluster $C
     steps_yaml+=("""
