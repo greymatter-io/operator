@@ -65,10 +65,13 @@ _build_image () {
   buildah bud $build_args -t "${tag}" --layers -f ${dockerfile} .
 }
 
-# Logs into Nexus, checks if CI is running during a tag release or merge into main and if so pushes assets
+# Logs into Nexus, checks if CI is running during a tag release or merge into main and if so pushes assets. 
+# Needs to download the previous assets in case the agent machine gets reassigned (in which case the build assets won't be there)
 _release_container () {
-  container-registry-login $NEXUS_USER $NEXUS_PASS
   local latest="docker.greymatter.io/development/gm-operator:latest"
+  buildkite-agent artifact download "${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar" . --build ${BUILDKITE_BUILD_ID} --agent-access-token ${BUILDKITE_AGENT_ACCESS_TOKEN}
+  podman load -q -i "${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar"
+  container-registry-login $NEXUS_USER $NEXUS_PASS
   if [[ "$BUILDKITE_BRANCH" == "main" ]]; then
     container-registry-push $latest
   fi
@@ -106,6 +109,7 @@ _release_bundle() {
 cmd_generate_integration_tests () {
   declare steps_yaml
   cases=('default' 'no_spire' 'tear_down')
+
   for C in "${cases[@]}"; do
     launch_cluster $C
     steps_yaml+=("""
