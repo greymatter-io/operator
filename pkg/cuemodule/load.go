@@ -88,16 +88,19 @@ func (operatorCUE *OperatorCUE) ExtractConfig() Config {
 // TODO who should be responsible for logging errors - these, or the calling functions? I've been inconsistent about it
 
 // UnifyWithMesh unifies the operatorCUE with a Mesh CR to fill in values
-func (operatorCUE *OperatorCUE) UnifyWithMesh(mesh *v1alpha1.Mesh) {
-	meshValue, _ := FromStruct("mesh", mesh)
+func (operatorCUE *OperatorCUE) UnifyWithMesh(mesh *v1alpha1.Mesh) error {
+	meshValue, err := FromStruct("mesh", mesh)
+	if err != nil {
+		return err
+	}
 	k8sManifestsValue := operatorCUE.K8s.Unify(meshValue)
 	if err := k8sManifestsValue.Err(); err != nil {
 		logger.Error(err,
-			"Error while attempting to unify provided Mesh resource with Grey Matter K8s CUE",
-			"K8s CUE", operatorCUE.K8s,
+			"Error while attempting to unify provided Mesh resource with Kubernetes mesh configs CUE",
+			"GM CUE", operatorCUE.K8s,
 			"Mesh Value", meshValue,
 			"Unification Result", k8sManifestsValue)
-		return
+		return err
 	}
 	// We're also going to do unification with the GM CUE and cache it, as an optimization
 	meshConfigsValue := operatorCUE.GM.Unify(meshValue)
@@ -107,10 +110,11 @@ func (operatorCUE *OperatorCUE) UnifyWithMesh(mesh *v1alpha1.Mesh) {
 			"GM CUE", operatorCUE.GM,
 			"Mesh Value", meshValue,
 			"Unification Result", meshConfigsValue)
-		return
+		return err
 	}
 	operatorCUE.K8s = k8sManifestsValue
 	operatorCUE.GM = meshConfigsValue
+	return nil
 }
 
 // K8s Manifests
