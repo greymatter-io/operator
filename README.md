@@ -37,9 +37,46 @@ kubectl create secret docker-registry gm-docker-secret \
 The operator will be running in a pod in the `gm-operator` namespace, and shortly after installation, the default Mesh
 CR described in `pkg/cuemodule/new_structure/inputs.cue` will be automatically deployed.
 
+That is all you need to do to launch the operator. Note that if you have the spire config flag set
+(in pkg/cuemodule/inputs.cue) then you will need to wait for the operator to insert the server-ca bootstrap certificates
+before spire-server and spire-agent can successfully launch.
+
+
+## Alternative Debug Build
+
+If you would like to attach a remote debugger to your operator container, do the following:
+```bash
+# Builds and pushes docker.greymatter.io/internal/gm-operator:debug from Dockerfile.debug. Edit to taste.
+# You will need to have your credentials in $GREYMATTER_REGISTRY_USERNAME and $GREYMATTER_REGISTRY_PASSWORD
+scripts/build debug  
+
+# Launch the operator with the debug build in debug mode.
+# Note the two tags (`operator_image` and `debug`) which are the only differences from Getting Started
+( 
+cd pkg/cuemodule
+cue eval -c ./k8s/outputs --out text \
+         -t operator_image=docker.greymatter.io/internal/gm-operator:debug \
+         -t debug=true \
+         -e operator_manifests_yaml | kubectl apply -f -
+
+kubectl create secret docker-registry gm-docker-secret \
+  --docker-server=docker.greymatter.io \
+  --docker-username=$GREYMATTER_REGISTRY_USERNAME \
+  --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
+  --docker-email=$GREYMATTER_REGISTRY_USERNAME \
+  -n gm-operator
+)
+  
+# To connect, first port-forward to 2345 on the operator container in a separate terminal window
+kubectl port-forward sts/gm-operator 2345 -n gm-operator
+
+# Now you can connect GoLand or VS Code or just vanilla Delve to localhost:2345 for debugging
+# Note that the `:debug` container waits for the debugger to connect before running the operator
+```
+
 ## Inspecting Manifests
 
-The following commands print out manifests that can be applied to a Kubernetes cluster:
+The following commands print out manifests that can be applied to a Kubernetes cluster, for your inspection:
 
 ```bash
 ( 
