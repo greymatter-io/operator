@@ -53,10 +53,6 @@ defaults: {
   redis_cluster_name: "redis"
   redis_host: "\(redis_cluster_name).\(mesh.spec.install_namespace).svc.cluster.local"
 
-  // TODO I don't like that this gets *read* by the Go, but it's not in EXTRACTME
-  // redis_spire_subjects: 
-
-
   ports: {
     default_ingress: 10808
     redis_ingress: 10910
