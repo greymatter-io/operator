@@ -22,4 +22,6 @@ steps:
       - ./scripts/cibuild generate_integration_tests
   - wait
   - label: "release"
+    agents:
+      container_image: ubuntu-2110-ci
     command: "./scripts/cibuild release"
