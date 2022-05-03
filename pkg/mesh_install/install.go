@@ -8,6 +8,7 @@ import (
 	"github.com/greymatter-io/operator/pkg/wellknown"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -41,9 +42,13 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		// If we're applying a new mesh, pull the initial sidecar list for redis metrics ingress from the default
 		// mesh in the initially-loaded CUE. This is important only when we're not already auto-applying the mesh in
 		// the CUE, but doesn't hurt either way
-		logger.Info("Mesh SidecarList right before we try to Apply it", "list", i.Mesh.Status.SidecarList)                // DEBUG
-		logger.Info("Webhook-provided Mesh SidecarList right before we try to Apply it", "list", mesh.Status.SidecarList) // DEBUG
+		meshCopy := mesh.DeepCopy()
+		patch := client.MergeFrom(meshCopy)
 		mesh.Status.SidecarList = i.Mesh.Status.SidecarList
+		err := (*i.K8sClient).Status().Patch(context.TODO(), mesh, patch)
+		if err != nil {
+			logger.Error(err, "error while attempting to update the status subresource of mesh in ApplyMesh", "mesh name", mesh.Name, "Status", mesh.Status)
+		}
 	}
 
 	// The idea is a) one operator per mesh, and b) the sidecar template comes from unification with global OperatorCUE
@@ -95,8 +100,6 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	// Do unification between the Mesh and K8s CUE here before extraction, and save the unified values
 	i.OperatorCUE.UnifyWithMesh(mesh)
 	i.Mesh = mesh // set this mesh as THE mesh managed by the operator
-
-	logger.Info("Mesh SidecarList when mesh is first Applied", "list", i.Mesh.Status.SidecarList) // DEBUG
 
 	// Once that's done, we can get the Grey Matter configurator going concurrently
 	go i.ConfigureMeshClient(mesh) // Applies the Grey Matter configuration once Control and Catalog are up
