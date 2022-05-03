@@ -98,7 +98,13 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		i.OperatorCUE = freshLoadOperatorCUE
 	}
 	// Do unification between the Mesh and K8s CUE here before extraction, and save the unified values
-	i.OperatorCUE.UnifyWithMesh(mesh)
+	err := i.OperatorCUE.UnifyWithMesh(mesh)
+	if err != nil {
+		logger.Error(err,
+			"error while attempting to unify provided Mesh resource with Grey Matter mesh configs CUE",
+			"Mesh", mesh)
+		return
+	}
 	i.Mesh = mesh // set this mesh as THE mesh managed by the operator
 
 	// Once that's done, we can get the Grey Matter configurator going concurrently

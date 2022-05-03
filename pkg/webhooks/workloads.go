@@ -190,7 +190,6 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 
 func (wd *workloadDefaulter) addToMeshSidecarList(name string) {
 	// apply the new sidecar list to the Mesh status
-	logger.Info("Mesh SidecarList at time of addition", "list", wd.Mesh.Status.SidecarList, "addition", name) // DEBUG
 	// TODO don't append it if it's already there
 	for _, sidecarName := range wd.Mesh.Status.SidecarList {
 		if sidecarName == name {
@@ -209,7 +208,14 @@ func (wd *workloadDefaulter) addToMeshSidecarList(name string) {
 	// Update the mesh inside the OperatorCUE with the new sidecar_list
 	freshLoadOperatorCUE, _ := cuemodule.LoadAll(wd.CueRoot)
 	wd.OperatorCUE = freshLoadOperatorCUE
-	wd.OperatorCUE.UnifyWithMesh(wd.Mesh)
+	err = wd.OperatorCUE.UnifyWithMesh(wd.Mesh)
+	if err != nil {
+		logger.Error(err,
+			"error attempting to unify mesh after sidecar addition - this should never happen - check Mesh integrity",
+			"Mesh", wd.Mesh,
+			"new sidecar name", name)
+		return
+	}
 }
 
 func (wd *workloadDefaulter) removeFromMeshSidecarList(name string) {
@@ -230,7 +236,14 @@ func (wd *workloadDefaulter) removeFromMeshSidecarList(name string) {
 	// Update the mesh inside the OperatorCUE with the new sidecar_list
 	freshLoadOperatorCUE, _ := cuemodule.LoadAll(wd.CueRoot)
 	wd.OperatorCUE = freshLoadOperatorCUE
-	wd.OperatorCUE.UnifyWithMesh(wd.Mesh)
+	err = wd.OperatorCUE.UnifyWithMesh(wd.Mesh)
+	if err != nil {
+		logger.Error(err,
+			"error attempting to unify mesh after sidecar removal - this should never happen - check Mesh integrity",
+			"Mesh", wd.Mesh,
+			"removed sidecar name", name)
+		return
+	}
 }
 
 func addClusterLabels(tmpl corev1.PodTemplateSpec, meshName, clusterName string) corev1.PodTemplateSpec {

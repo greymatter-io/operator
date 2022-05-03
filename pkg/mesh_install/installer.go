@@ -127,7 +127,13 @@ func (i *Installer) Start(ctx context.Context) error {
 			logger.Info("Mesh already deployed. Reloading values.", "Name", mesh.Name)
 			i.Mesh = &mesh // load the live version of the mesh
 			// immediately update OperatorCUE and the SidecarList
-			i.OperatorCUE.UnifyWithMesh(i.Mesh)
+			err := i.OperatorCUE.UnifyWithMesh(i.Mesh)
+			if err != nil {
+				logger.Error(err,
+					"error while attempting to unify existing deployed Mesh with Grey Matter mesh configs CUE",
+					"Mesh", mesh)
+				return err
+			}
 			i.ConfigureMeshClient(i.Mesh)
 			meshAlreadyDeployed = true
 			break
@@ -159,7 +165,7 @@ func (i *Installer) Start(ctx context.Context) error {
 				if err == nil {
 					break
 				}
-				logger.Info("Failed to patch mesh with new status, will retry", "list", i.Mesh.Status.SidecarList, "err", err) // DEBUG
+				logger.Info("Failed to patch mesh with new status, will retry in 10 seconds", "list", i.Mesh.Status.SidecarList, "err", err)
 				time.Sleep(10 * time.Second)
 			}
 		}
