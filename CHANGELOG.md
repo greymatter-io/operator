@@ -36,6 +36,8 @@
   discovery to fail to identify data planes in the `install_namespace` when no `watch_namespaces`
   were specified.
 - Cleaned up unnecessary SPIRE agent unix workload attestor configuration.
+- Fixed family of issues that prevented the operator from restarting cleanly. The Operator now
+  reloads the list of sidecars used for Spire mTLS authorization from the Mesh CR itself.
 
 ## 0.3.3 (February 10, 2022)
 
