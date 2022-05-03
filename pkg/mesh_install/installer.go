@@ -75,8 +75,6 @@ func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1al
 // It implements the controller-runtime Runnable interface.
 func (i *Installer) Start(ctx context.Context) error {
 
-	logger.Info("Mesh SidecarList when Installer is first Started", "list", i.Mesh.Status.SidecarList) // DEBUG
-
 	// Retrieve the operator image secret from the apiserver (block until it's retrieved).
 	// This secret will be re-created in each install namespace and watch namespaces where core services are pulled.
 	i.imagePullSecret = getImagePullSecret(i.K8sClient)
@@ -130,6 +128,7 @@ func (i *Installer) Start(ctx context.Context) error {
 			i.Mesh = &mesh // load the live version of the mesh
 			// immediately update OperatorCUE and the SidecarList
 			i.OperatorCUE.UnifyWithMesh(i.Mesh)
+			i.ConfigureMeshClient(i.Mesh)
 			meshAlreadyDeployed = true
 			break
 		}
@@ -140,13 +139,27 @@ func (i *Installer) Start(ctx context.Context) error {
 		if i.Config.AutoApplyMesh && !meshAlreadyDeployed {
 			logger.Info("Waiting 30 seconds to apply loaded default Mesh resource to cluster.")
 			time.Sleep(30 * time.Second) // Sleep for an arbitrary initial duration
+			// This is necessary because applying the mesh clears the status if there wasn't one to being with
+			sidecarList := i.Mesh.Status.SidecarList
 			for {
-				err := k8sapi.Apply(i.K8sClient, i.Mesh.DeepCopy(), nil, k8sapi.GetOrCreate)
+				err := k8sapi.Apply(i.K8sClient, i.Mesh, nil, k8sapi.GetOrCreate)
 				if err == nil {
 					break
 				}
-				logger.Info("Mesh SidecarList while trying to auto-apply", "list", i.Mesh.Status.SidecarList) // DEBUG
 				logger.Info("Temporary failure to apply Mesh resource. Will retry in 10 seconds.")
+				time.Sleep(10 * time.Second)
+			}
+
+			// Update the status to include the sidecar list after the Mesh is applied
+			for {
+				meshCopy := i.Mesh.DeepCopy()
+				patch := client.MergeFrom(meshCopy)
+				i.Mesh.Status.SidecarList = sidecarList
+				err := (*i.K8sClient).Status().Patch(context.TODO(), i.Mesh, patch)
+				if err == nil {
+					break
+				}
+				logger.Info("Failed to patch mesh with new status, will retry", "list", i.Mesh.Status.SidecarList, "err", err) // DEBUG
 				time.Sleep(10 * time.Second)
 			}
 		}

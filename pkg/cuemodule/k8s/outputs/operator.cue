@@ -188,7 +188,7 @@ operator_crd: [
   },
 ]
 
-operator_k8s: [
+operator_sts: [
   appsv1.#StatefulSet & {
     apiVersion: "apps/v1"
     kind:       "StatefulSet"
@@ -284,7 +284,9 @@ operator_k8s: [
       }
     }
   },
+]
 
+operator_k8s: [
   corev1.#ConfigMap & {
     apiVersion: "v1"
     kind: "ConfigMap"
