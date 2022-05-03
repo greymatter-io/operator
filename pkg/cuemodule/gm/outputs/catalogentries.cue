@@ -44,7 +44,7 @@ catalog_entries: [
 	  service_id: "controlensemble"
 		version:         strings.Split(mesh.spec.images.control_api, ":")[1]
 		description:       "Manages the configuration of the Grey Matter data plane."
-		api_endpoint:      "/services/control-api/v1.0/"
+		api_endpoint:      "/services/control-api/"
 		business_impact:   "critical"
 		api_spec_endpoint: "/services/control-api/"
 		enable_instance_metrics: true
