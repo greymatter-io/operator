@@ -205,18 +205,37 @@ operator_sts: [
         metadata: labels: name: "gm-operator"
         spec: {
           containers: [{
-            command: [
-              "/app/operator",
-            ]
+            if !config.debug {
+              command: [
+                "/app/operator"
+              ]
+            }
+            if config.debug {
+              command: [
+                "/app/dlv"
+              ]
+              args: [
+                "--listen=:2345",
+                "--headless=true",
+                "--log=true",
+                "--log-output=debugger,debuglineerr,gdbwire,lldbout,rpc",
+                "--accept-multiclient",
+                "--api-version=2",
+                "exec",
+                "/app/operator",
+              ]
+            }
             image: defaults.images.operator
             imagePullPolicy: "IfNotPresent"
-            livenessProbe: {
-              httpGet: {
-                path: "/healthz"
-                port: 8081
+            if config.debug {
+              livenessProbe: {
+                httpGet: {
+                  path: "/healthz"
+                  port: 8081
+                }
+                initialDelaySeconds: 120
+                periodSeconds:       20
               }
-              initialDelaySeconds: 120
-              periodSeconds:       20
             }
             name: "operator"
             ports: [{

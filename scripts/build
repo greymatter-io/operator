@@ -15,10 +15,16 @@ cmd_build () {
 }
 
 cmd_debug () {
-    go build -o bin/operator \
-        --mod=vendor \
-        -tags debug \
-        -gcflags 'all=-N -l' github.com/greymatter-io/operator
+    #go build -o bin/operator \
+    #    --mod=vendor \
+    #    -tags debug \
+    #    -gcflags 'all=-N -l' github.com/greymatter-io/operator
+    docker build \
+     --platform linux/amd64 \
+     --build-arg username=$GREYMATTER_REGISTRY_USERNAME \
+     --build-arg password=$GREYMATTER_REGISTRY_PASSWORD \
+     -f Dockerfile.debug . -t docker.greymatter.io/internal/gm-operator:debug && \
+    docker push docker.greymatter.io/internal/gm-operator:debug
 }
 
 cmd_help () {

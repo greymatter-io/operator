@@ -1,0 +1,56 @@
+# Build the operator binary
+FROM docker.io/golang:1.18 as builder
+
+WORKDIR /workspace
+
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+
+# Copy the go source
+COPY main.go main.go
+COPY api/ api/
+COPY pkg/ pkg/
+COPY vendor/ vendor/
+
+# Ensure CLI is downloaded to workspace
+ARG username
+ARG password
+ENV USERNAME=$username
+ENV PASSWORD=$password
+COPY scripts/cli cli
+RUN ./cli
+
+# Build
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -a -o operator main.go
+
+# Get Delve
+RUN CGO_ENABLED=0 go install -ldflags "-s -w -extldflags '-static'" github.com/go-delve/delve/cmd/dlv@latest
+
+FROM ubuntu:21.04
+
+WORKDIR /app
+COPY --from=builder /workspace/operator /app/operator
+COPY --from=builder /go/bin/dlv /app/dlv
+COPY --from=builder /workspace/pkg/cuemodule/cue.mod /app/cue.mod
+COPY --from=builder /workspace/pkg/cuemodule/inputs.cue /app/inputs.cue
+COPY --from=builder /workspace/pkg/cuemodule/gm /app/gm
+COPY --from=builder /workspace/pkg/cuemodule/k8s /app/k8s
+COPY --from=builder /workspace/greymatter /bin/greymatter
+RUN mkdir .config && chmod 777 .config
+USER 1000:1000
+
+# You'll need to set command and args like this:
+# command: [
+#   "/app/dlv"
+# ]
+# args: [
+#   "--listen=:2345",
+#   "--headless=true",
+#   "--log=true",
+#   "--log-output=debugger,debuglineerr,gdbwire,lldbout,rpc",
+#   "--accept-multiclient",
+#   "--api-version=2",
+#   "exec",
+#   "/app/operator",
+# ]
