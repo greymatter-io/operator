@@ -224,10 +224,6 @@ operator_sts: [
                 "exec",
                 "/app/operator",
               ]
-            }
-            image: defaults.images.operator
-            imagePullPolicy: "IfNotPresent"
-            if config.debug {
               livenessProbe: {
                 httpGet: {
                   path: "/healthz"
@@ -237,6 +233,8 @@ operator_sts: [
                 periodSeconds:       20
               }
             }
+            image: defaults.images.operator
+            imagePullPolicy: "IfNotPresent"
             name: "operator"
             ports: [{
               containerPort: 9443

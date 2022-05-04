@@ -15,45 +15,49 @@ cmd_build () {
 }
 
 cmd_debug () {
-    #go build -o bin/operator \
-    #    --mod=vendor \
-    #    -tags debug \
-    #    -gcflags 'all=-N -l' github.com/greymatter-io/operator
-    docker build \
-     --platform linux/amd64 \
-     --build-arg username=$GREYMATTER_REGISTRY_USERNAME \
-     --build-arg password=$GREYMATTER_REGISTRY_PASSWORD \
-     -f Dockerfile.debug . -t docker.greymatter.io/internal/gm-operator:debug && \
-    docker push docker.greymatter.io/internal/gm-operator:debug
+    go build -o bin/operator \
+        --mod=vendor \
+        -tags debug \
+        -gcflags 'all=-N -l' github.com/greymatter-io/operator
 }
 
 cmd_help () {
-  echo 'valid args: container, build, help'
+  echo 'valid args: container, debug_container, build, help'
 }
 
 _buildah_build () {
   local tag=$1
+  local dockerfile=$2
   buildah bud \
     --platform linux/amd64 \
     --build-arg username=$GREYMATTER_REGISTRY_USERNAME \
     --build-arg password=$GREYMATTER_REGISTRY_PASSWORD \
-    -t "$tag" --layers -f Dockerfile .
+    -t "$tag" --layers -f "$dockerfile" .
 }
 
 _docker_build () {
   local tag=$1
+  local dockerfile=$2
   docker build \
   --platform linux/amd64 \
   --build-arg username=$GREYMATTER_REGISTRY_USERNAME \
   --build-arg password=$GREYMATTER_REGISTRY_PASSWORD \
-  -t "$tag" -f Dockerfile .
+  -t "$tag" -f "$dockerfile" .
 }
 
 cmd_container () {
   if type -p buildah  &>/dev/null; then
-    _buildah_build "docker.greymatter.io/internal/gm-operator:latest"
+    _buildah_build "docker.greymatter.io/internal/gm-operator:latest" Dockerfile
   else
-    _docker_build "docker.greymatter.io/internal/gm-operator:latest"
+    _docker_build "docker.greymatter.io/internal/gm-operator:latest" Dockerfile
+  fi
+}
+
+cmd_debug_container () {
+  if type -p buildah  &>/dev/null; then
+    _buildah_build "docker.greymatter.io/internal/gm-operator:latest-debug" Dockerfile.debug
+  else
+    _docker_build "docker.greymatter.io/internal/gm-operator:latest-debug" Dockerfile.debug
   fi
 }
 
@@ -67,7 +71,7 @@ if [ $# -eq 0 ]; then
 else
   MODE="${1:-}"
   case "$MODE" in
-    build|container|debug|help)
+    build|container|debug_container|debug|help)
       shift
       "cmd_$MODE" "$@"
       ;;
