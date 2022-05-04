@@ -48,7 +48,10 @@ If you would like to attach a remote debugger to your operator container, do the
 ```bash
 # Builds and pushes docker.greymatter.io/internal/gm-operator:debug from Dockerfile.debug. Edit to taste.
 # You will need to have your credentials in $GREYMATTER_REGISTRY_USERNAME and $GREYMATTER_REGISTRY_PASSWORD
-scripts/build debug  
+scripts/build debug_container
+
+# Push the image you just built to Nexus
+docker push docker.greymatter.io/internal/gm-operator:debug
 
 # Launch the operator with the debug build in debug mode.
 # Note the two tags (`operator_image` and `debug`) which are the only differences from Getting Started
