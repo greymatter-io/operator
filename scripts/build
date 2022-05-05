@@ -47,17 +47,17 @@ _docker_build () {
 
 cmd_container () {
   if type -p buildah  &>/dev/null; then
-    _buildah_build "docker.greymatter.io/internal/gm-operator:latest" Dockerfile
+    _buildah_build "docker.greymatter.io/internal/gm-operator:latest" "Dockerfile"
   else
-    _docker_build "docker.greymatter.io/internal/gm-operator:latest" Dockerfile
+    _docker_build "docker.greymatter.io/internal/gm-operator:latest" "Dockerfile"
   fi
 }
 
 cmd_debug_container () {
   if type -p buildah  &>/dev/null; then
-    _buildah_build "docker.greymatter.io/internal/gm-operator:latest-debug" Dockerfile.debug
+    _buildah_build "docker.greymatter.io/internal/gm-operator:latest-debug" "Dockerfile.debug"
   else
-    _docker_build "docker.greymatter.io/internal/gm-operator:latest-debug" Dockerfile.debug
+    _docker_build "docker.greymatter.io/internal/gm-operator:latest-debug" "Dockerfile.debug"
   fi
 }
 
