@@ -47,6 +47,22 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 		return admission.ValidationResponse(true, "allowed")
 	}
 
+	// If there's no mesh, don't assist deployment
+	if wd.Mesh.Name == "" || wd.Installer.Mesh.UID == "" {
+		return admission.ValidationResponse(true, "allowed")
+	}
+	// If the pod isn't in a watched namespace, don't assist deployment
+	watched := false
+	for _, ns := range wd.Mesh.Spec.WatchNamespaces {
+		if req.Namespace == ns {
+			watched = true
+			break
+		}
+	}
+	if !watched {
+		return admission.ValidationResponse(true, "allowed")
+	}
+
 	pod := &corev1.Pod{}
 	if err := wd.Decode(req, pod); err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
