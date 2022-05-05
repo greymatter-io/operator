@@ -51,14 +51,14 @@ If you would like to attach a remote debugger to your operator container, do the
 scripts/build debug_container
 
 # Push the image you just built to Nexus
-docker push docker.greymatter.io/internal/gm-operator:debug
+docker push docker.greymatter.io/internal/gm-operator:latest-debug
 
 # Launch the operator with the debug build in debug mode.
 # Note the two tags (`operator_image` and `debug`) which are the only differences from Getting Started
 ( 
 cd pkg/cuemodule
 cue eval -c ./k8s/outputs --out text \
-         -t operator_image=docker.greymatter.io/internal/gm-operator:debug \
+         -t operator_image=docker.greymatter.io/internal/gm-operator:latest-debug \
          -t debug=true \
          -e operator_manifests_yaml | kubectl apply -f -
 
