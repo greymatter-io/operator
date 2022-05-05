@@ -113,8 +113,21 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 
 // TODO: Modification should happen using a CUE package.
 func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Response {
+	// If there's no mesh, don't assist deployment
 	meshName := wd.Mesh.Name                           // wd.WatchedBy(req.Namespace)
 	if meshName == "" || wd.Installer.Mesh.UID == "" { // If the mesh isn't actually applied, don't assist deployments
+		return admission.ValidationResponse(true, "allowed")
+	}
+
+	// If the workload isn't in a watched namespace, don't assist deployment
+	watched := false
+	for _, ns := range wd.Mesh.Spec.WatchNamespaces {
+		if req.Namespace == ns {
+			watched = true
+			break
+		}
+	}
+	if !watched {
 		return admission.ValidationResponse(true, "allowed")
 	}
 
