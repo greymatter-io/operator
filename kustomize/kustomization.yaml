@@ -4,4 +4,4 @@ kind: Kustomization
 namespace: gm-operator
 
 resources:
-  - operator.yaml
+  - operator_manifests_no_spire.yaml
