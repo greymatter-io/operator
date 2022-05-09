@@ -10,7 +10,7 @@ import (
 
 config: {
   // Flags
-  spire: bool | *true @tag(spire,type=bool) // enable Spire-based mTLS DEBUG - the default should be false
+  spire: bool | *false @tag(spire,type=bool) // enable Spire-based mTLS
   auto_apply_mesh: bool | *true @tag(auto_apply_mesh,type=bool) // apply the default mesh specified above after a delay
 
   debug: bool | *false @tag(debug,type=bool) // currently just controls k8s/outputs/operator.cue for debugging
@@ -61,8 +61,7 @@ defaults: {
   }
 
   images: {
-    // TODO this is not the default image we actually want for 1.0, so update this later
-    operator: string | *"docker.greymatter.io/internal/gm-operator:local_refactored" @tag(operator_image) // cibuild uses the tag
+    operator: string | *"docker.greymatter.io/internal/gm-operator:latest" @tag(operator_image) // cibuild uses the tag
   }
 
 }

@@ -1,3 +1,5 @@
+# Manifests to be published
+manifests/*
 
 # Binaries for programs and plugins
 *.exe
