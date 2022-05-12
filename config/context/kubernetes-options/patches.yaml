@@ -8,7 +8,7 @@ data:
     disableWebhookCertGeneration: {{ .DisableWebhookCertGeneration }}
 ---
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: gm-operator
   namespace: gm-operator

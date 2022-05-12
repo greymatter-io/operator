@@ -12,12 +12,13 @@ config: {
   // Flags
   spire: bool | *true @tag(spire,type=bool) // enable Spire-based mTLS DEBUG - the default should be false
   auto_apply_mesh: bool | *true @tag(auto_apply_mesh,type=bool) // apply the default mesh specified above after a delay
+  // for openshift support
+  openshift: bool | *false @tag(openshift,type=bool) // enable openshift support
+  generate_webhook_certs: bool | *true @tag(generate_webhook_certs,type=bool) // if false, webhook certs must be manually created
+  cluster_ingress_name: string | *"cluster" @tag(cluster_ingress_name) // For OpenShift deployments, this is used to look up the configured ingress domain
 
   debug: bool | *false @tag(debug,type=bool) // currently just controls k8s/outputs/operator.cue for debugging
 
-  // for future openshift support
-  generate_webhook_certs: bool | *true
-  cluster_ingress_name: "cluster" // For OpenShift deployments, this is used to look up the configured ingress domain
 }
 
 mesh: v1alpha1.#Mesh & {
