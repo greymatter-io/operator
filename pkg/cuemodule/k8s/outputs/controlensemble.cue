@@ -27,7 +27,7 @@ controlensemble: [
         metadata: {
           labels: {"greymatter.io/cluster": Name}
         }
-        spec: {
+        spec: #spire_permission_requests & {
           containers: [  
 
             #sidecar_container_block & { _Name: Name },
@@ -91,7 +91,7 @@ controlensemble: [
             
           ] + #spire_socket_volumes
           imagePullSecrets: [{name: defaults.image_pull_secret_name}]
-          serviceAccountName: "gm-control"
+          serviceAccountName: Name
         }
       }
     }
@@ -101,7 +101,7 @@ controlensemble: [
     apiVersion: "v1"
     kind: "ServiceAccount"
     metadata: {
-      name: "gm-control"
+      name: Name
       namespace: mesh.spec.install_namespace
     }
   },
@@ -109,7 +109,7 @@ controlensemble: [
   rbacv1.#ClusterRole & {
     apiVersion: "rbac.authorization.k8s.io/v1"
     kind: "ClusterRole"
-    metadata: name: "gm-control"
+    metadata: name: Name
     rules: [{
       apiGroups: [""]
       resources: ["pods"]
@@ -121,17 +121,17 @@ controlensemble: [
     apiVersion: "rbac.authorization.k8s.io/v1"
     kind: "ClusterRoleBinding"
     metadata: {
-      name: "gm-control"
+      name: Name
       namespace: mesh.spec.install_namespace
     }
     subjects: [{
       kind: "ServiceAccount"
-      name: "gm-control"
+      name: Name
       namespace: mesh.spec.install_namespace
     }]
     roleRef: {
       kind: "ClusterRole"
-      name: "gm-control"
+      name: Name
       apiGroup: "rbac.authorization.k8s.io"
     }
   },

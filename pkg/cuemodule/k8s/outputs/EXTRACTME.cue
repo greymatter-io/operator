@@ -7,11 +7,13 @@ import "encoding/yaml"
 
 spire_manifests: spire_namespace + spire_server + spire_agent
 operator_manifests: operator_namespace + operator_crd + operator_sts + operator_k8s + [for x in spire_manifests if config.spire {x}] // HACK but cleaner than a pile of ifs
+all_but_operator_manifests: operator_namespace + operator_k8s + [for x in spire_manifests if config.spire {x}] // HACK but cleaner than a pile of ifs
 k8s_manifests: controlensemble + catalog + redis + edge + dashboard
 
 // for CLI convenience,
 // e.g. `cue eval -c ./k8s/outputs --out text -e k8s_manifests_yaml`
 operator_manifests_yaml: yaml.MarshalStream(operator_manifests)
+all_but_operator_manifests_yaml: yaml.MarshalStream(all_but_operator_manifests)
 spire_manifests_yaml: yaml.MarshalStream(spire_manifests)
 k8s_manifests_yaml: yaml.MarshalStream(k8s_manifests)
 

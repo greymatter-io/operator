@@ -25,8 +25,11 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	// Create Namespace and image pull secret if this Mesh is new.
 	if prev == nil {
 		namespace := &v1.Namespace{
-			TypeMeta:   metav1.TypeMeta{Kind: "Namespace", APIVersion: "v1"},
-			ObjectMeta: metav1.ObjectMeta{Name: mesh.Spec.InstallNamespace},
+			TypeMeta: metav1.TypeMeta{Kind: "Namespace", APIVersion: "v1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mesh.Spec.InstallNamespace,
+				//Annotations: map[string]string{"openshift.io/sa.scc.mcs": "s0:c30,c5"}, // HACK this should be pulled from config, if this even solves my OpenShift problem
+			},
 		}
 		k8sapi.Apply(i.K8sClient, namespace, mesh, k8sapi.GetOrCreate)
 		secret := i.imagePullSecret.DeepCopy()

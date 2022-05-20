@@ -16,6 +16,9 @@ spire_namespace: [
     metadata: {
       name: "spire"
       labels: name: "spire"
+      // annotations: {
+      //   "openshift.io/sa.scc.mcs": defaults.spire_selinux_context
+      // }
     }
   },
 ]
@@ -157,6 +160,14 @@ spire_server: [
       }]
     }
   },
+  corev1.#ServiceAccount & {
+    apiVersion: "v1"
+    kind:       "ServiceAccount"
+    metadata: {
+      name:      "server"
+      namespace: "spire"
+    }
+  },
   rbacv1.#Role & {
     apiVersion: "rbac.authorization.k8s.io/v1"
     kind:       "Role"
@@ -164,30 +175,35 @@ spire_server: [
       name:      "server"
       namespace: "spire"
     }
-    rules: [{
-      apiGroups: [
-        "",
-      ]
-      resources: [
-        "pods",
-      ]
-      verbs: [
-        "get",
-      ]
-    }, {
-      apiGroups: [
-        "",
-      ]
-      resources: [
-        "configmaps",
-      ]
-      verbs: [
-        "patch",
-        "get",
-        "list",
-        "update",
-      ]
-    }]
+    rules: [
+        {
+          apiGroups: [""]
+          resources: ["configmaps"]
+          verbs: ["create", "list", "get", "update", "patch"]
+        },
+        {
+          apiGroups: [""]
+          resources: ["events"]
+          verbs: ["create"]
+        }
+    ]
+  },
+  rbacv1.#ClusterRole & {
+    apiVersion: "rbac.authorization.k8s.io/v1"
+    kind:       "ClusterRole"
+    metadata: name: "spire-server"
+    rules: [
+      {
+        apiGroups: [""]
+        resources: ["pods", "nodes", "endpoints"]
+        verbs: ["get", "list", "watch"]
+      },
+      {
+        apiGroups: [ "authentication.k8s.io", ]
+        resources: [ "tokenreviews", ]
+        verbs: [ "get", "create", ]
+      }
+    ]
   },
   rbacv1.#RoleBinding & {
     apiVersion: "rbac.authorization.k8s.io/v1"
@@ -205,44 +221,6 @@ spire_server: [
       kind:      "ServiceAccount"
       name:      "server"
       namespace: "spire"
-    }]
-  },
-  corev1.#ServiceAccount & {
-    apiVersion: "v1"
-    kind:       "ServiceAccount"
-    metadata: {
-      name:      "server"
-      namespace: "spire"
-    }
-  },
-  rbacv1.#ClusterRole & {
-    apiVersion: "rbac.authorization.k8s.io/v1"
-    kind:       "ClusterRole"
-    metadata: name: "spire-server"
-    rules: [{
-      apiGroups: [
-        "authentication.k8s.io",
-      ]
-      resources: [
-        "tokenreviews",
-      ]
-      verbs: [
-        "get",
-        "create",
-      ]
-    }, {
-      apiGroups: [
-        "",
-      ]
-      resources: [
-        "pods",
-        "nodes",
-      ]
-      verbs: [
-        "get",
-        "list",
-        "watch",
-      ]
     }]
   },
   rbacv1.#ClusterRoleBinding & {
@@ -270,72 +248,72 @@ spire_server: [
     data: {
       // https://github.com/spiffe/spire/tree/main/support/k8s/k8s-workload-registrar
       // https://github.com/lucianozablocki/spire-tutorials/tree/k8s-registrar-tutorial/k8s/k8s-workload-registrar#configure-reconcile-mode
-      "registrar.conf": """
-        trust_domain = \"greymatter.io\"
-        server_socket_path = \"/run/spire/socket/registration.sock\"
-        cluster = \"meshes\"
-        mode = \"reconcile\"
-        pod_label = \"greymatter.io/workload\"
-        metrics_addr = \"0\"
-        controller_name = \"k8s-workload-registrar\"
-        log_level = \"debug\"
-        log_path = \"/dev/stdout\"
-        """
+      "registrar.conf": #"""
+        trust_domain = "greymatter.io"
+        server_socket_path = "/run/spire/socket/registration.sock"
+        cluster = "meshes"
+        mode = "reconcile"
+        pod_label = "greymatter.io/workload"
+        metrics_addr = "0"
+        controller_name = "k8s-workload-registrar"
+        log_level = "debug"
+        log_path = "/dev/stdout"
+        """#
 
       // https://spiffe.io/docs/latest/deploying/spire_server/
-      "server.conf": """
+      "server.conf": #"""
         server {
-          bind_address = \"0.0.0.0\"
-          bind_port = \"8443\"
+          bind_address = "0.0.0.0"
+          bind_port = "8443"
           ca_subject = {
-            country = [\"US\"],
-            organization = [\"Grey Matter\"],
-            common_name = \"Mesh\",
+            country = ["US"],
+            organization = ["Grey Matter"],
+            common_name = "Mesh",
           }
-          data_dir = \"/run/spire/data\"
-          default_svid_ttl = \"1h\"
-          log_file = \"/dev/stdout\"
-          log_level = \"DEBUG\"
-          trust_domain = \"greymatter.io\"
-          socket_path = \"/run/spire/socket/registration.sock\"
+          data_dir = "/run/spire/data"
+          default_svid_ttl = "1h"
+          log_file = "/dev/stdout"
+          log_level = "DEBUG"
+          trust_domain = "greymatter.io"
+          socket_path = "/run/spire/socket/registration.sock"
         }
         plugins {
-          DataStore \"sql\" {
+          DataStore "sql" {
             plugin_data {
-              database_type = \"sqlite3\"
-              connection_string = \"/run/spire/data/datastore.sqlite3\"
+              database_type = "sqlite3"
+              connection_string = "/run/spire/data/datastore.sqlite3"
             }
           }
-          NodeAttestor \"k8s_psat\" {
+          NodeAttestor "k8s_psat" {
             plugin_data {
               clusters = {
-                \"meshes\" = {
-                  service_account_allow_list = [\"spire:agent\"]
-                  audience = [\"server\"]
+                "meshes" = {
+                  service_account_allow_list = ["spire:agent"]
+                  audience = ["server"]
                 }
               }
             }
           }
-          KeyManager \"disk\" {
+          KeyManager "disk" {
             plugin_data {
-              keys_path = \"/run/spire/data/keys.json\"
+              keys_path = "/run/spire/data/keys.json"
             }
           }
-          Notifier \"k8sbundle\" {
+          Notifier "k8sbundle" {
             plugin_data {
-              namespace = \"spire\"
-              config_map = \"server-bundle\"
+              namespace = "spire"
+              config_map = "server-bundle"
             }
           }
-          UpstreamAuthority \"disk\" {
+          UpstreamAuthority "disk" {
             plugin_data {
-              cert_file_path = \"/run/spire/ca/intermediate.crt\"
-              key_file_path = \"/run/spire/ca/intermediate.key\"
-              bundle_file_path = \"/run/spire/ca/root.crt\"
+              cert_file_path = "/run/spire/ca/intermediate.crt"
+              key_file_path = "/run/spire/ca/intermediate.key"
+              bundle_file_path = "/run/spire/ca/root.crt"
             }
           }
         }
-        """
+        """#
     }
   },
   corev1.#ConfigMap & {
@@ -367,17 +345,17 @@ spire_agent: [
           labels: app: "agent"
         }
         spec: {
-          initContainers: [{
-            name:            "init-server"
-            image:           "gcr.io/spiffe-io/wait-for-it"
-            imagePullPolicy: "IfNotPresent"
-            args: [
-              "-t",
-              "30",
-              "server:8443",
-            ]
-            resources: {}
-          }]
+          // initContainers: [{ // TODO remove this when we know we no longer need it
+          //   name:            "init-server"
+          //   image:           "gcr.io/spiffe-io/wait-for-it"
+          //   imagePullPolicy: "IfNotPresent"
+          //   args: [
+          //     "-t",
+          //     "30",
+          //     "server:8443",
+          //   ]
+          //   resources: {}
+          // }]
           containers: [{
             name:            "agent"
             image:           "gcr.io/spiffe-io/spire-agent:1.2.0"
@@ -463,6 +441,196 @@ spire_agent: [
       namespace: "spire"
     }
   },
+
+  // OpenShift specific ////////////////////////////////////
+  { // SCC https://spiffe.io/docs/latest/deploying/spire_agent/#security-context-constraints
+    allowHostDirVolumePlugin: true
+    allowHostIPC:             true
+    allowHostNetwork:         true
+    allowHostPID:             true
+    allowHostPorts:           true
+    allowPrivilegeEscalation: true
+    allowPrivilegedContainer: false
+    allowedCapabilities: null
+    allowedUnsafeSysctls: null
+    apiVersion:             "security.openshift.io/v1"
+    defaultAddCapabilities: null
+    fsGroup: type: "MustRunAs"
+    groups: []
+    kind: "SecurityContextConstraints"
+    metadata: {
+      annotations: {
+        "include.release.openshift.io/self-managed-high-availability": "true"
+        "kubernetes.io/description": "Customized policy for Spire to enable host level access."
+        "release.openshift.io/create-only": "true"
+      }
+      name: "spire"
+    }
+    priority:                 null
+    readOnlyRootFilesystem:   false
+    requiredDropCapabilities: [ "KILL", "MKNOD", "SETUID", "SETGID" ]
+    runAsUser: type: "RunAsAny"
+    seLinuxContext: type: "MustRunAs"
+    supplementalGroups: type: "RunAsAny"
+    users: []
+    volumes: [
+      "hostPath",
+      "configMap",
+      "downwardAPI",
+      "emptyDir",
+      "persistentVolumeClaim",
+      "projected",
+      "secret",
+    ]
+  },
+  rbacv1.#ClusterRole & {
+    apiVersion: "rbac.authorization.k8s.io/v1"
+    kind: "ClusterRole"
+    metadata: {
+      annotations: {
+        "include.release.openshift.io/self-managed-high-availability": "true"
+        "rbac.authorization.kubernetes.io/autoupdate": "true"
+      }
+      name: "system:openshift:scc:spire"
+    }
+    rules: [{
+        apiGroups: ["security.openshift.io"]
+        resourceNames: ["spire"]
+        resources: ["securitycontextconstraints"]
+        verbs: ["use"]
+    }]
+  },
+  rbacv1.#RoleBinding & {
+    apiVersion: "rbac.authorization.k8s.io/v1"
+    kind:       "RoleBinding"
+    metadata: {
+      name:      "system:openshift:scc:spire:agent"
+      namespace: "spire"
+    }
+    roleRef: {
+      apiGroup: "rbac.authorization.k8s.io"
+      kind:     "ClusterRole"
+      name:     "system:openshift:scc:spire"
+    }
+    subjects: [{
+      kind:      "ServiceAccount"
+      name:      "agent"
+      namespace: "spire"
+    }]
+  },
+  corev1.#Namespace & { // HACK this should be done by the go, but we're doing it now so the SCCs can be applied all at once here
+    // Starting with this Namespace, these manifests should only apply if we want Spire
+    apiVersion: "v1"
+    kind:       "Namespace"
+    metadata: {
+      name: mesh.spec.install_namespace
+      labels: name: mesh.spec.install_namespace
+    }
+  },
+
+  // RoleBindings for each of the core Grey Matter services so they can access their agent.sock
+  rbacv1.#RoleBinding & { // catalog
+    apiVersion: "rbac.authorization.k8s.io/v1"
+    kind:       "RoleBinding"
+    metadata: {
+      name:      "system:openshift:scc:spire:catalog"
+      namespace: mesh.spec.install_namespace
+    }
+    roleRef: {
+      apiGroup: "rbac.authorization.k8s.io"
+      kind:     "ClusterRole"
+      name:     "system:openshift:scc:spire"
+    }
+    subjects: [{
+      kind:      "ServiceAccount"
+      name:      "catalog"
+      namespace: mesh.spec.install_namespace
+    }]
+  },
+  rbacv1.#RoleBinding & { // controlensemble
+    apiVersion: "rbac.authorization.k8s.io/v1"
+    kind:       "RoleBinding"
+    metadata: {
+      name:      "system:openshift:scc:spire:controlensemble"
+      namespace: mesh.spec.install_namespace
+    }
+    roleRef: {
+      apiGroup: "rbac.authorization.k8s.io"
+      kind:     "ClusterRole"
+      name:     "system:openshift:scc:spire"
+    }
+    subjects: [{
+      kind:      "ServiceAccount"
+      name:      "controlensemble"
+      namespace: mesh.spec.install_namespace
+    }]
+  },
+  rbacv1.#RoleBinding & { // dashboard
+    apiVersion: "rbac.authorization.k8s.io/v1"
+    kind:       "RoleBinding"
+    metadata: {
+      name:      "system:openshift:scc:spire:dashboard"
+      namespace: mesh.spec.install_namespace
+    }
+    roleRef: {
+      apiGroup: "rbac.authorization.k8s.io"
+      kind:     "ClusterRole"
+      name:     "system:openshift:scc:spire"
+    }
+    subjects: [{
+      kind:      "ServiceAccount"
+      name:      "dashboard"
+      namespace: mesh.spec.install_namespace
+    }]
+  },
+  rbacv1.#RoleBinding & { // edge
+    apiVersion: "rbac.authorization.k8s.io/v1"
+    kind:       "RoleBinding"
+    metadata: {
+      name:      "system:openshift:scc:spire:edge"
+      namespace: mesh.spec.install_namespace
+    }
+    roleRef: {
+      apiGroup: "rbac.authorization.k8s.io"
+      kind:     "ClusterRole"
+      name:     "system:openshift:scc:spire"
+    }
+    subjects: [{
+      kind:      "ServiceAccount"
+      name:      "edge"
+      namespace: mesh.spec.install_namespace
+    }]
+  },
+  rbacv1.#RoleBinding & { // redis
+    apiVersion: "rbac.authorization.k8s.io/v1"
+    kind:       "RoleBinding"
+    metadata: {
+      name:      "system:openshift:scc:spire:\(defaults.redis_cluster_name)"
+      namespace: mesh.spec.install_namespace
+    }
+    roleRef: {
+      apiGroup: "rbac.authorization.k8s.io"
+      kind:     "ClusterRole"
+      name:     "system:openshift:scc:spire"
+    }
+    subjects: [{
+      kind:      "ServiceAccount"
+      name:      defaults.redis_cluster_name
+      namespace: mesh.spec.install_namespace
+    }]
+  },
+
+  // End OpenShift specific /////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
 
   rbacv1.#ClusterRole & {
     apiVersion: "rbac.authorization.k8s.io/v1"
