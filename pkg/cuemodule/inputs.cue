@@ -12,11 +12,12 @@ config: {
   // Flags
   spire: bool | *false @tag(spire,type=bool) // enable Spire-based mTLS
   auto_apply_mesh: bool | *true @tag(auto_apply_mesh,type=bool) // apply the default mesh specified above after a delay
+  openshift: bool | *false @tag(openshift,type=bool)
 
   debug: bool | *false @tag(debug,type=bool) // currently just controls k8s/outputs/operator.cue for debugging
 
   // for future openshift support
-  generate_webhook_certs: bool | *true
+  generate_webhook_certs: bool | *true @tag(generate_webhook_certs,type=bool)
   cluster_ingress_name: "cluster" // For OpenShift deployments, this is used to look up the configured ingress domain
 }
 
@@ -54,6 +55,7 @@ defaults: {
   xds_host: "controlensemble.\(mesh.spec.install_namespace).svc.cluster.local"
   redis_cluster_name: "redis"
   redis_host: "\(redis_cluster_name).\(mesh.spec.install_namespace).svc.cluster.local"
+  spire_selinux_context: string | *"s0:c30,c5"
 
   ports: {
     default_ingress: 10808

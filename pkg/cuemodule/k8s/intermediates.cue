@@ -37,3 +37,12 @@ import (
   name: "spire-socket",
   hostPath: {path: "/run/spire/socket", type: "DirectoryOrCreate"}
 }]
+
+#spire_permission_requests: {
+  if config.spire {
+    hostPID: true
+    // hostNetwork: true
+    // dnsPolicy: "ClusterFirstWithHostNet"
+  }
+  ...
+}

@@ -23,7 +23,7 @@ dashboard: [
         metadata: {
           labels: {"greymatter.io/cluster": Name}
         }
-        spec: {
+        spec: #spire_permission_requests & {
           containers: [
             #sidecar_container_block & {_Name: Name},
 
@@ -58,11 +58,21 @@ dashboard: [
             },
           ] + #spire_socket_volumes
           imagePullSecrets: [{name: defaults.image_pull_secret_name}]
+          serviceAccountName: Name
         }
       }
     }
   },
 
+  // Used to attach SCCs
+  corev1.#ServiceAccount & {
+    apiVersion: "v1"
+    kind: "ServiceAccount"
+    metadata: {
+      name:      Name
+      namespace: mesh.spec.install_namespace
+    }
+  },
   corev1.#ConfigMap & {
     apiVersion: "v1"
     kind: "ConfigMap"

@@ -234,7 +234,7 @@ operator_sts: [
               }
             }
             image: defaults.images.operator
-            imagePullPolicy: "IfNotPresent"
+            imagePullPolicy: "Always"
             name: "operator"
             ports: [{
               containerPort: 9443
@@ -259,7 +259,11 @@ operator_sts: [
                 memory: "150Mi"
               }
             }
-            securityContext: allowPrivilegeEscalation: false
+            securityContext: {
+              allowPrivilegeEscalation: false
+              // capabilities: drop: ["ALL"]
+              // seccompProfile: type: "RuntimeDefault"
+            }
             volumeMounts: [
               {
                 mountPath: "/tmp/k8s-webhook-server/serving-certs"
@@ -274,7 +278,9 @@ operator_sts: [
             ]
           }]
           imagePullSecrets: []
-          securityContext: runAsNonRoot: true
+          securityContext: {
+            runAsNonRoot: true
+          }
           serviceAccountName:            "gm-operator"
           terminationGracePeriodSeconds: 10
           volumes: [
@@ -318,6 +324,7 @@ operator_k8s: [
       config: {
         spire: \(config.spire)
         auto_apply_mesh: \(config.auto_apply_mesh)
+        generate_webhook_certs: \(config.generate_webhook_certs)
       }
       """
     }
