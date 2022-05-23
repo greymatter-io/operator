@@ -1,0 +1,975 @@
+metadata:
+  labels:
+    name: gm-operator
+  name: gm-operator
+kind: Namespace
+apiVersion: v1
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.6.1
+  name: meshes.greymatter.io
+spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        service:
+          name: gm-webhook
+          namespace: gm-operator
+          path: /convert
+      conversionReviewVersions:
+        - v1
+  group: greymatter.io
+  names:
+    kind: Mesh
+    listKind: MeshList
+    plural: meshes
+    singular: mesh
+  scope: Cluster
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .spec.install_namespace
+          name: Install Namespace
+          type: string
+        - jsonPath: .spec.release_version
+          name: Release Version
+          type: string
+        - jsonPath: .spec.zone
+          name: Zone
+          type: string
+      name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: Mesh defines a Grey Matter mesh's desired state and describes its observed state.
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: MeshSpec defines the desired state of a Grey Matter mesh.
+              properties:
+                image_pull_secrets:
+                  description: A list of pull secrets to try for fetching core services.
+                  items:
+                    type: string
+                  type: array
+                images:
+                  description: A list of OCI image strings and their respective pull secret names. These are treated as overrides to the specified "release_version".
+                  properties:
+                    catalog:
+                      type: string
+                    control:
+                      type: string
+                    control_api:
+                      type: string
+                    dashboard:
+                      type: string
+                    jwt_security:
+                      type: string
+                    prometheus:
+                      type: string
+                    proxy:
+                      type: string
+                    redis:
+                      type: string
+                  type: object
+                install_namespace:
+                  description: Namespace where mesh core components and dependencies should be installed.
+                  type: string
+                release_version:
+                  default: latest
+                  description: The version of Grey Matter to install for this mesh.
+                  enum:
+                    - "1.6"
+                    - "1.7"
+                    - latest
+                  type: string
+                user_tokens:
+                  description: Add user tokens to the JWT Security Service.
+                  items:
+                    properties:
+                      label:
+                        type: string
+                      values:
+                        additionalProperties:
+                          items:
+                            type: string
+                          type: array
+                        type: object
+                    required:
+                      - label
+                      - values
+                    type: object
+                  type: array
+                watch_namespaces:
+                  description: Namespaces to include in the mesh network.
+                  items:
+                    type: string
+                  type: array
+                zone:
+                  default: default-zone
+                  description: Label this mesh as belonging to a particular zone.
+                  type: string
+              required:
+                - install_namespace
+                - release_version
+                - zone
+              type: object
+            status:
+              description: MeshStatus describes the observed state of a Grey Matter mesh.
+              type: object
+              properties:
+                sidecar_list:
+                  type: array
+                  items:
+                    type: string
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+metadata:
+  labels:
+    name: gm-operator
+  name: gm-operator
+  namespace: gm-operator
+spec:
+  serviceName: gm-operator
+  replicas: 1
+  selector:
+    matchLabels:
+      name: gm-operator
+  template:
+    metadata:
+      labels:
+        name: gm-operator
+    spec:
+      containers:
+        - image: docker.greymatter.io/internal/gm-operator:local_refactored
+          imagePullPolicy: IfNotPresent
+          name: operator
+          command:
+            - /app/operator
+          ports:
+            - containerPort: 9443
+              name: webhook-server
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 120
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 200m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 150Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: webhook-cert
+              readOnly: true
+            - name: overrides-cue
+              mountPath: /app/overrides.cue
+              subPath: overrides.cue
+      imagePullSecrets: []
+      hostNetwork: true
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: gm-operator
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - name: webhook-cert
+          secret:
+            defaultMode: 420
+            items:
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
+            secretName: gm-webhook-cert
+        - name: overrides-cue
+          configMap:
+            name: overrides-cue
+kind: StatefulSet
+apiVersion: apps/v1
+---
+metadata:
+  name: overrides-cue
+  namespace: gm-operator
+data:
+  overrides.cue: |-
+    package only
+
+    config: {
+      spire: true
+      auto_apply_mesh: true
+    }
+kind: ConfigMap
+apiVersion: v1
+---
+metadata:
+  name: gm-operator
+  namespace: gm-operator
+imagePullSecrets:
+  - name: gm-docker-secret
+kind: ServiceAccount
+apiVersion: v1
+---
+metadata:
+  name: gm-leader-election-role
+  namespace: gm-operator
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+---
+metadata:
+  name: gm-operator-role
+rules:
+  - apiGroups:
+      - apiextensions.k8s.io
+    resourceNames:
+      - meshes.greymatter.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - get
+  - apiGroups:
+      - greymatter.io
+    resources:
+      - meshes
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - greymatter.io
+    resources:
+      - meshes/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resourceNames:
+      - gm-mutate-config
+      - gm-validate-config
+    resources:
+      - mutatingwebhookconfigurations
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - patch
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+      - statefulsets
+    verbs:
+      - get
+      - list
+      - create
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - secrets
+      - serviceaccounts
+      - services
+    verbs:
+      - get
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterrolebindings
+      - clusterroles
+    verbs:
+      - get
+      - create
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - list
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - create
+      - update
+  - apiGroups:
+      - config.openshift.io
+    resources:
+      - ingresses
+    verbs:
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - create
+  - apiGroups:
+      - apps
+    resources:
+      - daemonsets
+    verbs:
+      - get
+      - create
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - roles
+      - rolebindings
+    verbs:
+      - get
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - list
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - get
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - nodes/proxy
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+---
+metadata:
+  name: gm-leader-election-rolebinding
+  namespace: gm-operator
+subjects:
+  - kind: ServiceAccount
+    name: gm-operator
+    namespace: gm-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gm-leader-election-role
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+---
+metadata:
+  name: gm-operator-rolebinding
+subjects:
+  - kind: ServiceAccount
+    name: gm-operator
+    namespace: gm-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gm-operator-role
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+---
+metadata:
+  name: gm-webhook-cert
+  namespace: gm-operator
+data:
+  tls.crt: !!binary
+  tls.key: !!binary
+kind: Secret
+apiVersion: v1
+---
+metadata:
+  name: gm-webhook
+  namespace: gm-operator
+spec:
+  ports:
+    - port: 443
+      protocol: TCP
+      targetPort: 9443
+  selector:
+    name: gm-operator
+kind: Service
+apiVersion: v1
+---
+metadata:
+  name: gm-mutate-config
+webhooks:
+  - admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: gm-webhook
+        namespace: gm-operator
+        path: /mutate-workload
+    failurePolicy: Fail
+    name: mutate-workload.greymatter.io
+    namespaceSelector:
+      matchExpressions:
+        - key: name
+          operator: NotIn
+          values:
+            - gm-operator
+            - spire
+    rules:
+      - apiGroups:
+          - ""
+          - apps
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+          - DELETE
+        resources:
+          - pods
+          - deployments
+          - statefulsets
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: gm-webhook
+        namespace: gm-operator
+        path: /mutate-mesh
+    failurePolicy: Fail
+    name: mutate-mesh.greymatter.io
+    rules:
+      - apiGroups:
+          - greymatter.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - meshes
+    sideEffects: None
+kind: MutatingWebhookConfiguration
+apiVersion: admissionregistration.k8s.io/v1
+---
+metadata:
+  name: gm-validate-config
+webhooks:
+  - admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: gm-webhook
+        namespace: gm-operator
+        path: /validate-mesh
+    failurePolicy: Fail
+    name: validate-mesh.greymatter.io
+    rules:
+      - apiGroups:
+          - greymatter.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+          - DELETE
+        resources:
+          - meshes
+    sideEffects: None
+kind: ValidatingWebhookConfiguration
+apiVersion: admissionregistration.k8s.io/v1
+---
+metadata:
+  name: spire
+  labels:
+    name: spire
+kind: Namespace
+apiVersion: v1
+---
+metadata:
+  name: server
+  namespace: spire
+spec:
+  type: NodePort
+  selector:
+    app: server
+  ports:
+    - name: server
+      protocol: TCP
+      port: 8443
+      targetPort: 8443
+kind: Service
+apiVersion: v1
+---
+metadata:
+  name: server
+  namespace: spire
+  labels:
+    app: server
+spec:
+  selector:
+    matchLabels:
+      app: server
+  serviceName: server
+  template:
+    metadata:
+      name: server
+      namespace: spire
+      labels:
+        app: server
+    spec:
+      containers:
+        - name: server
+          image: gcr.io/spiffe-io/spire-server:1.2.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config
+            - /run/spire/config/server.conf
+          ports:
+            - containerPort: 8443
+              name: server
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+                - /opt/spire/bin/spire-server
+                - healthcheck
+                - -socketPath=/run/spire/socket/registration.sock
+            failureThreshold: 2
+            initialDelaySeconds: 15
+            periodSeconds: 60
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: server-socket
+              mountPath: /run/spire/socket
+            - name: server-config
+              mountPath: /run/spire/config
+              readOnly: true
+            - name: server-ca
+              mountPath: /run/spire/ca
+              readOnly: true
+            - name: server-data
+              mountPath: /run/spire/data
+          resources: {}
+        - name: registrar
+          image: gcr.io/spiffe-io/k8s-workload-registrar:1.2.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config
+            - /run/spire/config/registrar.conf
+          ports:
+            - containerPort: 8444
+              name: registrar
+              protocol: TCP
+          volumeMounts:
+            - name: server-config
+              mountPath: /run/spire/config
+              readOnly: true
+            - name: server-socket
+              mountPath: /run/spire/socket
+          resources: {}
+      volumes:
+        - name: server-socket
+          emptyDir:
+            medium: Memory
+        - name: server-config
+          configMap:
+            name: server-config
+            defaultMode: 420
+        - name: server-ca
+          secret:
+            secretName: server-ca
+            defaultMode: 420
+      serviceAccountName: server
+      shareProcessNamespace: true
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: server-data
+        namespace: spire
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+        volumeMode: Filesystem
+kind: StatefulSet
+apiVersion: apps/v1
+---
+metadata:
+  name: server
+  namespace: spire
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - patch
+      - get
+      - list
+      - update
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+---
+metadata:
+  name: server
+  namespace: spire
+subjects:
+  - kind: ServiceAccount
+    name: server
+    namespace: spire
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: server
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+---
+metadata:
+  name: server
+  namespace: spire
+kind: ServiceAccount
+apiVersion: v1
+---
+metadata:
+  name: spire-server
+rules:
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - get
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+---
+metadata:
+  name: spire-server
+subjects:
+  - kind: ServiceAccount
+    name: server
+    namespace: spire
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-server
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+---
+metadata:
+  name: server-config
+  namespace: spire
+data:
+  registrar.conf: |-
+    trust_domain = "greymatter.io"
+    server_socket_path = "/run/spire/socket/registration.sock"
+    cluster = "meshes"
+    mode = "reconcile"
+    pod_label = "greymatter.io/workload"
+    metrics_addr = "0"
+    controller_name = "k8s-workload-registrar"
+    log_level = "debug"
+    log_path = "/dev/stdout"
+  server.conf: |-
+    server {
+      bind_address = "0.0.0.0"
+      bind_port = "8443"
+      ca_subject = {
+        country = ["US"],
+        organization = ["Grey Matter"],
+        common_name = "Mesh",
+      }
+      data_dir = "/run/spire/data"
+      default_svid_ttl = "1h"
+      log_file = "/dev/stdout"
+      log_level = "DEBUG"
+      trust_domain = "greymatter.io"
+      socket_path = "/run/spire/socket/registration.sock"
+    }
+    plugins {
+      DataStore "sql" {
+        plugin_data {
+          database_type = "sqlite3"
+          connection_string = "/run/spire/data/datastore.sqlite3"
+        }
+      }
+      NodeAttestor "k8s_psat" {
+        plugin_data {
+          clusters = {
+            "meshes" = {
+              service_account_allow_list = ["spire:agent"]
+              audience = ["server"]
+            }
+          }
+        }
+      }
+      KeyManager "disk" {
+        plugin_data {
+          keys_path = "/run/spire/data/keys.json"
+        }
+      }
+      Notifier "k8sbundle" {
+        plugin_data {
+          namespace = "spire"
+          config_map = "server-bundle"
+        }
+      }
+      UpstreamAuthority "disk" {
+        plugin_data {
+          cert_file_path = "/run/spire/ca/intermediate.crt"
+          key_file_path = "/run/spire/ca/intermediate.key"
+          bundle_file_path = "/run/spire/ca/root.crt"
+        }
+      }
+    }
+kind: ConfigMap
+apiVersion: v1
+---
+metadata:
+  name: server-bundle
+  namespace: spire
+data:
+  bundle.crt: ""
+kind: ConfigMap
+apiVersion: v1
+---
+metadata:
+  name: agent
+  namespace: spire
+  labels:
+    app: agent
+spec:
+  selector:
+    matchLabels:
+      app: agent
+  template:
+    metadata:
+      namespace: spire
+      labels:
+        app: agent
+    spec:
+      initContainers:
+        - name: init-server
+          image: gcr.io/spiffe-io/wait-for-it
+          imagePullPolicy: IfNotPresent
+          args:
+            - -t
+            - "30"
+            - server:8443
+          resources: {}
+      containers:
+        - name: agent
+          image: gcr.io/spiffe-io/spire-agent:1.2.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config
+            - /run/spire/config/agent.conf
+          livenessProbe:
+            exec:
+              command:
+                - /opt/spire/bin/spire-agent
+                - healthcheck
+                - -socketPath
+                - /run/spire/socket/agent.sock
+            failureThreshold: 2
+            initialDelaySeconds: 15
+            periodSeconds: 60
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: agent-config
+              mountPath: /run/spire/config
+              readOnly: true
+            - name: agent-socket
+              mountPath: /run/spire/socket
+            - name: server-bundle
+              mountPath: /run/spire/bundle
+              readOnly: true
+            - name: agent-token
+              mountPath: /run/spire/token
+          resources: {}
+      volumes:
+        - name: agent-config
+          configMap:
+            defaultMode: 420
+            name: agent-config
+        - name: agent-socket
+          hostPath:
+            path: /run/spire/socket
+            type: DirectoryOrCreate
+        - name: server-bundle
+          configMap:
+            defaultMode: 420
+            name: server-bundle
+        - name: agent-token
+          projected:
+            defaultMode: 420
+            sources:
+              - serviceAccountToken:
+                  audience: server
+                  expirationSeconds: 7200
+                  path: agent
+      serviceAccountName: agent
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      hostPID: true
+kind: DaemonSet
+apiVersion: apps/v1
+---
+metadata:
+  name: agent
+  namespace: spire
+kind: ServiceAccount
+apiVersion: v1
+---
+metadata:
+  name: spire-agent
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - nodes
+      - nodes/proxy
+    verbs:
+      - get
+      - list
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+---
+metadata:
+  name: spire-agent
+subjects:
+  - kind: ServiceAccount
+    name: agent
+    namespace: spire
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-agent
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+---
+metadata:
+  name: agent-config
+  namespace: spire
+data:
+  agent.conf: |-
+    agent {
+      data_dir = "/run/spire"
+      log_level = "INFO"
+      server_address = "server"
+      server_port = "8443"
+      socket_path = "/run/spire/socket/agent.sock"
+      trust_bundle_path = "/run/spire/bundle/bundle.crt"
+      trust_domain = "greymatter.io"
+    }
+    plugins {
+      NodeAttestor "k8s_psat" {
+        plugin_data {
+          cluster = "meshes"
+          token_path = "/run/spire/token/agent"
+        }
+      }
+      KeyManager "memory" {
+        plugin_data {
+        }
+      }
+      WorkloadAttestor "k8s" {
+        plugin_data {
+          skip_kubelet_verification = true
+        }
+      }
+    }
+kind: ConfigMap
+apiVersion: v1
+

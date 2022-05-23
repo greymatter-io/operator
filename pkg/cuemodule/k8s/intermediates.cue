@@ -5,6 +5,7 @@ import (
 )
 
 
+
 // Note that this container block needs to go in `containers`, and refers to a
 // spire-socket volume that must be configured separately (see below)
 #sidecar_container_block: {
@@ -18,6 +19,7 @@ import (
   }]
   env: [
     {name: "XDS_CLUSTER", value: _Name},
+    {name: "ENVOY_ADMIN_PORT", value: "8002"},
     {name: "ENVOY_ADMIN_LOG_PATH", value: "/dev/stdout"},
     {name: "PROXY_DYNAMIC", value: "true"},
     {name: "XDS_ZONE", value: mesh.spec.zone},
