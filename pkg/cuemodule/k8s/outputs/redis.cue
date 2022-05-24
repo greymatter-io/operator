@@ -59,7 +59,6 @@ redis: [
 
           volumes: #spire_socket_volumes
           imagePullSecrets: [{name: defaults.image_pull_secret_name}]
-          serviceAccountName: Name
         }
       }
       volumeClaimTemplates: [
@@ -77,15 +76,6 @@ redis: [
     }
   },
 
-  // Used to attach SCCs
-  corev1.#ServiceAccount & {
-    apiVersion: "v1"
-    kind: "ServiceAccount"
-    metadata: {
-      name:      Name
-      namespace: mesh.spec.install_namespace
-    }
-  },
   // HACK to avoid static configuration during bootstrap, give things direct access to redis
   // Later, use Redis' sidecar
   corev1.#Service & {
