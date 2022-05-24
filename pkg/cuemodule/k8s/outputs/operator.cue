@@ -324,6 +324,7 @@ operator_k8s: [
       config: {
         spire: \(config.spire)
         auto_apply_mesh: \(config.auto_apply_mesh)
+        openshift: \(config.openshift)
         generate_webhook_certs: \(config.generate_webhook_certs)
       }
       """

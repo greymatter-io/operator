@@ -16,9 +16,9 @@ config: {
 
   debug: bool | *false @tag(debug,type=bool) // currently just controls k8s/outputs/operator.cue for debugging
 
-  // for future openshift support
+  // for a hypothetical future where we want to mount specific certificates for operator webhooks, etc.
   generate_webhook_certs: bool | *true @tag(generate_webhook_certs,type=bool)
-  cluster_ingress_name: "cluster" // For OpenShift deployments, this is used to look up the configured ingress domain
+  cluster_ingress_name: string | *"cluster" // For OpenShift deployments, this is used to look up the configured ingress domain
 }
 
 mesh: v1alpha1.#Mesh & {
