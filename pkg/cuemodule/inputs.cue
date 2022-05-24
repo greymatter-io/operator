@@ -22,7 +22,7 @@ config: {
 
 mesh: v1alpha1.#Mesh & {
   metadata: {
-    name: string | *"Grey Matter Core"
+    name: string | *"greymatter-mesh"
   }
   status: {
     // as new sidecars need to beacon metrics to Redis, this list will be updated dynamically
