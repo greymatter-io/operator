@@ -601,6 +601,85 @@ operator_k8s: [
       ]
     }]
   },
+
+  // begin openshift and spire
+  // TODO add it to the openshift list only if config.openshift and config.spire, and put them in openshift.cue
+  { // SCC https://spiffe.io/docs/latest/deploying/spire_agent/#security-context-constraints
+    allowHostDirVolumePlugin: true
+    allowHostIPC:             true
+    allowHostNetwork:         true
+    allowHostPID:             true
+    allowHostPorts:           true
+    allowPrivilegeEscalation: true
+    allowPrivilegedContainer: false
+    allowedCapabilities: null
+    allowedUnsafeSysctls: null
+    apiVersion:             "security.openshift.io/v1"
+    defaultAddCapabilities: null
+    fsGroup: type: "MustRunAs"
+    groups: []
+    kind: "SecurityContextConstraints"
+    metadata: {
+      annotations: {
+        "include.release.openshift.io/self-managed-high-availability": "true"
+        "kubernetes.io/description": "Customized policy for Spire to enable host level access."
+        "release.openshift.io/create-only": "true"
+      }
+      name: "spire"
+    }
+    priority:                 null
+    readOnlyRootFilesystem:   false
+    requiredDropCapabilities: [ "KILL", "MKNOD", "SETUID", "SETGID" ]
+    runAsUser: type: "RunAsAny"
+    seLinuxContext: type: "MustRunAs"
+    supplementalGroups: type: "RunAsAny"
+    users: []
+    volumes: [
+      "hostPath",
+      "configMap",
+      "downwardAPI",
+      "emptyDir",
+      "persistentVolumeClaim",
+      "projected",
+      "secret",
+    ]
+  },
+  rbacv1.#RoleBinding & {
+    apiVersion: "rbac.authorization.k8s.io/v1"
+    kind:       "RoleBinding"
+    metadata: {
+      name:      "-leader-election-rolebinding"
+      namespace: "gm-operator"
+    }
+    roleRef: {
+      apiGroup: "rbac.authorization.k8s.io"
+      kind:     "Role"
+      name:     "gm-leader-election-role"
+    }
+    subjects: [{
+      kind:      "ServiceAccount"
+      name:      "gm-operator"
+      namespace: "gm-operator"
+    }]
+  },
+  rbacv1.#ClusterRoleBinding & {
+    apiVersion: "rbac.authorization.k8s.io/v1"
+    kind:       "ClusterRoleBinding"
+    metadata: name: "gm-operator-rolebinding"
+    roleRef: {
+      apiGroup: "rbac.authorization.k8s.io"
+      kind:     "ClusterRole"
+      name:     "gm-operator-role"
+    }
+    subjects: [{
+      kind:      "ServiceAccount"
+      name:      "gm-operator"
+      namespace: "gm-operator"
+    }]
+  },
+  ///// END openshift and spire
+
+
   rbacv1.#RoleBinding & {
     apiVersion: "rbac.authorization.k8s.io/v1"
     kind:       "RoleBinding"

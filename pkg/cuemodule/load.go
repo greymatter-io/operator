@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/greymatter-io/operator/api/v1alpha1"
+	opnshftsec "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -334,8 +335,12 @@ func ExtractAndTypeK8sManifestObjects(manifests []json.RawMessage) (manifestObje
 			var obj corev1.ConfigMap
 			_ = json.Unmarshal(manifest, &obj)
 			manifestObjects = append(manifestObjects, &obj)
+		case "SecurityContextConstraints":
+			var obj opnshftsec.SecurityContextConstraints
+			_ = json.Unmarshal(manifest, &obj)
+			manifestObjects = append(manifestObjects, &obj)
 		default:
-			logger.Info("Got unrecognized K8s manifest object - ignoring", "Kind", ke.Kind, "Object", manifest)
+			logger.Error(fmt.Errorf("got unrecognized K8s manifest object from CUE"), "ignoring", "Kind", ke.Kind, "Object", manifest)
 		}
 	}
 	return manifestObjects

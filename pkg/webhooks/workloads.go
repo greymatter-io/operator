@@ -120,17 +120,20 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 	}
 
 	// If the workload isn't in a watched namespace, don't assist deployment
-	// TODO investigating whether this bit was a mistake - uncomment if it doens't fix Spire
-	//watched := false
-	//for _, ns := range wd.Mesh.Spec.WatchNamespaces {
-	//	if req.Namespace == ns {
-	//		watched = true
-	//		break
-	//	}
-	//}
-	//if !watched {
-	//	return admission.ValidationResponse(true, "allowed")
-	//}
+	// TODO also need the install namespace in here
+	watched := false
+	for _, ns := range wd.Mesh.Spec.WatchNamespaces {
+		if req.Namespace == ns {
+			watched = true
+			break
+		}
+	}
+	if req.Namespace == wd.Mesh.Spec.InstallNamespace {
+		watched = true
+	}
+	if !watched {
+		return admission.ValidationResponse(true, "allowed")
+	}
 
 	var rawUpdate json.RawMessage
 	var err error

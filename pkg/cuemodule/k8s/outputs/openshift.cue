@@ -45,46 +45,6 @@ openshift_operator_scc: [
 
 // These are openshift specific configurations 
 openshift_spire: [
-  { // SCC https://spiffe.io/docs/latest/deploying/spire_agent/#security-context-constraints
-    allowHostDirVolumePlugin: true
-    allowHostIPC:             true
-    allowHostNetwork:         true
-    allowHostPID:             true
-    allowHostPorts:           true
-    allowPrivilegeEscalation: true
-    allowPrivilegedContainer: false
-    allowedCapabilities: null
-    allowedUnsafeSysctls: null
-    apiVersion:             "security.openshift.io/v1"
-    defaultAddCapabilities: null
-    fsGroup: type: "MustRunAs"
-    groups: []
-    kind: "SecurityContextConstraints"
-    metadata: {
-      annotations: {
-        "include.release.openshift.io/self-managed-high-availability": "true"
-        "kubernetes.io/description": "Customized policy for Spire to enable host level access."
-        "release.openshift.io/create-only": "true"
-      }
-      name: "spire"
-    }
-    priority:                 null
-    readOnlyRootFilesystem:   false
-    requiredDropCapabilities: [ "KILL", "MKNOD", "SETUID", "SETGID" ]
-    runAsUser: type: "RunAsAny"
-    seLinuxContext: type: "MustRunAs"
-    supplementalGroups: type: "RunAsAny"
-    users: []
-    volumes: [
-      "hostPath",
-      "configMap",
-      "downwardAPI",
-      "emptyDir",
-      "persistentVolumeClaim",
-      "projected",
-      "secret",
-    ]
-  },
   rbacv1.#ClusterRole & {
     apiVersion: "rbac.authorization.k8s.io/v1"
     kind: "ClusterRole"
