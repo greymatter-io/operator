@@ -6,7 +6,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 
-openshift_operator_scc: [
+openshift_privileged_scc: [
   rbacv1.#ClusterRole & {
     apiVersion: "rbac.authorization.k8s.io/v1"
     kind: "ClusterRole"
@@ -43,9 +43,48 @@ openshift_operator_scc: [
   },
 ]
 
-// These are openshift specific configurations 
-openshift_spire: [
-  rbacv1.#ClusterRole & {
+openshift_spire_scc: [
+  { // SCC https://spiffe.io/docs/latest/deploying/spire_agent/#security-context-constraints
+    allowHostDirVolumePlugin: true
+    allowHostIPC:             true
+    allowHostNetwork:         true
+    allowHostPID:             true
+    allowHostPorts:           true
+    allowPrivilegeEscalation: true
+    allowPrivilegedContainer: false
+    allowedCapabilities: null
+    allowedUnsafeSysctls: null
+    apiVersion:             "security.openshift.io/v1"
+    defaultAddCapabilities: null
+    fsGroup: type: "MustRunAs"
+    groups: []
+    kind: "SecurityContextConstraints"
+    metadata: {
+      annotations: {
+        "include.release.openshift.io/self-managed-high-availability": "true"
+        "kubernetes.io/description": "Customized policy for Spire to enable host level access."
+        "release.openshift.io/create-only": "true"
+      }
+      name: "spire"
+    }
+    priority:                 null
+    readOnlyRootFilesystem:   false
+    requiredDropCapabilities: [ "KILL", "MKNOD", "SETUID", "SETGID" ]
+    runAsUser: type: "RunAsAny"
+    seLinuxContext: type: "MustRunAs"
+    supplementalGroups: type: "RunAsAny"
+    users: []
+    volumes: [
+      "hostPath",
+      "configMap",
+      "downwardAPI",
+      "emptyDir",
+      "persistentVolumeClaim",
+      "projected",
+      "secret",
+    ]
+  },
+  rbacv1.#ClusterRole & { // spire SCC cluster role bound by everything that needs the spire SCC
     apiVersion: "rbac.authorization.k8s.io/v1"
     kind: "ClusterRole"
     metadata: {
@@ -62,6 +101,29 @@ openshift_spire: [
         verbs: ["use"]
     }]
   },
+  rbacv1.#ClusterRoleBinding & { // The operator's own binding to the spire scc, so it can grant it to other things
+    apiVersion: "rbac.authorization.k8s.io/v1"
+    kind:       "ClusterRoleBinding"
+    metadata: {
+      name:      "system:openshift:scc:spire:gm-operator"
+    }
+    roleRef: {
+      apiGroup: "rbac.authorization.k8s.io"
+      kind:     "ClusterRole"
+      name:     "system:openshift:scc:spire"
+    }
+    subjects: [{
+      kind:      "ServiceAccount"
+      name:      "gm-operator"
+      namespace: "gm-operator"
+    }]
+  },
+  ///// END openshift and spire
+]
+
+// These are openshift specific configurations 
+openshift_spire: [
+  // The actual ClusterRole these refer to is applied at install-time if openshift and spire are both on - see above
   rbacv1.#RoleBinding & {
     apiVersion: "rbac.authorization.k8s.io/v1"
     kind:       "RoleBinding"
