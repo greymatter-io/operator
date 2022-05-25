@@ -141,9 +141,9 @@ spec:
   echo "Test ${FUNCNAME[0]}............PASSED"
 }
 
-#  A test case.   Checks if spire is running on the cluster, fail if it is
-test_no_spire() {
-  # This test runs when no-spire operator config value is set to true. When the operator deploys, it will immediately start spire in its own namespace
+#  A test case.   Checks if spire is running on the cluster, fail if it isn't
+test_with_spire() {
+  # This test runs when `spire` operator config value is set to true. When the operator deploys, it will immediately start spire in its own namespace
   # The spire deployment will consist of just the agent and the server. The test simply checks for the existence of spire in the cluster by listing all
   # pods across all namespaces and searching the output for the string 'spire'. grep -q will return an exit code of 0 if it found a match or a 1 if it did not.
 
@@ -151,8 +151,8 @@ test_no_spire() {
 
   $KUBECTL_CMD get pods -A | grep -q "spire"
   # We do NOT want a match -- match == 0 , then log error
-  if [ $? -eq 0 ]; then
-    echo "TEST ${FUNCNAME[0]} FAILED: spire installation was detected"
+  if [ $? -ne 0 ]; then
+    echo "TEST ${FUNCNAME[0]} FAILED: spire installation was not detected"
     exit 1
   fi
 
@@ -296,7 +296,7 @@ test_integration() {
   # This function is responsible for mapping integration tests commands to the corresponding barrage of tests and also for 
   # making any configuration changes to the operator.
   # default: just install the operator without changing any configuration options.
-  # no_spire: install the operator with spire disabled
+  # with_spire: install the operator with spire enabled
   # tear down: install the operator without automatically applying the mesh cr, manually apply one ourselves
   #             delete it, and then create another one. 
 
@@ -308,10 +308,10 @@ test_integration() {
       test_mesh_startup
       test_reachable_mesh
       ;;
-    no_spire)
-      install_operator "-t spire=false"
+    with_spire)
+      install_operator "-t spire=true"
       test_operator_install
-      test_no_spire
+      test_with_spire
       test_mesh_startup
       test_reachable_mesh
       ;;
