@@ -339,6 +339,7 @@ func ExtractAndTypeK8sManifestObjects(manifests []json.RawMessage) (manifestObje
 			var obj opnshftsec.SecurityContextConstraints
 			_ = json.Unmarshal(manifest, &obj)
 			manifestObjects = append(manifestObjects, &obj)
+			logger.Info("SecurityContextConstraints object loaded", "object", obj) // DEBUG
 		default:
 			logger.Error(fmt.Errorf("got unrecognized K8s manifest object from CUE"), "ignoring", "Kind", ke.Kind, "Object", manifest)
 		}
