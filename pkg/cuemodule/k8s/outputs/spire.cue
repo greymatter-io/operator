@@ -345,17 +345,17 @@ spire_agent: [
           labels: app: "agent"
         }
         spec: {
-          // initContainers: [{ // TODO remove this when we know we no longer need it
-          //   name:            "init-server"
-          //   image:           "gcr.io/spiffe-io/wait-for-it"
-          //   imagePullPolicy: "IfNotPresent"
-          //   args: [
-          //     "-t",
-          //     "30",
-          //     "server:8443",
-          //   ]
-          //   resources: {}
-          // }]
+          initContainers: [{
+            name:            "init-server"
+            image:           "gcr.io/spiffe-io/wait-for-it"
+            imagePullPolicy: "IfNotPresent"
+            args: [
+              "-t",
+              "30",
+              "server:8443",
+            ]
+            resources: {}
+          }]
           containers: [{
             name:            "agent"
             image:           "gcr.io/spiffe-io/spire-agent:1.2.0"
