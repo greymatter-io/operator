@@ -5,6 +5,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	opnshftsec "github.com/openshift/api/security/v1"
@@ -341,7 +342,7 @@ func ExtractAndTypeK8sManifestObjects(manifests []json.RawMessage) (manifestObje
 			manifestObjects = append(manifestObjects, &obj)
 			logger.Info("SecurityContextConstraints object loaded", "object", obj) // DEBUG
 		default:
-			logger.Error(fmt.Errorf("got unrecognized K8s manifest object from CUE"), "ignoring", "Kind", ke.Kind, "Object", manifest)
+			logger.Error(errors.New("got unrecognized K8s manifest object from CUE"), "ignoring", "Kind", ke.Kind, "Object", manifest)
 		}
 	}
 	return manifestObjects
