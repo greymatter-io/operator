@@ -29,7 +29,7 @@ _wait_for_resource() {
   local namespace=$2
   local timeout=$3
   if [ -z $3 ]; then
-    timeout=300
+    timeout=420
   fi
 
   while [ "$($KUBECTL_CMD get -n ${namespace} pods --selector ${selector} -o jsonpath='{.items[*].status.containerStatuses[0].ready}')" != "true" ]; do
@@ -46,7 +46,8 @@ _wait_for_resource() {
 # A helper function     Evaluates the CUE files to install the operator, overriding the config definitions with the values found in the tags
 install_operator () {
   local tags=$1
-  ( cd pkg/cuemodule && cue eval -c ./k8s/outputs -t operator_image='docker.greymatter.io/development/gm-operator:latest' $tags  --out text -e operator_manifests_yaml | $KUBECTL_CMD apply -f - )
+  local image_tag="${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}"
+  ( cd pkg/cuemodule && cue eval -c ./k8s/outputs -t operator_image="docker.greymatter.io/development/gm-operator:$image_tag" $tags  --out text -e operator_manifests_yaml | $KUBECTL_CMD apply -f - )
 }
 
 #  A test case.   Asserts there are no mesh CRs present
