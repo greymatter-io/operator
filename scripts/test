@@ -223,7 +223,7 @@ test_reachable_mesh() {
     # Runs curl in a retry loop. GM services have a slight lag between when the pod is ready and when proxies accept connections
     # curl --retry (and its options) is not robust enough for our needs
     local url=$1
-    local timeout=120
+    local timeout=240
     local retry="true"
     local result=""
     while [ $retry = "true" ]; do
