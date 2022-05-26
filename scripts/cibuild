@@ -74,8 +74,10 @@ _build_manifests () {
 # Needs to download the previous assets in case the agent machine gets reassigned (in which case the build assets won't be there)
 _release_container () {
   local latest="docker.greymatter.io/development/gm-operator:latest"
+  local intermediate="docker.greymatter.io/development/gm-operator:${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}"
   buildkite-agent artifact download "${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar" . --build ${BUILDKITE_BUILD_ID} --agent-access-token ${BUILDKITE_AGENT_ACCESS_TOKEN}
   podman load -q -i "${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar"
+  container-retag-image $intermediate $latest
   container-registry-login $NEXUS_USER $NEXUS_PASS
   if [[ "$BUILDKITE_BRANCH" == "main" ]]; then
     container-registry-push $latest
@@ -91,7 +93,9 @@ _release_container () {
 cmd_export_container () {
   local tarball=$1
   local tag=$2
-  podman save --quiet -o $tarball $tag
+  local intermediate="docker.greymatter.io/development/gm-operator:${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}"
+  container-retag-image $tag $intermediate
+  podman save --quiet -o $tarball $intermediate
   buildkite-agent artifact upload $tarball
 }
 
