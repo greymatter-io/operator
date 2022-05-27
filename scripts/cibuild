@@ -87,6 +87,30 @@ _release_container () {
     container-retag-image $latest $tagged
     container-registry-push $tagged
   fi
+  
+  # Quay login
+  container-registry-login "$QUAY_USERNAME" "$QUAY_PASSWORD" quay.io
+  if [[ "$BUILDKITE_BRANCH" == "main" ]]; then
+
+    # Operator Nexus -> Quay
+    local operator_from="docker.greymatter.io/development/operator:latest"
+    local operator_to="quay.io/greymatterio/operator:latest"
+    container-retag-image $operator_from $operator_to
+
+    # Push re-tagged images to Quay
+    container-registry-push "quay.io/greymatterio/operator:latest"
+  fi
+  if [[ -n "$BUILDKITE_TAG" ]]; then
+
+    # Operator Nexus -> Quay (tagged)
+    local operator_from="docker.greymatter.io/development/operator:latest"
+    local operator_to="quay.io/greymatterio/operator:${BUILDKITE_TAG:1}"
+    container-retag-image $operator_from $operator_to
+
+    # Push re-tagged images to Quay
+    container-registry-push $operator_to
+  fi
+
 }
 
 # Exports docker image into tar
