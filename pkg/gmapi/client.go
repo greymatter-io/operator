@@ -15,8 +15,8 @@ type Client struct {
 	flags       []string
 	ControlCmds chan Cmd
 	CatalogCmds chan Cmd
-	ctx         context.Context
-	cancel      context.CancelFunc
+	Ctx         context.Context
+	Cancel      context.CancelFunc
 }
 
 func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ...string) (*Client, error) {
@@ -28,8 +28,8 @@ func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ..
 		flags:       flags,
 		ControlCmds: make(chan Cmd),
 		CatalogCmds: make(chan Cmd),
-		ctx:         ctxt,
-		cancel:      cancel,
+		Ctx:         ctxt,
+		Cancel:      cancel,
 	}
 
 	// Apply core Grey Matter components from CUE
@@ -90,7 +90,7 @@ func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ..
 				}
 			}
 		}
-	}(client.ctx, client.ControlCmds)
+	}(client.Ctx, client.ControlCmds)
 
 	// Consumer of commands to send to Catalog
 	go func(ctx context.Context, catalogCmds chan Cmd) {
@@ -130,7 +130,7 @@ func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ..
 				}
 			}
 		}
-	}(client.ctx, client.CatalogCmds)
+	}(client.Ctx, client.CatalogCmds)
 
 	return client, nil
 }
