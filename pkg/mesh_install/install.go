@@ -12,7 +12,6 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // ApplyMesh installs and updates Grey Matter core components and dependencies for a single mesh.
@@ -222,7 +221,7 @@ ReconciliationLoop:
 		sidecarSet := make(map[string]struct{})
 		// List all pods anywhere
 		// TODO it may be better to do Deployments and StatefulSets (but as a first pass, Pods are far simpler)
-		pods := &corev1.PodList{}
+		pods := &v1.PodList{}
 		(*i.K8sClient).List(context.TODO(), pods)
 		for _, pod := range pods.Items {
 			// Filter to only the relevant namespaces for this mesh
