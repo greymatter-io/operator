@@ -9,9 +9,9 @@ import (
 //
 //	ctrl.SetLogger(zap.New(zap.UseDevMode(false)))
 //
-//	ctx, cancel := context.WithCancel(context.Background())
+//	Ctx, Cancel := context.WithCancel(context.Background())
 //
-//	c, err := New(ctx, cuemodule.LoadPackageForTest, true)
+//	c, err := New(Ctx, cuemodule.LoadPackageForTest, true)
 //	if err != nil {
 //		t.Fatal(err)
 //	}
@@ -60,7 +60,7 @@ import (
 //	c.RemoveMeshClient("mesh")
 //
 //	time.Sleep(time.Second * 5)
-//	cancel()
+//	Cancel()
 //}
 
 func TestCLIVersion(t *testing.T) {

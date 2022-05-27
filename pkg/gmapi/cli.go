@@ -24,7 +24,7 @@ var (
 // CLI exposes methods for configuring clients that execute greymatter CLI commands.
 type CLI struct {
 	*sync.RWMutex
-	client      *Client
+	Client      *Client
 	operatorCUE *cuemodule.OperatorCUE
 }
 
@@ -41,7 +41,7 @@ func New(ctx context.Context, operatorCUE *cuemodule.OperatorCUE) (*CLI, error) 
 
 	gmcli := &CLI{
 		RWMutex:     &sync.RWMutex{},
-		client:      nil,
+		Client:      nil,
 		operatorCUE: operatorCUE,
 	}
 
@@ -50,8 +50,8 @@ func New(ctx context.Context, operatorCUE *cuemodule.OperatorCUE) (*CLI, error) 
 		<-ctx.Done()
 		c.RLock()
 		defer c.RUnlock()
-		if c.client != nil {
-			c.client.cancel()
+		if c.Client != nil {
+			c.Client.Cancel()
 		}
 	}(gmcli)
 
@@ -90,9 +90,9 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) error {
 	defer c.Unlock()
 
 	// Close an existing cmds channel if updating
-	if c.client != nil {
+	if c.Client != nil {
 		logger.Info("Updating mesh Client", "Mesh", mesh.Name)
-		c.client.cancel()
+		c.Client.Cancel()
 	} else {
 		logger.Info("Initializing mesh Client", "Mesh", mesh.Name)
 	}
@@ -102,15 +102,15 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) error {
 		return err
 	}
 
-	c.client = cl
+	c.Client = cl
 
 	return nil
 }
 
 // RemoveMeshClient cleans up a Client's goroutines before removing it from the *CLI.
 func (c *CLI) RemoveMeshClient() {
-	if c.client != nil {
-		c.client.cancel()
+	if c.Client != nil {
+		c.Client.Cancel()
 	}
 }
 
@@ -142,7 +142,7 @@ func (c *CLI) ConfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string, 
 		logger.Error(err, "Failed to unify or extract CUE", "name", name, "injectedSidecarPort", injectedSidecarPort)
 	}
 
-	ApplyAll(c.client, configObjects, kinds)
+	ApplyAll(c.Client, configObjects, kinds)
 }
 
 // UnconfigureSidecar removes fabric objects, disconnecting the workload from the mesh specified
@@ -177,7 +177,7 @@ func (c *CLI) UnconfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string
 	redisListener := configObjects[len(configObjects)-1]
 	configObjects = configObjects[:len(configObjects)-1]
 	kinds = kinds[:len(kinds)-1]
-	c.client.ControlCmds <- MkApply("listener", redisListener)
+	c.Client.ControlCmds <- MkApply("listener", redisListener)
 
-	UnApplyAll(c.client, configObjects, kinds)
+	UnApplyAll(c.Client, configObjects, kinds)
 }
