@@ -234,7 +234,7 @@ operator_sts: [
               }
             }
             image: defaults.images.operator
-            imagePullPolicy: "Always"
+            imagePullPolicy: "IfNotPresent"
             name: "operator"
             ports: [{
               containerPort: 9443
