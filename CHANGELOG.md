@@ -28,6 +28,7 @@
 - Added an annotation to control whether sidecar configuration is created for a given Deployment
   or StatefulSet, e.g., `greymatter.io/configure-sidecar: "false"`
 - Add a debug container build mode and instructions
+- OpenShift support restored, with automatic permissioning for core Grey Matter components
 
 ### Fixed
 
