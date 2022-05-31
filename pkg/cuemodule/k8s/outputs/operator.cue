@@ -209,6 +209,14 @@ operator_sts: [
               command: [
                 "/app/operator"
               ]
+              livenessProbe: {
+                httpGet: {
+                  path: "/healthz"
+                  port: 8081
+                }
+                initialDelaySeconds: 120
+                periodSeconds:       20
+              }
             }
             if config.debug {
               command: [
@@ -224,14 +232,6 @@ operator_sts: [
                 "exec",
                 "/app/operator",
               ]
-              livenessProbe: {
-                httpGet: {
-                  path: "/healthz"
-                  port: 8081
-                }
-                initialDelaySeconds: 120
-                periodSeconds:       20
-              }
             }
             image: defaults.images.operator
             imagePullPolicy: "IfNotPresent"
