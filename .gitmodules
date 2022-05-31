@@ -1,4 +1,3 @@
-[submodule "pkg/cuemodule/greymatter-cue"]
-        branch = main
-	path = pkg/cuemodule/cue.mod/pkg
-	url = https://github.com/greymatter-io/greymatter-cue
+[submodule "pkg/cuemodule/core"]
+	path = pkg/cuemodule/core
+	url = git@github.com:greymatter-io/gitops-core
