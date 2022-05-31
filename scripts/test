@@ -320,8 +320,7 @@ test_integration() {
       test_operator_install
       test_no_mesh
       test_install_remove_mesh
-      # TODO: re-instate after config refresh bug is fixed
-      # test_reachable_mesh
+      test_reachable_mesh
     ;;
     *)
       echo "invalid argument $TEST"
