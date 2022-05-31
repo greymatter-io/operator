@@ -19,6 +19,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cfsslsrv"
 	"github.com/greymatter-io/operator/pkg/cuemodule"
@@ -26,7 +28,6 @@ import (
 	"github.com/greymatter-io/operator/pkg/mesh_install"
 	"github.com/greymatter-io/operator/pkg/webhooks"
 	configv1 "github.com/openshift/api/config/v1"
-	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -61,6 +62,11 @@ var (
 	cueRoot    string
 	zapDevMode bool
 	pprofAddr  string
+
+	// Configuration flags for fetching the initial operator
+	// config repository on startup with Git.
+	bootstrapRepo   string
+	bootstrapSecret string
 )
 
 func main() {
@@ -71,10 +77,12 @@ func main() {
 }
 
 func run() error {
-
 	flag.StringVar(&cueRoot, "cueRoot", "", "Path to the CUE module with Grey Matter config. Defaults to the current working directory.")
 	flag.BoolVar(&zapDevMode, "zapDevMode", false, "Configure zap logger in development mode.")
 	flag.StringVar(&pprofAddr, "pprofAddr", ":1234", "Address for pprof server; has no effect on release builds")
+
+	flag.StringVar(&bootstrapRepo, "bootstrapRepo", "git@github.com/greymatter-io/operator-cue", "Bootstrap repository for operator configuration")
+	flag.StringVar(&bootstrapSecret, "bootstrapSecret", "operator-cue", "Bootstrap secret name for operator config repo fetching")
 
 	// Bind flags for Zap logger options.
 	opts := zap.Options{Development: zapDevMode}
@@ -83,6 +91,12 @@ func run() error {
 
 	// We have to call Parse late for some reason
 	flag.Parse()
+
+	// TODO(alec): We would do the fetching here and then proceed to load what's on disk.
+	// Later on we can kick off a go routine that does the sync to watch what's in the repo.
+	// Not sure if we do that right but that would need to "apply manifests" everytime
+	// a user makes a change to the default manifests stored in the repo.
+	// ex: a user wants to enable observables on default sidecar deployment.
 
 	// Immediately load all CUE
 	operatorCUE, initialMesh := cuemodule.LoadAll(cueRoot) // panics if unsuccessful
