@@ -31,7 +31,7 @@ redis_listener_object: #listener & {
     if config.spire {
       secret: #spire_secret & {
         _name: Name
-        _subjects: mesh.status.sidecar_list
+        _subjects: defaults.sidecar_list
       }
     }
   },

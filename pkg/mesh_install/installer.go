@@ -4,8 +4,11 @@ package mesh_install
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/cloudflare/cfssl/csr"
+	"github.com/greymatter-io/operator/pkg/wellknown"
 	configv1 "github.com/openshift/api/config/v1"
+	"reflect"
 	"strings"
 	"time"
 
@@ -53,13 +56,16 @@ type Installer struct {
 	// Operator config loadable from CUE
 	Config cuemodule.Config
 
+	// Select defaults that may be directly overridden from Go
+	Defaults cuemodule.Defaults
+
 	// Looked up on start
 	clusterIngressDomain string
 }
 
 // New returns a new *Installer instance for installing Grey Matter components and dependencies.
 func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1alpha1.Mesh, cueRoot string, gmcli *gmapi.CLI, cfssl *cfsslsrv.CFSSLServer) (*Installer, error) {
-	config := operatorCUE.ExtractConfig()
+	config, defaults := operatorCUE.ExtractConfig()
 	return &Installer{
 		CLI:         gmcli,
 		K8sClient:   c,
@@ -68,6 +74,7 @@ func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1al
 		Mesh:        initialMesh,
 		CueRoot:     cueRoot,
 		Config:      config,
+		Defaults:    defaults,
 	}, nil
 }
 
@@ -140,13 +147,11 @@ func (i *Installer) Start(ctx context.Context) error {
 		}
 	}
 
-	// Immediately apply the default mesh from the CUE if the flag is set
+	// Immediately apply the default mesh from the CUE if the flag is set and we don't already have a mesh
 	go func() {
 		if i.Config.AutoApplyMesh && !meshAlreadyDeployed {
 			logger.Info("Waiting 30 seconds to apply loaded default Mesh resource to cluster.")
 			time.Sleep(30 * time.Second) // Sleep for an arbitrary initial duration
-			// This is necessary because applying the mesh clears the status if there wasn't one to being with
-			sidecarList := i.Mesh.Status.SidecarList
 			for {
 				err := k8sapi.Apply(i.K8sClient, i.Mesh, nil, k8sapi.GetOrCreate)
 				if err == nil {
@@ -155,21 +160,13 @@ func (i *Installer) Start(ctx context.Context) error {
 				logger.Info("Temporary failure to apply Mesh resource. Will retry in 10 seconds.")
 				time.Sleep(10 * time.Second)
 			}
-
-			// Update the status to include the sidecar list after the Mesh is applied
-			for {
-				meshCopy := i.Mesh.DeepCopy()
-				patch := client.MergeFrom(meshCopy)
-				i.Mesh.Status.SidecarList = sidecarList
-				err := (*i.K8sClient).Status().Patch(context.TODO(), i.Mesh, patch)
-				if err == nil {
-					break
-				}
-				logger.Info("Failed to patch mesh with new status, will retry in 10 seconds", "list", i.Mesh.Status.SidecarList, "err", err)
-				time.Sleep(10 * time.Second)
-			}
 		}
 	}()
+
+	// If Spire, set up to periodically reconcile the extant sidecars with the Redis listener's allowable subjects
+	if i.Config.Spire {
+		go i.reconcileSidecarListForRedisIngress(i.Mesh)
+	}
 
 	return nil
 }
@@ -245,4 +242,84 @@ func injectGeneratedCertificates(secret *corev1.Secret, cs *cfsslsrv.CFSSLServer
 	}
 
 	return secret, nil
+}
+func (i *Installer) reconcileSidecarListForRedisIngress(mesh *v1alpha1.Mesh) {
+	var redisListener json.RawMessage
+	var tempOperatorCUE cuemodule.OperatorCUE
+	var err error
+ReconciliationLoop:
+	for {
+		time.Sleep(30 * time.Second)
+		sidecarSet := make(map[string]struct{})
+		// TODO it may be better to do Deployments and StatefulSets (but as a first pass, Pods are far simpler)
+		i.RLock()
+		// List all pods anywhere
+		pods := &corev1.PodList{}
+		(*i.K8sClient).List(context.TODO(), pods)
+		for _, pod := range pods.Items {
+			// Filter to only the relevant namespaces for this mesh
+			watched := false
+			for _, ns := range mesh.Spec.WatchNamespaces {
+				if pod.Namespace == ns {
+					watched = true
+					break
+				}
+			}
+			if watched || pod.Namespace == mesh.Spec.InstallNamespace {
+				// Further filter to only the pods with a sidecar (assumed to have a container with a "proxy" port)
+				for _, container := range pod.Spec.Containers {
+					for _, p := range container.Ports {
+						// TODO don't hard-code the port name, pull it from the CUE
+						// TODO also, seriously? There's got to be a better way to identify sidecars than this
+						if p.Name == "proxy" {
+							if pod.Labels == nil {
+								pod.Labels = make(map[string]string)
+							}
+							if clusterName, ok := pod.Labels[wellknown.LABEL_CLUSTER]; ok {
+								sidecarSet[clusterName] = struct{}{}
+							}
+						}
+					}
+				}
+			}
+		}
+		var sidecarList []string
+		for name := range sidecarSet {
+			sidecarList = append(sidecarList, name)
+		}
+		if reflect.DeepEqual(sidecarList, i.Defaults.SidecarList) {
+			goto LoopEnd
+		}
+		logger.Info("The list of sidecars in the environment has changed. Updating Redis ingress for health checks.", "New", sidecarList)
+		i.Defaults.SidecarList = sidecarList
+		tempOperatorCUE, err = i.OperatorCUE.TempGMValueUnifiedWithDefaults(i.Defaults)
+		//err := freshLoadOperatorCUE.UnifyWithMesh(i.Mesh)
+		if err != nil {
+			logger.Error(err,
+				"error attempting to unify mesh after sidecarList update - this should never happen - check Mesh integrity",
+				"Mesh", i.Mesh)
+			//goto LoopEnd
+		}
+		redisListener, err = tempOperatorCUE.ExtractRedisListener()
+		if err != nil {
+			logger.Error(err,
+				"error extracting redis_listener from CUE - ignoring",
+				"Mesh", i.Mesh)
+			goto LoopEnd
+		}
+		if i.Client != nil {
+			i.Client.ControlCmds <- gmapi.MkApply("listener", redisListener)
+		}
+
+	LoopEnd:
+		if i.Client != nil {
+			select {
+			case <-i.Client.Ctx.Done():
+				logger.Info("greymatter client context cancelled - stopping reconciliation loop")
+				break ReconciliationLoop
+			default:
+			}
+		}
+		i.RUnlock()
+	}
 }

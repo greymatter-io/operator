@@ -8,7 +8,6 @@ import (
 	"github.com/greymatter-io/operator/pkg/wellknown"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -40,17 +39,6 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 			secret := i.imagePullSecret.DeepCopy()
 			secret.Namespace = watched_ns
 			k8sapi.Apply(i.K8sClient, secret, mesh, k8sapi.GetOrCreate)
-		}
-
-		// If we're applying a new mesh, pull the initial sidecar list for redis metrics ingress from the default
-		// mesh in the initially-loaded CUE. This is important only when we're not already auto-applying the mesh in
-		// the CUE, but doesn't hurt either way
-		meshCopy := mesh.DeepCopy()
-		patch := client.MergeFrom(meshCopy)
-		mesh.Status.SidecarList = i.Mesh.Status.SidecarList
-		err := (*i.K8sClient).Status().Patch(context.TODO(), mesh, patch)
-		if err != nil {
-			logger.Error(err, "error while attempting to update the status subresource of mesh in ApplyMesh", "mesh name", mesh.Name, "Status", mesh.Status)
 		}
 	}
 
@@ -104,20 +92,12 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	err := i.OperatorCUE.UnifyWithMesh(mesh)
 	if err != nil {
 		logger.Error(err,
-			"error while attempting to unify provided Mesh resource with Grey Matter mesh configs CUE",
+			"error while attempting to unify provided Mesh resource with loaded CUE",
 			"Mesh", mesh)
 		return
 	}
-	i.Mesh = mesh // set this mesh as THE mesh managed by the operator
-
-	// Once that's done, we can get the Grey Matter configurator going concurrently
-	i.ConfigureMeshClient(mesh) // Applies the Grey Matter configuration once Control and Catalog are up
-	go i.reconcileSidecarListForRedisIngress(mesh)
-
-	// TODO do this^ synchronously so we can be sure of the client, then kick off a goroutine here that goes over all
-	// the deployments and statefulsets to print the sidecar list. Make sure that looks right, then use it to update
-	// Redis' listener rather than how we're currently doing it right now in workloads.go.
-	// Also get a hold of the client context and use it to cancel your sidecar-discoverer
+	i.Mesh = mesh                  // set this mesh as THE mesh managed by the operator
+	go i.ConfigureMeshClient(mesh) // Applies the Grey Matter configuration once Control and Catalog are up
 
 	// Extract 'em
 	manifestObjects, err := i.OperatorCUE.ExtractCoreK8sManifests()
@@ -211,54 +191,4 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 		}
 	}
 
-}
-
-func (i *Installer) reconcileSidecarListForRedisIngress(mesh *v1alpha1.Mesh) {
-ReconciliationLoop:
-	for {
-		time.Sleep(10 * time.Second) // TODO clearly not this often
-		logger.Info("Reconciling sidecar list for Redis ingress...")
-		sidecarSet := make(map[string]struct{})
-		// List all pods anywhere
-		// TODO it may be better to do Deployments and StatefulSets (but as a first pass, Pods are far simpler)
-		pods := &v1.PodList{}
-		(*i.K8sClient).List(context.TODO(), pods)
-		for _, pod := range pods.Items {
-			// Filter to only the relevant namespaces for this mesh
-			watched := false
-			for _, ns := range mesh.Spec.WatchNamespaces {
-				if pod.Namespace == ns {
-					watched = true
-					break
-				}
-			}
-			if watched || pod.Namespace == mesh.Spec.InstallNamespace {
-				// Further filter to only the pods with a sidecar (assumed to have a container with a "proxy" port)
-				for _, container := range pod.Spec.Containers {
-					for _, p := range container.Ports {
-						// TODO don't hard-code the port name, pull it from the CUE
-						// TODO also, seriously? There's got to be a better way to identify sidecars than this
-						if p.Name == "proxy" {
-							if pod.Labels == nil {
-								pod.Labels = make(map[string]string)
-							}
-							if clusterName, ok := pod.Labels[wellknown.LABEL_CLUSTER]; ok {
-								sidecarSet[clusterName] = struct{}{}
-							}
-						}
-					}
-				}
-			}
-		}
-		var sidecarList []string
-		for name := range sidecarSet {
-			sidecarList = append(sidecarList, name)
-		}
-		logger.Info("DISCOVERED sidecarList", "sidecarList", sidecarList)
-		select {
-		case <-i.Client.Ctx.Done():
-			break ReconciliationLoop
-		default:
-		}
-	}
 }

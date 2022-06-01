@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"net/http"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 
 	"github.com/greymatter-io/operator/pkg/gmapi"
@@ -159,7 +157,6 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			_, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
 			if injectSidecar {
 				go func() {
-					wd.addToMeshSidecarList(req.Name)
 					wd.ConfigureSidecar(wd.OperatorCUE, req.Name, deployment.ObjectMeta)
 				}()
 			}
@@ -171,7 +168,6 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			_, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
 			if injectSidecar {
 				go func() {
-					wd.removeFromMeshSidecarList(req.Name)
 					wd.UnconfigureSidecar(wd.OperatorCUE, req.Name, deployment.ObjectMeta)
 				}()
 			}
@@ -198,7 +194,6 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			_, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
 			if injectSidecar {
 				go func() {
-					wd.addToMeshSidecarList(req.Name)
 					wd.ConfigureSidecar(wd.OperatorCUE, req.Name, statefulset.ObjectMeta)
 				}()
 			}
@@ -210,7 +205,6 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			_, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
 			if injectSidecar {
 				go func() {
-					wd.removeFromMeshSidecarList(req.Name)
 					wd.UnconfigureSidecar(wd.OperatorCUE, req.Name, statefulset.ObjectMeta)
 				}()
 			}
@@ -219,64 +213,6 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, rawUpdate)
-}
-
-func (wd *workloadDefaulter) addToMeshSidecarList(name string) {
-	// apply the new sidecar list to the Mesh status
-	// TODO don't append it if it's already there
-	for _, sidecarName := range wd.Mesh.Status.SidecarList {
-		if sidecarName == name {
-			return
-		}
-	}
-	// save the sidecar list to the deployed CR
-	meshCopy := wd.Mesh.DeepCopy()
-	patch := client.MergeFrom(meshCopy)
-	wd.Mesh.Status.SidecarList = append(wd.Mesh.Status.SidecarList, name)
-	err := (*wd.K8sClient).Status().Patch(context.TODO(), wd.Mesh, patch)
-	if err != nil {
-		logger.Error(err, "error while attempting to update the status subresource of mesh", "mesh name", wd.Mesh.Name, "Status", wd.Mesh.Status)
-	}
-
-	// Update the mesh inside the OperatorCUE with the new sidecar_list
-	freshLoadOperatorCUE, _ := cuemodule.LoadAll(wd.CueRoot)
-	wd.OperatorCUE = freshLoadOperatorCUE
-	err = wd.OperatorCUE.UnifyWithMesh(wd.Mesh)
-	if err != nil {
-		logger.Error(err,
-			"error attempting to unify mesh after sidecar addition - this should never happen - check Mesh integrity",
-			"Mesh", wd.Mesh,
-			"new sidecar name", name)
-		return
-	}
-}
-
-func (wd *workloadDefaulter) removeFromMeshSidecarList(name string) {
-	var filtered []string
-	for _, sidecarName := range wd.Mesh.Status.SidecarList {
-		if sidecarName != name {
-			filtered = append(filtered, sidecarName)
-		}
-	}
-	meshCopy := wd.Mesh.DeepCopy()
-	patch := client.MergeFrom(meshCopy)
-	wd.Mesh.Status.SidecarList = filtered
-	err := (*wd.K8sClient).Status().Patch(context.TODO(), wd.Mesh, patch)
-	if err != nil {
-		logger.Error(err, "error while attempting to update the status subresource of mesh", "mesh name", wd.Mesh.Name, "Status", wd.Mesh.Status)
-	}
-
-	// Update the mesh inside the OperatorCUE with the new sidecar_list
-	freshLoadOperatorCUE, _ := cuemodule.LoadAll(wd.CueRoot)
-	wd.OperatorCUE = freshLoadOperatorCUE
-	err = wd.OperatorCUE.UnifyWithMesh(wd.Mesh)
-	if err != nil {
-		logger.Error(err,
-			"error attempting to unify mesh after sidecar removal - this should never happen - check Mesh integrity",
-			"Mesh", wd.Mesh,
-			"removed sidecar name", name)
-		return
-	}
 }
 
 func addClusterLabels(tmpl corev1.PodTemplateSpec, meshName, clusterName string) corev1.PodTemplateSpec {
