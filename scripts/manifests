@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# Generates operator manifests dependening on CI build pipeline,
+# can be run locally to generate latest manifests locally.
+
+set -eu -o pipefail
+
+cmd_manifests () {
+  local version="latest"
+  local path="development/gm-operator"
+
+  if [[ -n "$BUILDKITE_TAG" ]]; then
+    version="${BUILDKITE_TAG:1}"
+    path="release/gm-operator"
+  fi
+
+  local image="docker.greymatter.io/$path:$version"
+  local location="manifests/${version}"
+
+  echo "Deleting old manifests..."
+  \rm -rf manifests/ || echo "No old manifests to delete."
+  mkdir -p "$location"
+  echo "Generating new manifests into ${location}"
+
+  (
+    cd pkg/cuemodule
+    # Defaults (spire off and auto-applies a mesh)
+    cue eval -c ./k8s/outputs \
+              --out text \
+              -t operator_image=image \
+              -e operator_manifests_yaml > ../../${location}/defaults.yaml
+    # Spire on, and auto-apply a mesh
+    cue eval -c ./k8s/outputs \
+              --out text \
+              -t spire=true \
+              -t operator_image=image \
+              -e operator_manifests_yaml > ../../${location}/withspire.yaml
+    # Spire off, and don't auto-apply a mesh (wait for a CR)
+    cue eval -c ./k8s/outputs \
+              --out text \
+              -t auto_apply_mesh=false \
+              -t operator_image=image \
+              -e operator_manifests_yaml > ../../${location}/noautoapply.yaml
+    # Spire on, and don't auto-apply a mesh (wait for a CR)
+    cue eval -c ./k8s/outputs \
+              --out text \
+              -t spire=true \
+              -t auto_apply_mesh=false \
+              -t operator_image=image \
+              -e operator_manifests_yaml > ../../${location}/withspire_noautoapply.yaml
+  )
+}
+
+cmd_help () {
+  echo 'valid args: help'
+}
+
+usage() {
+  cmd_help
+  exit 1
+}
+
+if [ $# -eq 0 ]; then
+  cmd_manifests
+else
+  MODE="${1:-}"
+  case "$MODE" in
+    help)
+      shift
+      "cmd_$MODE" "$@"
+      ;;
+    *)
+      usage
+      ;;
+  esac
+fi

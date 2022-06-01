@@ -61,39 +61,6 @@ cmd_debug_container () {
   fi
 }
 
-cmd_manifests () {
-  local version="v1.0"
-  local location="manifests/${version}"
-
-  echo "Deleting old manifests for version ${version}..."
-  \rm -rf manifests/ || echo "No old manifests to delete."
-  mkdir -p "$location"
-  echo "Generating new manifests into ${location}"
-  (
-  cd pkg/cuemodule
-  # Defaults (spire off and auto-applies a mesh)
-  cue eval -c ./k8s/outputs \
-           --out text \
-           -e operator_manifests_yaml > ../../${location}/defaults.yaml
-  # Spire on, and auto-apply a mesh
-  cue eval -c ./k8s/outputs \
-           --out text \
-           -t spire=true \
-           -e operator_manifests_yaml > ../../${location}/withspire.yaml
-  # Spire off, and don't auto-apply a mesh (wait for a CR)
-  cue eval -c ./k8s/outputs \
-           --out text \
-           -t auto_apply_mesh=false \
-           -e operator_manifests_yaml > ../../${location}/noautoapply.yaml
-  # Spire on, and don't auto-apply a mesh (wait for a CR)
-  cue eval -c ./k8s/outputs \
-           --out text \
-           -t spire=true \
-           -t auto_apply_mesh=false \
-           -e operator_manifests_yaml > ../../${location}/withspire_noautoapply.yaml
-  )
-}
-
 usage() {
   cmd_help
   exit 1
@@ -104,7 +71,7 @@ if [ $# -eq 0 ]; then
 else
   MODE="${1:-}"
   case "$MODE" in
-    build|container|debug_container|debug|manifests|help)
+    build|container|debug_container|debug|help)
       shift
       "cmd_$MODE" "$@"
       ;;

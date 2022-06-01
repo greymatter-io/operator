@@ -54,7 +54,7 @@ cmd_build () {
   # Login to Nexus in order to add the greymatter CLI to the image.
   container-registry-login $NEXUS_USER $NEXUS_PASS
   _build_image "docker.greymatter.io/development/gm-operator:latest" "Dockerfile"
-  _build_manifests
+  ./scripts/manifests
 }
 
 # Build docker image helper
@@ -64,10 +64,6 @@ _build_image () {
   #TODO(coleman): find a way to NOT pass creds into our container build
   local build_args="--build-arg username=${NEXUS_USER} --build-arg password=${NEXUS_PASS}"
   buildah bud $build_args -t "${tag}" --layers -f ${dockerfile} .
-}
-
-_build_manifests () {
-  ./scripts/build manifests
 }
 
 # Logs into Nexus, checks if CI is running during a tag release or merge into main and if so pushes assets. 
