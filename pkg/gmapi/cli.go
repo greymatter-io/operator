@@ -7,14 +7,14 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/greymatter-io/operator/pkg/wellknown"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
-	"sync"
-
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cuemodule"
+	"github.com/greymatter-io/operator/pkg/wellknown"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"strconv"
+	"sync"
+	"time"
 )
 
 var (
@@ -142,6 +142,14 @@ func (c *CLI) ConfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string, 
 		logger.Error(err, "Failed to unify or extract CUE", "name", name, "injectedSidecarPort", injectedSidecarPort)
 	}
 
+	// Wait for c.Client to exist
+	for {
+		if c.Client != nil {
+			break
+		}
+		logger.Info("greymatter client does not yet exist, will retry in 10 seconds")
+		time.Sleep(10 * time.Second)
+	}
 	ApplyAll(c.Client, configObjects, kinds)
 }
 
@@ -172,12 +180,6 @@ func (c *CLI) UnconfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string
 	if err != nil {
 		logger.Error(err, "Failed to unify or extract CUE", "name", name, "injectedSidecarPort", injectedSidecarPort)
 	}
-
-	// HACK - This is kind of a silly way to get the redis listener out of here, but it lets me reuse UnifyAndExtractSidecarConfig as-is
-	redisListener := configObjects[len(configObjects)-1]
-	configObjects = configObjects[:len(configObjects)-1]
-	kinds = kinds[:len(kinds)-1]
-	c.Client.ControlCmds <- MkApply("listener", redisListener)
 
 	UnApplyAll(c.Client, configObjects, kinds)
 }

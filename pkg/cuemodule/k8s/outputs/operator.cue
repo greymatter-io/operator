@@ -217,6 +217,7 @@ operator_sts: [
                 initialDelaySeconds: 120
                 periodSeconds:       20
               }
+              imagePullPolicy: "IfNotPresent"
             }
             if config.debug {
               command: [
@@ -232,9 +233,9 @@ operator_sts: [
                 "exec",
                 "/app/operator",
               ]
+              imagePullPolicy: "Always"
             }
             image: defaults.images.operator
-            imagePullPolicy: "IfNotPresent"
             name: "operator"
             ports: [{
               containerPort: 9443
