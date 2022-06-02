@@ -9,6 +9,7 @@ import (
 	"github.com/greymatter-io/operator/pkg/wellknown"
 	configv1 "github.com/openshift/api/config/v1"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -287,18 +288,19 @@ ReconciliationLoop:
 		for name := range sidecarSet {
 			sidecarList = append(sidecarList, name)
 		}
-		if reflect.DeepEqual(sidecarList, i.Defaults.SidecarList) {
+		sort.Strings(sidecarList)
+		sort.Strings(i.Defaults.SidecarList)
+		if len(sidecarList) == 0 || reflect.DeepEqual(sidecarList, i.Defaults.SidecarList) {
 			goto LoopEnd
 		}
-		logger.Info("The list of sidecars in the environment has changed. Updating Redis ingress for health checks.", "New", sidecarList)
+		logger.Info("The list of sidecars in the environment has changed. Updating Redis ingress for health checks.", "Updated List", sidecarList)
 		i.Defaults.SidecarList = sidecarList
 		tempOperatorCUE, err = i.OperatorCUE.TempGMValueUnifiedWithDefaults(i.Defaults)
-		//err := freshLoadOperatorCUE.UnifyWithMesh(i.Mesh)
 		if err != nil {
 			logger.Error(err,
 				"error attempting to unify mesh after sidecarList update - this should never happen - check Mesh integrity",
 				"Mesh", i.Mesh)
-			//goto LoopEnd
+			goto LoopEnd
 		}
 		redisListener, err = tempOperatorCUE.ExtractRedisListener()
 		if err != nil {

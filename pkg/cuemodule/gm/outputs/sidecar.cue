@@ -4,8 +4,8 @@
 package only
 
 #sidecar_config: {
-  Name: string
-  Port: int
+  Name: string | *"edge" // workaround for CUE's behavior with conflicting defaults
+  Port: int | *8080
   LocalName: "\(Name)_local"
   EgressToRedisName: "\(Name)_egress_to_redis"
 
