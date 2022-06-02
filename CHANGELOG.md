@@ -5,7 +5,7 @@
 ### Changed
 
 - Completely new CUE for both Kubernetes manifests and Grey Matter config, rooted under
-  `pkg/cuemodule` (`inputs.cue`, and `gm/` and `k8s/` subdirectories) following a philosophy of
+  `pkg/cuemodule/core` (`inputs.cue`, and `gm/` and `k8s/` subdirectories) following a philosophy of
   readability and malleability.
 - Operator Go now loads CUE generically, such that nearly all changes to deployment configuration
   require no changes to the Go.
@@ -20,7 +20,7 @@
 - Added a flag (`auto_apply_mesh`) that causes the operator to automatically deploy the default mesh
   defined in the CUE, after a delay. Turn the flag off to manually deploy a Mesh CR.
 - Switch to ECDSA 256 certificates for speed and security.
-- Checked in `pkg/cuemodule/cue.mod/gen/k8s.io/`, the result of `cue get go k8s.io/api/...`,
+- Checked in `pkg/cuemodule/core/cue.mod/gen/k8s.io/`, the result of `cue get go k8s.io/api/...`,
   for the CI build.
 
 ### Added
@@ -57,7 +57,7 @@ This release also has been tested for local development on Rancher Desktop.
 
 ### Changed
 
-- Moved all CUE packages into a single CUE module that lives in `pkg/cuemodule`. Each CUE package
+- Moved all CUE packages into a single CUE module that lives in `pkg/cuemodule/core`. Each CUE package
   may be evaluated using the CUE CLI as well as loaded via exported loader functions defined in the
   `cuemodule` Go package.
 

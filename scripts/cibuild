@@ -5,7 +5,7 @@ set -e
 cmd_bootstrap () {
   go mod vendor
   (
-    cd ./pkg/cuemodule/cue.mod
+    cd ./pkg/cuemodule/core/cue.mod
     cue get go github.com/greymatter-io/operator/api/...
     cue get go k8s.io/api/...
   )

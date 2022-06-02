@@ -18,6 +18,7 @@ import (
 	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"github.com/greymatter-io/operator/pkg/gmapi"
 	"github.com/greymatter-io/operator/pkg/k8sapi"
+	"github.com/greymatter-io/operator/pkg/sync"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -62,10 +63,13 @@ type Installer struct {
 
 	// Looked up on start
 	clusterIngressDomain string
+
+	// Sync configuration with access to a callback for updating on git repo changes
+	Sync *sync.Sync
 }
 
 // New returns a new *Installer instance for installing Grey Matter components and dependencies.
-func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1alpha1.Mesh, cueRoot string, gmcli *gmapi.CLI, cfssl *cfsslsrv.CFSSLServer) (*Installer, error) {
+func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1alpha1.Mesh, cueRoot string, gmcli *gmapi.CLI, cfssl *cfsslsrv.CFSSLServer, sync *sync.Sync) (*Installer, error) {
 	config, defaults := operatorCUE.ExtractConfig()
 	return &Installer{
 		CLI:         gmcli,
@@ -76,6 +80,7 @@ func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1al
 		CueRoot:     cueRoot,
 		Config:      config,
 		Defaults:    defaults,
+		Sync:        sync,
 	}, nil
 }
 

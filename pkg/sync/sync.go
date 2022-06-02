@@ -1,46 +1,170 @@
 package sync
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 )
 
 type Sync struct {
 	GitDir        string
-	GitUser       string
-	GitPassword   string
 	SSHPrivateKey string
 	SSHPassphrase string
 	Remote        string
 	Branch        string
+	Interval      int
+
+	// Internal callback that is executed at the end
+	// of every sync iteration.
+	OnSyncCompleted func() error
+	ctx             context.Context
 }
 
-// TODO(alec): do git fetching and sync processing in this package.
-// I'd like to abstract this because I imagine multiple places in the operator code
-// will need to touch this.
+// New sync will build a sync with provided constructor options.
+// A remote should be specified it attempting to fetch
+// config from a remote repo. If not specified, operator
+// will use it's default bundled config.
+func New(remote string, options ...func(*Sync)) *Sync {
+	s := &Sync{
+		Remote: remote,
+		Branch: "main", // default branch, can be overwritten
+	}
+
+	// iterate through our options and do overrides.
+	for _, o := range options {
+		o(s)
+	}
+
+	return s
+}
+
+// WithSSHInfo will set a users ssh information on sync config.
+// Passwords are not required.
+func WithSSHInfo(privateKey, password string) func(*Sync) {
+	return func(s *Sync) {
+		s.SSHPassphrase = password
+		s.SSHPrivateKey = privateKey
+	}
+}
+
+// WithRepoInfo will set target repository information
+// on a sync configuration object.
+func WithRepoInfo(remote, branch string) func(*Sync) {
+	return func(s *Sync) {
+		s.Remote = remote
+		s.Branch = branch
+	}
+}
+
+// WithOnSyncCompleted will inject a callback
+// function in the sync configuration.
+func WithOnSyncCompleted(callback func() error) func(*Sync) {
+	return func(s *Sync) {
+		s.OnSyncCompleted = callback
+	}
+}
+
+// Bootstrap will fetch a provided repository from the configured
+// bootstrap flags. Once that repository is fetched it will write out its contents
+// to disk where the operator expects its configuration to live.
+// If no bootstrap flags were provided on startup, we ignore and
+// use a bundled local configuration tree for defaults.
+func (s *Sync) Bootstrap() error {
+	if s.SSHPrivateKey != "" {
+		err := clone(s)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Watch will kick off a loop that will pull a git project for changes on an interval
+// provided by the users configuration. The default watch interval is 10s. A callback is exposed
+// in the sync configuration object that is called on a successful completion of a pull.
+// This can be used to reconcile mesh changes internally to the operator.
+func (s *Sync) Watch(ctx context.Context) error {
+	if s.Remote == "" {
+		return nil
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			err := gitUpdate(s)
+			if err != nil {
+				return fmt.Errorf("failed while watching repo %s: %w", s.Remote, err)
+			}
+
+			if s.OnSyncCompleted != nil {
+				err = s.OnSyncCompleted()
+				if err != nil {
+					return fmt.Errorf("failed during callback execution OnSyncCompleted(): %w", err)
+				}
+			}
+
+			time.Sleep(time.Second * time.Duration(s.Interval))
+		}
+	}
+}
+
+// clone will clone a repository given a singular sync config instance.
+func clone(s *Sync) error {
+	// if the gitdir is empty, assume cwd according to cueroot
+	if s.GitDir == "" {
+		s.GitDir, _ = os.Getwd()
+	}
+
+	opts := &git.CloneOptions{
+		URL:               s.Remote,
+		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth, // we need this to pull the cue config submodules
+	}
+
+	if s.SSHPrivateKey != "" {
+		auth, err := ssh.NewPublicKeysFromFile("git", s.SSHPrivateKey, s.SSHPassphrase)
+		if err != nil {
+			return fmt.Errorf("failed to find private key from file: %w ", err)
+		}
+		opts.Auth = auth
+		opts.InsecureSkipTLS = true
+
+		_, err = git.PlainClone(s.GitDir, false, opts)
+		if err != nil {
+			return fmt.Errorf("failed to clone with ssh: %w", err)
+		}
+	} else {
+		if _, err := git.PlainClone(s.GitDir, false, opts); err != nil {
+			return fmt.Errorf("failed to clone without auth: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// gitUpdate will do automatic fetching of the upstream repo
+// and apply the local changes to the specified root.
 func gitUpdate(sc *Sync) error {
 	repo, err := git.PlainOpen(sc.GitDir)
 	if err != nil {
 		return fmt.Errorf("unable to open local repository %s: %w", sc.GitDir, err)
 	}
 
-	// FetchOptions configured with: 1) password, 2) ssh private key, or 3) no auth
+	// FetchOptions configured with: 1) ssh private key, or 2) no auth
 	opts := &git.FetchOptions{
 		Auth:            nil,
 		InsecureSkipTLS: true,
 	}
-	if sc.GitPassword != "" {
-		opts.Auth = &http.BasicAuth{
-			Username: sc.GitUser,
-			Password: sc.GitPassword,
-		}
-	} else if sc.SSHPrivateKey != "" {
+
+	if sc.SSHPrivateKey != "" {
 		opts.Auth, err = ssh.NewPublicKeysFromFile("git", sc.SSHPrivateKey, sc.SSHPassphrase)
 		if err != nil {
 			return fmt.Errorf("failed to read in ssh private key: %w", err)
@@ -66,99 +190,40 @@ func gitUpdate(sc *Sync) error {
 	// how to reliably continue when a harmless "branch exists" error is
 	// returned. I find this library difficult to use, but a pure Go git
 	// implementation is worth it.
-	co1 := git.CheckoutOptions{
+	wt.Checkout(&git.CheckoutOptions{
 		Branch: branch,
 		Create: true,
 		Force:  true,
-	}
-	wt.Checkout(&co1)
+	})
 
 	// Do checkout WITHOUT create. Required for a pull operation.
-	co := git.CheckoutOptions{
+	if err := wt.Checkout(&git.CheckoutOptions{
 		Branch: branch,
 		Create: false,
 		Force:  true,
-	}
-	if err := wt.Checkout(&co); err != nil {
+	}); err != nil {
 		return fmt.Errorf("failed to successfully checkout: %w", err)
 	}
 
 	// Do the pull
-	po := git.PullOptions{
+	if err := wt.Pull(&git.PullOptions{
 		RemoteName:      "origin",
 		ReferenceName:   branch,
 		SingleBranch:    true,
 		Auth:            opts.Auth,
 		Force:           true,
 		InsecureSkipTLS: true,
-	}
-	if err := wt.Pull(&po); err != nil {
+	}); err != nil {
 		if !errors.Is(err, git.NoErrAlreadyUpToDate) {
 			return fmt.Errorf("failed to pull changes from remote: %w", err)
 		}
 	}
 
 	// Finally, perform a clean, to remove any untracked files from the tree
-	if err := wt.Clean(&git.CleanOptions{Dir: true}); err != nil {
+	if err := wt.Clean(&git.CleanOptions{
+		Dir: true,
+	}); err != nil {
 		return fmt.Errorf("failed to run git clean: %w", err)
-	}
-
-	return nil
-}
-
-func cloneIfNeeded(sc *Sync) error {
-	var clone bool
-	fi, err := os.Stat(sc.GitDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			clone = true
-		} else {
-			return fmt.Errorf("failed to stat %s: %w", sc.GitDir, err)
-		}
-	} else {
-		if !fi.IsDir() {
-			return fmt.Errorf("%s exists, but is a regular file", sc.GitDir)
-		}
-	}
-
-	if clone {
-		opts := &git.CloneOptions{
-			URL: sc.Remote,
-		}
-
-		if sc.GitPassword != "" {
-			opts.Auth = &http.BasicAuth{
-				Username: sc.GitUser,
-				Password: sc.GitPassword,
-			}
-			opts.InsecureSkipTLS = true
-
-			_, err = git.PlainClone(sc.GitDir, false, opts)
-			if err != nil {
-				return fmt.Errorf("failed to clone with username+password: %w", err)
-			}
-		} else if sc.SSHPrivateKey != "" {
-			auth, err := ssh.NewPublicKeysFromFile("git", sc.SSHPrivateKey, sc.SSHPassphrase)
-			if err != nil {
-				return fmt.Errorf("failed to find private key from file: %w ", err)
-			}
-			opts.Auth = auth
-			opts.InsecureSkipTLS = true
-
-			_, err = git.PlainClone(sc.GitDir, false, opts)
-			if err != nil {
-				return fmt.Errorf("failed to clone with ssh: %w", err)
-			}
-		} else {
-			dir, _ := os.Getwd()
-			if sc.GitDir != "" {
-				dir = sc.GitDir
-			}
-
-			if _, err := git.PlainClone(dir, false, opts); err != nil {
-				return fmt.Errorf("failed to clone without auth: %w", err)
-			}
-		}
 	}
 
 	return nil
