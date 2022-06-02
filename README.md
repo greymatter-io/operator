@@ -1,6 +1,6 @@
 # Operator
 
-The Grey Matter Operator enables a bootstrapped mesh deployment using the `greymatter.io/v1alpha1.Mesh`
+The Grey Matter Operator enables a bootstrapped mesh deployment using the `greymatter.io/v1.Mesh`
 CRD to manage mesh deployments in a Kubernetes cluster.
 
 ## Prerequisites
@@ -21,12 +21,12 @@ Make sure you have fetched all necessary dependencies:
 Evaluate the kubernetes manifests using CUE: 
 ```bash
 ( 
-cd pkg/cuemodule
+cd pkg/cuemodule/core
 cue eval -c ./k8s/outputs --out text -e operator_manifests_yaml | kubectl apply -f -
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
-  --docker-username=$GREYMATTER_REGISTRY_USERNAME \
+  --docker-username=$GREYMATTER_REGISTRY_USERNAME \s
   --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
   --docker-email=$GREYMATTER_REGISTRY_USERNAME \
   -n gm-operator
@@ -35,10 +35,10 @@ kubectl create secret docker-registry gm-docker-secret \
 > HINT: Your username and password are your Grey Matter credentials.
 
 The operator will be running in a pod in the `gm-operator` namespace, and shortly after installation, the default Mesh
-CR described in `pkg/cuemodule/new_structure/inputs.cue` will be automatically deployed.
+CR described in `pkg/cuemodule/core/inputs.cue` will be automatically deployed.
 
 That is all you need to do to launch the operator. Note that if you have the spire config flag set
-(in pkg/cuemodule/inputs.cue) then you will need to wait for the operator to insert the server-ca bootstrap certificates
+(in pkg/cuemodule/core/inputs.cue) then you will need to wait for the operator to insert the server-ca bootstrap certificates
 before spire-server and spire-agent can successfully launch.
 
 
@@ -48,7 +48,7 @@ If you would like to attach a remote debugger to your operator container, do the
 ```bash
 # Builds and pushes docker.greymatter.io/internal/gm-operator:debug from Dockerfile.debug. Edit to taste.
 # You will need to have your credentials in $GREYMATTER_REGISTRY_USERNAME and $GREYMATTER_REGISTRY_PASSWORD
-scripts/build debug_container
+./scripts/build debug_container
 
 # Push the image you just built to Nexus
 docker push docker.greymatter.io/internal/gm-operator:latest-debug
@@ -83,14 +83,14 @@ The following commands print out manifests that can be applied to a Kubernetes c
 
 ```bash
 ( 
-  cd pkg/cuemodule
+  cd pkg/cuemodule/core
   cue eval -c ./k8s/outputs --out text -e spire_manifests_yaml
 )
 
 # pick which manifests you'd like to inspect
 
 (
-  cd pkg/cuemodule
+  cd pkg/cuemodule/core
   cue eval -c ./k8s/outputs --out text -e operator_manifests_yaml
 )
 ```

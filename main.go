@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -26,6 +27,7 @@ import (
 	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"github.com/greymatter-io/operator/pkg/gmapi"
 	"github.com/greymatter-io/operator/pkg/mesh_install"
+	"github.com/greymatter-io/operator/pkg/sync"
 	"github.com/greymatter-io/operator/pkg/webhooks"
 	configv1 "github.com/openshift/api/config/v1"
 
@@ -66,7 +68,9 @@ var (
 	// Configuration flags for fetching the initial operator
 	// config repository on startup with Git.
 	bootstrapRepo   string
-	bootstrapSecret string
+	bootstrapSSHKey string
+	bootstrapBranch string
+	interval        int
 )
 
 func main() {
@@ -81,8 +85,11 @@ func run() error {
 	flag.BoolVar(&zapDevMode, "zapDevMode", false, "Configure zap logger in development mode.")
 	flag.StringVar(&pprofAddr, "pprofAddr", ":1234", "Address for pprof server; has no effect on release builds")
 
-	flag.StringVar(&bootstrapRepo, "bootstrapRepo", "git@github.com/greymatter-io/operator-cue", "Bootstrap repository for operator configuration")
-	flag.StringVar(&bootstrapSecret, "bootstrapSecret", "operator-cue", "Bootstrap secret name for operator config repo fetching")
+	// Flags that enable bootstrap configuration loading from a git repo.
+	flag.StringVar(&bootstrapRepo, "repo", "git@github.com/greymatter-io/gitops-core", "Bootstrap repository for operator configuration.")
+	flag.StringVar(&bootstrapSSHKey, "sshPrivateKey", "", "SSH key which has privileges to fetch the operators core configuration from Git.")
+	flag.StringVar(&bootstrapBranch, "branch", "main", "target branch to fetch and watch for changes in the core configuration repo.")
+	flag.IntVar(&interval, "interval", 10, "Interval to watch bootstrap core config repo.")
 
 	// Bind flags for Zap logger options.
 	opts := zap.Options{Development: zapDevMode}
@@ -92,11 +99,37 @@ func run() error {
 	// We have to call Parse late for some reason
 	flag.Parse()
 
-	// TODO(alec): We would do the fetching here and then proceed to load what's on disk.
-	// Later on we can kick off a go routine that does the sync to watch what's in the repo.
-	// Not sure if we do that right but that would need to "apply manifests" everytime
-	// a user makes a change to the default manifests stored in the repo.
-	// ex: a user wants to enable observables on default sidecar deployment.
+	// build sync options based on user configuration.
+	syncOpts := []func(*sync.Sync){}
+	syncOpts = append(syncOpts, sync.WithSSHInfo(bootstrapSSHKey, ""))
+	syncOpts = append(syncOpts, sync.WithRepoInfo(bootstrapRepo, bootstrapBranch))
+
+	// add a custom callback that is called on completion of a sync cycle.
+	syncOpts = append(syncOpts, sync.WithOnSyncCompleted(func() error {
+		// callback logic to run when the operator needs to reconcile its new config
+		// loaded from the gitops-core repo.
+
+		return nil
+	}))
+
+	sync := sync.New(bootstrapRepo, syncOpts...)
+
+	// GitDir should be cueRoot (where the operator expects to load its config from)
+	sync.GitDir = cueRoot
+	err := sync.Bootstrap()
+	if err != nil {
+		return fmt.Errorf("failed to load operators initial configuration: %w", err)
+	}
+
+	// TODO(alec): we need to somehow capture this error here.
+	// I'll revisit this later.
+	if bootstrapSSHKey != "" {
+		// Create a context we can cancel and clean up our go routine with.
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		go sync.Watch(ctx)
+	}
 
 	// Immediately load all CUE
 	operatorCUE, initialMesh := cuemodule.LoadAll(cueRoot) // panics if unsuccessful
@@ -150,7 +183,7 @@ func run() error {
 	}
 
 	// Initialize manifests mesh_install.
-	inst, err := mesh_install.New(&c, operatorCUE, initialMesh, cueRoot, gmcli, cfssl)
+	inst, err := mesh_install.New(&c, operatorCUE, initialMesh, cueRoot, gmcli, cfssl, sync)
 	if err != nil {
 		return fmt.Errorf("failed to initialize manifest mesh_install: %w", err)
 	}

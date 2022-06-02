@@ -70,27 +70,27 @@ cmd_manifests () {
   mkdir -p "$location"
   echo "Generating new manifests into ${location}"
   (
-  cd pkg/cuemodule
+  cd pkg/cuemodule/core
   # Defaults (spire off and auto-applies a mesh)
   cue eval -c ./k8s/outputs \
            --out text \
-           -e operator_manifests_yaml > ../../${location}/defaults.yaml
+           -e operator_manifests_yaml > ../../../${location}/defaults.yaml
   # Spire on, and auto-apply a mesh
   cue eval -c ./k8s/outputs \
            --out text \
            -t spire=true \
-           -e operator_manifests_yaml > ../../${location}/withspire.yaml
+           -e operator_manifests_yaml > ../../../${location}/withspire.yaml
   # Spire off, and don't auto-apply a mesh (wait for a CR)
   cue eval -c ./k8s/outputs \
            --out text \
            -t auto_apply_mesh=false \
-           -e operator_manifests_yaml > ../../${location}/noautoapply.yaml
+           -e operator_manifests_yaml > ../../../${location}/noautoapply.yaml
   # Spire on, and don't auto-apply a mesh (wait for a CR)
   cue eval -c ./k8s/outputs \
            --out text \
            -t spire=true \
            -t auto_apply_mesh=false \
-           -e operator_manifests_yaml > ../../${location}/withspire_noautoapply.yaml
+           -e operator_manifests_yaml > ../../../${location}/withspire_noautoapply.yaml
   )
 }
 

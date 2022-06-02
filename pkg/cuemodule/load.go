@@ -1,12 +1,13 @@
 package cuemodule
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	opnshftsec "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
