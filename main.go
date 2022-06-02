@@ -112,7 +112,8 @@ func run() error {
 		return nil
 	}))
 
-	sync := sync.New(bootstrapRepo, syncOpts...)
+	// Create a context we can cancel and clean up our go routine with.
+	sync := sync.New(bootstrapRepo, context.Background(), syncOpts...)
 
 	// GitDir should be cueRoot (where the operator expects to load its config from)
 	sync.GitDir = cueRoot
@@ -124,11 +125,7 @@ func run() error {
 	// TODO(alec): we need to somehow capture this error here.
 	// I'll revisit this later.
 	if bootstrapSSHKey != "" {
-		// Create a context we can cancel and clean up our go routine with.
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		go sync.Watch(ctx)
+		go sync.Watch()
 	}
 
 	// Immediately load all CUE
