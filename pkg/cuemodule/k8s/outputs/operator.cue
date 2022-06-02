@@ -217,7 +217,7 @@ operator_sts: [
                 initialDelaySeconds: 120
                 periodSeconds:       20
               }
-              imagePullPolicy: "Always" //"IfNotPresent"
+              imagePullPolicy: "IfNotPresent"
             }
             if config.debug {
               command: [
