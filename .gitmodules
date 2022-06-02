@@ -1,4 +1,4 @@
 [submodule "pkg/cuemodule/core"]
 	path = pkg/cuemodule/core
-	branch = remove-go
+	branch = main
 	url = git@github.com:greymatter-io/gitops-core
