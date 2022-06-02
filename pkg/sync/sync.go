@@ -30,10 +30,11 @@ type Sync struct {
 // A remote should be specified it attempting to fetch
 // config from a remote repo. If not specified, operator
 // will use it's default bundled config.
-func New(remote string, options ...func(*Sync)) *Sync {
+func New(remote string, ctx context.Context, options ...func(*Sync)) *Sync {
 	s := &Sync{
 		Remote: remote,
 		Branch: "main", // default branch, can be overwritten
+		ctx:    ctx,
 	}
 
 	// iterate through our options and do overrides.
@@ -90,14 +91,16 @@ func (s *Sync) Bootstrap() error {
 // provided by the users configuration. The default watch interval is 10s. A callback is exposed
 // in the sync configuration object that is called on a successful completion of a pull.
 // This can be used to reconcile mesh changes internally to the operator.
-func (s *Sync) Watch(ctx context.Context) error {
+// Watch uses the internal sync context to handle routine cancellation. This means that
+// the callback can also cancel this routine.
+func (s *Sync) Watch() error {
 	if s.Remote == "" {
 		return nil
 	}
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-s.ctx.Done():
 			return nil
 		default:
 			err := gitUpdate(s)
