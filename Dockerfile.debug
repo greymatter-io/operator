@@ -32,11 +32,8 @@ FROM ubuntu:21.04
 WORKDIR /app
 COPY --from=builder /workspace/operator /app/operator
 COPY --from=builder /go/bin/dlv /app/dlv
-COPY --from=builder /workspace/pkg/cuemodule/core/cue.mod /app/cue.mod
-COPY --from=builder /workspace/pkg/cuemodule/core/inputs.cue /app/inputs.cue
-COPY --from=builder /workspace/pkg/cuemodule/core/gm /app/gm
-COPY --from=builder /workspace/pkg/cuemodule/core/k8s /app/k8s
 COPY --from=builder /workspace/greymatter /bin/greymatter
+COPY --from=builder /workspace/pkg/cuemodule/core /app/core
 RUN mkdir .config && chmod 777 .config
 USER 1000:1000
 

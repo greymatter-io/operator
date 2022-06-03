@@ -47,7 +47,7 @@ _wait_for_resource() {
 install_operator () {
   local tags=$1
   local image_tag="${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}"
-  ( cd pkg/cuemodule && cue eval -c ./k8s/outputs -t operator_image="docker.greymatter.io/development/gm-operator:$image_tag" $tags  --out text -e operator_manifests_yaml | $KUBECTL_CMD apply -f - )
+  ( cd pkg/cuemodule/core && cue eval -c ./k8s/outputs -t operator_image="docker.greymatter.io/development/gm-operator:$image_tag" $tags  --out text -e operator_manifests_yaml | $KUBECTL_CMD apply -f - )
 }
 
 #  A test case.   Asserts there are no mesh CRs present
