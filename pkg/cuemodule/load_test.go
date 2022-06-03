@@ -7,10 +7,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func TestLoadStatus(t *testing.T) {
+func TestLoadRedisListener(t *testing.T) {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	operatorCUE, _ := LoadAll("")
+	operatorCUE, _ := LoadAll("core")
 	_, defaults := operatorCUE.ExtractConfig()
 	defaults.SidecarList = nil
 	if defaults.SidecarList == nil {
