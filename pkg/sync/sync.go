@@ -47,10 +47,18 @@ func New(remote string, ctx context.Context, options ...func(*Sync)) *Sync {
 
 // WithSSHInfo will set a users ssh information on sync config.
 // Passwords are not required.
-func WithSSHInfo(privateKey, password string) func(*Sync) {
+func WithSSHInfo(privateKeyPath, password string) func(*Sync) {
+	//var privateKey string
+	//if privateKeyPath != "" {
+	//	dat, err := os.ReadFile(privateKeyPath)
+	//	if err != nil {
+	//		panic(fmt.Sprintf("Unable to load SSH private key from %s", privateKeyPath))
+	//	}
+	//	privateKey = string(dat)
+	//}
 	return func(s *Sync) {
 		s.SSHPassphrase = password
-		s.SSHPrivateKey = privateKey
+		s.SSHPrivateKey = privateKeyPath
 	}
 }
 
@@ -77,7 +85,7 @@ func WithOnSyncCompleted(callback func() error) func(*Sync) {
 // If no bootstrap flags were provided on startup, we ignore and
 // use a bundled local configuration tree for defaults.
 func (s *Sync) Bootstrap() error {
-	if s.SSHPrivateKey != "" {
+	if s.Remote != "" {
 		err := clone(s)
 		if err != nil {
 			return err
@@ -138,7 +146,7 @@ func clone(s *Sync) error {
 			return fmt.Errorf("failed to find private key from file: %w ", err)
 		}
 		opts.Auth = auth
-		opts.InsecureSkipTLS = true
+		//opts.InsecureSkipTLS = true
 
 		_, err = git.PlainClone(s.GitDir, false, opts)
 		if err != nil {
