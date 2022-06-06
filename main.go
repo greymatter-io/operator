@@ -67,10 +67,10 @@ var (
 
 	// Configuration flags for fetching the initial operator
 	// config repository on startup with Git.
-	bootstrapRepo   string
-	bootstrapSSHKey string
-	bootstrapBranch string
-	interval        int
+	bootstrapRepo       string
+	bootstrapSSHKeyPath string
+	bootstrapBranch     string
+	interval            int
 )
 
 func main() {
@@ -81,13 +81,13 @@ func main() {
 }
 
 func run() error {
-	flag.StringVar(&cueRoot, "cueRoot", "", "Path to the CUE module with Grey Matter config. Defaults to the current working directory.")
+	flag.StringVar(&cueRoot, "cueRoot", "core", "Path to the CUE module with Grey Matter config. Defaults to the current working directory.")
 	flag.BoolVar(&zapDevMode, "zapDevMode", false, "Configure zap logger in development mode.")
 	flag.StringVar(&pprofAddr, "pprofAddr", ":1234", "Address for pprof server; has no effect on release builds")
 
 	// Flags that enable bootstrap configuration loading from a git repo.
-	flag.StringVar(&bootstrapRepo, "repo", "git@github.com/greymatter-io/gitops-core", "Bootstrap repository for operator configuration.")
-	flag.StringVar(&bootstrapSSHKey, "sshPrivateKey", "", "SSH key which has privileges to fetch the operators core configuration from Git.")
+	flag.StringVar(&bootstrapRepo, "repo", "", "Bootstrap repository for operator configuration.")
+	flag.StringVar(&bootstrapSSHKeyPath, "sshPrivateKeyPath", "", "SSH key which has privileges to fetch the operators core configuration from Git.")
 	flag.StringVar(&bootstrapBranch, "branch", "main", "target branch to fetch and watch for changes in the core configuration repo.")
 	flag.IntVar(&interval, "interval", 10, "Interval to watch bootstrap core config repo.")
 
@@ -101,13 +101,16 @@ func run() error {
 
 	// build sync options based on user configuration.
 	syncOpts := []func(*sync.Sync){}
-	syncOpts = append(syncOpts, sync.WithSSHInfo(bootstrapSSHKey, ""))
+	syncOpts = append(syncOpts, sync.WithSSHInfo(bootstrapSSHKeyPath, ""))
 	syncOpts = append(syncOpts, sync.WithRepoInfo(bootstrapRepo, bootstrapBranch))
 
 	// add a custom callback that is called on completion of a sync cycle.
+	// TODO we should fix this so it fires only if something has changed
 	syncOpts = append(syncOpts, sync.WithOnSyncCompleted(func() error {
 		// callback logic to run when the operator needs to reconcile its new config
 		// loaded from the gitops-core repo.
+
+		logger.Info("GitOps sync of core CUE config complete.")
 
 		return nil
 	}))
@@ -115,16 +118,17 @@ func run() error {
 	// Create a context we can cancel and clean up our go routine with.
 	sync := sync.New(bootstrapRepo, context.Background(), syncOpts...)
 
-	// GitDir should be cueRoot (where the operator expects to load its config from)
-	sync.GitDir = cueRoot
-	err := sync.Bootstrap()
-	if err != nil {
-		return fmt.Errorf("failed to load operators initial configuration: %w", err)
-	}
+	if bootstrapRepo != "" {
+		// GitDir should be cueRoot (where the operator expects to load its config from)
+		cueRoot = "fetched_cue"
+		sync.GitDir = cueRoot
+		err := sync.Bootstrap()
+		if err != nil {
+			return fmt.Errorf("failed to load operator initial configuration: %w", err)
+		}
 
-	// TODO(alec): we need to somehow capture this error here.
-	// I'll revisit this later.
-	if bootstrapSSHKey != "" {
+		// TODO(alec): we need to somehow capture this error here.
+		// I'll revisit this later.
 		go sync.Watch()
 	}
 
