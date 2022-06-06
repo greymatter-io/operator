@@ -50,6 +50,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 }
 
 // ScopeType specifies a scope for a Rule.
+// +enum
 #ScopeType: string // #enumScopeType
 
 #enumScopeType:
@@ -68,6 +69,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 #AllScopes: #ScopeType & "*"
 
 // FailurePolicyType specifies a failure policy that defines how unrecognized errors from the admission endpoint are handled.
+// +enum
 #FailurePolicyType: string // #enumFailurePolicyType
 
 #enumFailurePolicyType:
@@ -81,6 +83,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 #Fail: #FailurePolicyType & "Fail"
 
 // MatchPolicyType specifies the type of match policy.
+// +enum
 #MatchPolicyType: string // #enumMatchPolicyType
 
 #enumMatchPolicyType:
@@ -94,6 +97,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 #Equivalent: #MatchPolicyType & "Equivalent"
 
 // SideEffectClass specifies the types of side effects a webhook may have.
+// +enum
 #SideEffectClass: string // #enumSideEffectClass
 
 #enumSideEffectClass:
@@ -450,6 +454,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 }
 
 // ReinvocationPolicyType specifies what type of policy the admission hook uses.
+// +enum
 #ReinvocationPolicyType: string // #enumReinvocationPolicyType
 
 #enumReinvocationPolicyType:
@@ -478,6 +483,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 }
 
 // OperationType specifies an operation for a request.
+// +enum
 #OperationType: string // #enumOperationType
 
 #enumOperationType:

@@ -6,8 +6,8 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -42,6 +42,7 @@ import (
 }
 
 // PodManagementPolicyType defines the policy for creating pods under a stateful set.
+// +enum
 #PodManagementPolicyType: string // #enumPodManagementPolicyType
 
 #enumPodManagementPolicyType:
@@ -75,6 +76,7 @@ import (
 
 // StatefulSetUpdateStrategyType is a string enumeration type that enumerates
 // all possible update strategies for the StatefulSet controller.
+// +enum
 #StatefulSetUpdateStrategyType: string // #enumStatefulSetUpdateStrategyType
 
 #enumStatefulSetUpdateStrategyType:
@@ -97,11 +99,60 @@ import (
 
 // RollingUpdateStatefulSetStrategy is used to communicate parameter for RollingUpdateStatefulSetStrategyType.
 #RollingUpdateStatefulSetStrategy: {
-	// Partition indicates the ordinal at which the StatefulSet should be
-	// partitioned.
-	// Default value is 0.
+	// Partition indicates the ordinal at which the StatefulSet should be partitioned
+	// for updates. During a rolling update, all pods from ordinal Replicas-1 to
+	// Partition are updated. All pods from ordinal Partition-1 to 0 remain untouched.
+	// This is helpful in being able to do a canary based deployment. The default value is 0.
 	// +optional
 	partition?: null | int32 @go(Partition,*int32) @protobuf(1,varint,opt)
+
+	// The maximum number of pods that can be unavailable during the update.
+	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+	// Absolute number is calculated from percentage by rounding up. This can not be 0.
+	// Defaults to 1. This field is alpha-level and is only honored by servers that enable the
+	// MaxUnavailableStatefulSet feature. The field applies to all pods in the range 0 to
+	// Replicas-1. That means if there is any unavailable pod in the range 0 to Replicas-1, it
+	// will be counted towards MaxUnavailable.
+	// +optional
+	maxUnavailable?: null | intstr.#IntOrString @go(MaxUnavailable,*intstr.IntOrString) @protobuf(2,varint,opt)
+}
+
+// PersistentVolumeClaimRetentionPolicyType is a string enumeration of the policies that will determine
+// when volumes from the VolumeClaimTemplates will be deleted when the controlling StatefulSet is
+// deleted or scaled down.
+#PersistentVolumeClaimRetentionPolicyType: string // #enumPersistentVolumeClaimRetentionPolicyType
+
+#enumPersistentVolumeClaimRetentionPolicyType:
+	#RetainPersistentVolumeClaimRetentionPolicyType |
+	#DeletePersistentVolumeClaimRetentionPolicyType
+
+// RetainPersistentVolumeClaimRetentionPolicyType is the default
+// PersistentVolumeClaimRetentionPolicy and specifies that
+// PersistentVolumeClaims associated with StatefulSet VolumeClaimTemplates
+// will not be deleted.
+#RetainPersistentVolumeClaimRetentionPolicyType: #PersistentVolumeClaimRetentionPolicyType & "Retain"
+
+// RetentionPersistentVolumeClaimRetentionPolicyType specifies that
+// PersistentVolumeClaims associated with StatefulSet VolumeClaimTemplates
+// will be deleted in the scenario specified in
+// StatefulSetPersistentVolumeClaimRetentionPolicy.
+#DeletePersistentVolumeClaimRetentionPolicyType: #PersistentVolumeClaimRetentionPolicyType & "Delete"
+
+// StatefulSetPersistentVolumeClaimRetentionPolicy describes the policy used for PVCs
+// created from the StatefulSet VolumeClaimTemplates.
+#StatefulSetPersistentVolumeClaimRetentionPolicy: {
+	// WhenDeleted specifies what happens to PVCs created from StatefulSet
+	// VolumeClaimTemplates when the StatefulSet is deleted. The default policy
+	// of `Retain` causes PVCs to not be affected by StatefulSet deletion. The
+	// `Delete` policy causes those PVCs to be deleted.
+	whenDeleted?: #PersistentVolumeClaimRetentionPolicyType @go(WhenDeleted) @protobuf(1,bytes,opt,casttype=PersistentVolumeClaimRetentionPolicyType)
+
+	// WhenScaled specifies what happens to PVCs created from StatefulSet
+	// VolumeClaimTemplates when the StatefulSet is scaled down. The default
+	// policy of `Retain` causes PVCs to not be affected by a scaledown. The
+	// `Delete` policy causes the associated PVCs for any excess pods above
+	// the replica count to be deleted.
+	whenScaled?: #PersistentVolumeClaimRetentionPolicyType @go(WhenScaled) @protobuf(2,bytes,opt,casttype=PersistentVolumeClaimRetentionPolicyType)
 }
 
 // A StatefulSetSpec is the specification of a StatefulSet.
@@ -170,6 +221,15 @@ import (
 	// This is an alpha field and requires enabling StatefulSetMinReadySeconds feature gate.
 	// +optional
 	minReadySeconds?: int32 @go(MinReadySeconds) @protobuf(9,varint,opt)
+
+	// persistentVolumeClaimRetentionPolicy describes the lifecycle of persistent
+	// volume claims created from volumeClaimTemplates. By default, all persistent
+	// volume claims are created as needed and retained until manually deleted. This
+	// policy allows the lifecycle to be altered, for example by deleting persistent
+	// volume claims when their stateful set is deleted, or when their pod is scaled
+	// down. This requires the StatefulSetAutoDeletePVC feature gate to be enabled,
+	// which is alpha.  +optional
+	persistentVolumeClaimRetentionPolicy?: null | #StatefulSetPersistentVolumeClaimRetentionPolicy @go(PersistentVolumeClaimRetentionPolicy,*StatefulSetPersistentVolumeClaimRetentionPolicy) @protobuf(10,bytes,opt)
 }
 
 // StatefulSetStatus represents the current state of a StatefulSet.
@@ -182,7 +242,7 @@ import (
 	// replicas is the number of Pods created by the StatefulSet controller.
 	replicas: int32 @go(Replicas) @protobuf(2,varint,opt)
 
-	// readyReplicas is the number of Pods created by the StatefulSet controller that have a Ready Condition.
+	// readyReplicas is the number of pods created for this StatefulSet with a Ready Condition.
 	readyReplicas?: int32 @go(ReadyReplicas) @protobuf(3,varint,opt)
 
 	// currentReplicas is the number of Pods created by the StatefulSet controller from the StatefulSet version
@@ -214,10 +274,9 @@ import (
 	conditions?: [...#StatefulSetCondition] @go(Conditions,[]StatefulSetCondition) @protobuf(10,bytes,rep)
 
 	// Total number of available pods (ready for at least minReadySeconds) targeted by this statefulset.
-	// This is an alpha field and requires enabling StatefulSetMinReadySeconds feature gate.
-	// Remove omitempty when graduating to beta
+	// This is a beta field and enabled/disabled by StatefulSetMinReadySeconds feature gate.
 	// +optional
-	availableReplicas?: int32 @go(AvailableReplicas) @protobuf(11,varint,opt)
+	availableReplicas: int32 @go(AvailableReplicas) @protobuf(11,varint,opt)
 }
 
 #StatefulSetConditionType: string
@@ -338,6 +397,7 @@ import (
 	rollingUpdate?: null | #RollingUpdateDeployment @go(RollingUpdate,*RollingUpdateDeployment) @protobuf(2,bytes,opt)
 }
 
+// +enum
 #DeploymentStrategyType: string // #enumDeploymentStrategyType
 
 #enumDeploymentStrategyType:
@@ -394,7 +454,7 @@ import (
 	// +optional
 	updatedReplicas?: int32 @go(UpdatedReplicas) @protobuf(3,varint,opt)
 
-	// Total number of ready pods targeted by this deployment.
+	// readyReplicas is the number of pods targeted by this Deployment with a Ready Condition.
 	// +optional
 	readyReplicas?: int32 @go(ReadyReplicas) @protobuf(7,varint,opt)
 
@@ -489,6 +549,7 @@ import (
 	rollingUpdate?: null | #RollingUpdateDaemonSet @go(RollingUpdate,*RollingUpdateDaemonSet) @protobuf(2,bytes,opt)
 }
 
+// +enum
 #DaemonSetUpdateStrategyType: string // #enumDaemonSetUpdateStrategyType
 
 #enumDaemonSetUpdateStrategyType:
@@ -593,8 +654,8 @@ import (
 	// More info: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/
 	desiredNumberScheduled: int32 @go(DesiredNumberScheduled) @protobuf(3,varint,opt)
 
-	// The number of nodes that should be running the daemon pod and have one
-	// or more of the daemon pod running and ready.
+	// numberReady is the number of nodes that should be running the daemon pod and have one
+	// or more of the daemon pod running with a Ready Condition.
 	numberReady: int32 @go(NumberReady) @protobuf(4,varint,opt)
 
 	// The most recent generation observed by the daemon set controller.
@@ -771,7 +832,7 @@ import (
 	// +optional
 	fullyLabeledReplicas?: int32 @go(FullyLabeledReplicas) @protobuf(2,varint,opt)
 
-	// The number of ready replicas for this replica set.
+	// readyReplicas is the number of pods targeted by this ReplicaSet with a Ready Condition.
 	// +optional
 	readyReplicas?: int32 @go(ReadyReplicas) @protobuf(4,varint,opt)
 

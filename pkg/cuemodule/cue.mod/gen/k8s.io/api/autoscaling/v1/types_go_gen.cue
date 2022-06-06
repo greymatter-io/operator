@@ -137,6 +137,7 @@ import (
 }
 
 // MetricSourceType indicates the type of metric.
+// +enum
 #MetricSourceType: string // #enumMetricSourceType
 
 #enumMetricSourceType:

@@ -301,16 +301,12 @@ import (
 
 	// Scope represents if this refers to a cluster or namespace scoped resource.
 	// This may be set to "Cluster" (default) or "Namespace".
-	// Field can be enabled with IngressClassNamespacedParams feature gate.
-	// +optional
-	// +featureGate=IngressClassNamespacedParams
 	scope?: null | string @go(Scope,*string) @protobuf(4,bytes,opt)
 
 	// Namespace is the namespace of the resource being referenced. This field is
 	// required when scope is set to "Namespace" and must be unset when scope is set to
 	// "Cluster".
 	// +optional
-	// +featureGate=IngressClassNamespacedParams
 	namespace?: null | string @go(Namespace,*string) @protobuf(5,bytes,opt)
 }
 
