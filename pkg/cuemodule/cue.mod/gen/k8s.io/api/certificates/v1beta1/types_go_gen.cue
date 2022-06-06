@@ -64,8 +64,6 @@ import (
 	//
 	// The minimum valid value for expirationSeconds is 600, i.e. 10 minutes.
 	//
-	// As of v1.22, this field is beta and is controlled via the CSRDuration feature gate.
-	//
 	// +optional
 	expirationSeconds?: null | int32 @go(ExpirationSeconds,*int32) @protobuf(8,varint,opt)
 
