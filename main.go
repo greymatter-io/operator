@@ -89,7 +89,7 @@ func run() error {
 	flag.StringVar(&bootstrapRepo, "repo", "", "Bootstrap repository for operator configuration.")
 	flag.StringVar(&bootstrapSSHKeyPath, "sshPrivateKeyPath", "", "SSH key which has privileges to fetch the operators core configuration from Git.")
 	flag.StringVar(&bootstrapBranch, "branch", "main", "target branch to fetch and watch for changes in the core configuration repo.")
-	flag.IntVar(&interval, "interval", 10, "Interval to watch bootstrap core config repo.")
+	flag.IntVar(&interval, "interval", 30, "Interval to watch bootstrap core config repo.")
 
 	// Bind flags for Zap logger options.
 	opts := zap.Options{Development: zapDevMode}
