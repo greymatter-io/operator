@@ -153,8 +153,34 @@ func (i *Installer) Start(ctx context.Context) error {
 		}
 	}
 
+	// called on completion of a sync cycle.
+	i.Sync.OnSyncCompleted = func() error {
+		logger.Info("GitOps repo updated and synchronized. Reapplying configuration...")
+		// reload CUE here
+		_, freshLoadMesh, err := cuemodule.LoadAll(i.CueRoot)
+		if err != nil {
+
+		}
+		// copy in old mesh dynamic values
+		freshLoadMesh.TypeMeta = i.Mesh.TypeMeta
+		i.Mesh.ObjectMeta.DeepCopyInto(&freshLoadMesh.ObjectMeta)
+
+		i.ApplyMesh(i.Mesh, freshLoadMesh)
+
+		//i.OperatorCUE = freshLoadOperatorCUE
+		//i.Mesh = freshLoadMesh
+		//err = k8sapi.Apply(i.K8sClient, i.Mesh, nil, k8sapi.CreateOrUpdate)
+		//if err != nil {
+		//	// TODO retry?
+		//	logger.Error(err, "unable to apply mesh as described in the freshly loaded CUE")
+		//}
+		return nil
+	}
+
 	// Immediately apply the default mesh from the CUE if the flag is set and we don't already have a mesh
+	// Then re-apply the mesh whenever the repository is updated (checked by polling)
 	go func() {
+		// initial mesh application
 		if i.Config.AutoApplyMesh && !meshAlreadyDeployed {
 			logger.Info("Waiting 30 seconds to apply loaded default Mesh resource to cluster.")
 			time.Sleep(30 * time.Second) // Sleep for an arbitrary initial duration
@@ -167,6 +193,9 @@ func (i *Installer) Start(ctx context.Context) error {
 				time.Sleep(10 * time.Second)
 			}
 		}
+
+		// GitOps-triggered subsequent mesh applications
+		i.Sync.Watch() // Executes its callback (defined above) whenever there are new commits
 	}()
 
 	// If Spire, set up to periodically reconcile the extant sidecars with the Redis listener's allowable subjects

@@ -104,17 +104,6 @@ func run() error {
 	syncOpts = append(syncOpts, sync.WithSSHInfo(bootstrapSSHKeyPath, ""))
 	syncOpts = append(syncOpts, sync.WithRepoInfo(bootstrapRepo, bootstrapBranch))
 
-	// add a custom callback that is called on completion of a sync cycle.
-	// TODO we should fix this so it fires only if something has changed
-	syncOpts = append(syncOpts, sync.WithOnSyncCompleted(func() error {
-		// callback logic to run when the operator needs to reconcile its new config
-		// loaded from the gitops-core repo.
-
-		logger.Info("GitOps sync of core CUE config complete.")
-
-		return nil
-	}))
-
 	// Create a context we can cancel and clean up our go routine with.
 	sync := sync.New(bootstrapRepo, context.Background(), syncOpts...)
 
@@ -127,13 +116,16 @@ func run() error {
 			return fmt.Errorf("failed to load operator initial configuration: %w", err)
 		}
 
-		// TODO(alec): we need to somehow capture this error here.
-		// I'll revisit this later.
-		go sync.Watch()
+		// sync.Watch() will happen inside of mesh_install.New
+
 	}
 
 	// Immediately load all CUE
-	operatorCUE, initialMesh := cuemodule.LoadAll(cueRoot) // panics if unsuccessful
+	operatorCUE, initialMesh, err := cuemodule.LoadAll(cueRoot)
+	if err != nil {
+		// initial load panics if unsuccessful, because we need valid config to start up
+		panic(err)
+	}
 	logger.Info(fmt.Sprintf("Loaded CUE module from %s", cueRoot))
 
 	// Initialize operator options with set values.

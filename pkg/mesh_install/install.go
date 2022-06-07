@@ -84,8 +84,13 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 
 	// If we're updating an existing mesh, we need to reload the CUE before unification to avoid a situation
 	// where the old concrete values conflict with the new ones
+	// TODO once the CRD is removed, this will be redundant because the new CUE will already be reloaded into the Installer
 	if prev != nil {
-		freshLoadOperatorCUE, _ := cuemodule.LoadAll(i.CueRoot)
+		freshLoadOperatorCUE, _, err := cuemodule.LoadAll(i.CueRoot)
+		if err != nil {
+			logger.Error(err, "failed to load CUE during Apply")
+			return
+		}
 		i.OperatorCUE = freshLoadOperatorCUE
 	}
 	// Do unification between the Mesh and K8s CUE here before extraction, and save the unified values
@@ -126,7 +131,10 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 	go i.RemoveMeshClient()
 
 	// Reload the starter Mesh CUE so it can be unified with a new one in the future
-	freshLoadOperatorCUE, freshLoadMesh := cuemodule.LoadAll(i.CueRoot)
+	freshLoadOperatorCUE, freshLoadMesh, err := cuemodule.LoadAll(i.CueRoot)
+	if err != nil {
+		logger.Error(err, "unable to load fresh CUE from disk while removing mesh - check mesh integrity")
+	}
 	i.OperatorCUE = freshLoadOperatorCUE
 	i.Mesh = freshLoadMesh
 
