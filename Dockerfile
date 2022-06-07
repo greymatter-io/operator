@@ -25,8 +25,7 @@ RUN ./cli
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o operator main.go
 
 # Ensure an SSH key is available and trusts GitHub
-RUN ssh-keygen -t ed25519 -f /root/.ssh/id_ed25519 -N "" && \
-    ssh-keyscan github.com >> /root/.ssh/known_hosts && \
+RUN ssh-keyscan github.com >> /root/.ssh/known_hosts && \
     chmod 444 /root/.ssh/known_hosts
 
 FROM ubuntu:21.04

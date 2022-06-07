@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 )
+
+var logger = ctrl.Log.WithName("sync")
 
 type Sync struct {
 	GitDir        string
@@ -106,23 +109,24 @@ func (s *Sync) Watch() error {
 		return nil
 	}
 
+	lastSHA := ""
 	for {
 		select {
 		case <-s.ctx.Done():
 			return nil
 		default:
-			err := gitUpdate(s)
+			currentSHA, err := gitUpdate(s)
 			if err != nil {
-				return fmt.Errorf("failed while watching repo %s: %w", s.Remote, err)
+				logger.Error(err, fmt.Sprintf("failed while watching repo %s", s.Remote))
 			}
 
-			if s.OnSyncCompleted != nil {
+			if s.OnSyncCompleted != nil && lastSHA != currentSHA {
 				err = s.OnSyncCompleted()
 				if err != nil {
-					return fmt.Errorf("failed during callback execution OnSyncCompleted(): %w", err)
+					logger.Error(err, "failed during callback execution OnSyncCompleted()")
 				}
 			}
-
+			lastSHA = currentSHA
 			time.Sleep(time.Second * time.Duration(s.Interval))
 		}
 	}
@@ -163,10 +167,10 @@ func clone(s *Sync) error {
 
 // gitUpdate will do automatic fetching of the upstream repo
 // and apply the local changes to the specified root.
-func gitUpdate(sc *Sync) error {
+func gitUpdate(sc *Sync) (string, error) {
 	repo, err := git.PlainOpen(sc.GitDir)
 	if err != nil {
-		return fmt.Errorf("unable to open local repository %s: %w", sc.GitDir, err)
+		return "", fmt.Errorf("unable to open local repository %s: %w", sc.GitDir, err)
 	}
 
 	// FetchOptions configured with: 1) ssh private key, or 2) no auth
@@ -178,22 +182,22 @@ func gitUpdate(sc *Sync) error {
 	if sc.SSHPrivateKey != "" {
 		opts.Auth, err = ssh.NewPublicKeysFromFile("git", sc.SSHPrivateKey, sc.SSHPassphrase)
 		if err != nil {
-			return fmt.Errorf("failed to read in ssh private key: %w", err)
+			return "", fmt.Errorf("failed to read in ssh private key: %w", err)
 		}
 	}
 	if err := repo.Fetch(opts); err != nil {
 		if !errors.Is(git.NoErrAlreadyUpToDate, err) {
-			return fmt.Errorf("failed to fetch remote %s: %w", sc.Remote, err)
+			return "", fmt.Errorf("failed to fetch remote %s: %w", sc.Remote, err)
 		}
 	}
 
 	wt, err := repo.Worktree()
 	if err != nil {
-		return err
+		return "", err
 	}
 	branch := plumbing.NewBranchReferenceName(sc.Branch)
 	if branch == "" {
-		return fmt.Errorf("missing git branch")
+		return "", fmt.Errorf("missing git branch")
 	}
 
 	// Attempt a checkout WITH create, but throw away the error. :(
@@ -213,7 +217,7 @@ func gitUpdate(sc *Sync) error {
 		Create: false,
 		Force:  true,
 	}); err != nil {
-		return fmt.Errorf("failed to successfully checkout: %w", err)
+		return "", fmt.Errorf("failed to successfully checkout: %w", err)
 	}
 
 	// Do the pull
@@ -226,7 +230,7 @@ func gitUpdate(sc *Sync) error {
 		InsecureSkipTLS: true,
 	}); err != nil {
 		if !errors.Is(err, git.NoErrAlreadyUpToDate) {
-			return fmt.Errorf("failed to pull changes from remote: %w", err)
+			return "", fmt.Errorf("failed to pull changes from remote: %w", err)
 		}
 	}
 
@@ -234,8 +238,13 @@ func gitUpdate(sc *Sync) error {
 	if err := wt.Clean(&git.CleanOptions{
 		Dir: true,
 	}); err != nil {
-		return fmt.Errorf("failed to run git clean: %w", err)
+		return "", fmt.Errorf("failed to run git clean: %w", err)
 	}
 
-	return nil
+	// Extract the hash from this pull
+	ref, err := repo.Head()
+	if err != nil {
+		return "", fmt.Errorf("failed to get repo HEAD: %w", err)
+	}
+	return ref.Hash().String(), nil
 }
