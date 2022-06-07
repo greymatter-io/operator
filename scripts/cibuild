@@ -37,15 +37,23 @@ cmd_wait_for_k3s () {
 }
 
 # Creates image secrets inside k3s cluster
-cmd_create_image_pull_secret () {
+cmd_create_secrets () {
   set -u
   local name=$1
   local ns=$2
+
+  # Image pull secret
   k3s kubectl create secret docker-registry $name \
     --docker-server=docker.greymatter.io \
     --docker-username="$NEXUS_USER" \
     --docker-password="$NEXUS_PASS" \
     --docker-email=$NEXUS_USER -n $ns
+
+  # SSH key secret for GitOps
+  kubectl create secret generic greymatter-sync-secret \
+    --from-file=id_ed25519=$HOME/.ssh/id_ed25519 \
+    -n gm-operator
+  )
   set +u
 }
 
@@ -157,7 +165,7 @@ cmd_generate_integration_tests () {
       - buildkite-agent artifact download \"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /tmp/
       - mv /tmp/\"${BUILDKITE_PIPELINE_SLUG}_${BUILDKITE_BUILD_NUMBER}.tar\" /opt/k3s-import/
       - k3s kubectl create namespace gm-operator
-      - scripts/cibuild create_image_pull_secret gm-docker-secret gm-operator
+      - scripts/cibuild create_secrets gm-docker-secret gm-operator
       - sleep 5
       - KUBECTL_CMD='k3s kubectl' ./scripts/test integration $C
       - k3s kubectl get pods -A
@@ -197,7 +205,7 @@ fi
 CMD=$1
 shift
 case $CMD in
-  test|build|release|generate_integration_tests|wait_for_k3s|export_container|export_manifests|create_image_pull_secret|bootstrap)
+  test|build|release|generate_integration_tests|wait_for_k3s|export_container|export_manifests|create_secrets|bootstrap)
     cmd_$CMD $@
     ;;
   *)
