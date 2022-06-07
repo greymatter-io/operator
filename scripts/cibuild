@@ -53,7 +53,7 @@ cmd_create_secrets () {
   kubectl create secret generic greymatter-sync-secret \
     --from-file=id_ed25519=$HOME/.ssh/id_ed25519 \
     -n gm-operator
-    
+
   set +u
 }
 
