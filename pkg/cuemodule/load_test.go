@@ -10,7 +10,7 @@ import (
 func TestLoadRedisListener(t *testing.T) {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	operatorCUE, _ := LoadAll("core")
+	operatorCUE, _, _ := LoadAll("core")
 	_, defaults := operatorCUE.ExtractConfig()
 	defaults.SidecarList = nil
 	if defaults.SidecarList == nil {

@@ -104,23 +104,23 @@ func (s *Sync) Bootstrap() error {
 // This can be used to reconcile mesh changes internally to the operator.
 // Watch uses the internal sync context to handle routine cancellation. This means that
 // the callback can also cancel this routine.
-func (s *Sync) Watch() error {
+func (s *Sync) Watch() {
 	if s.Remote == "" {
-		return nil
+		return
 	}
 
 	lastSHA := ""
 	for {
 		select {
 		case <-s.ctx.Done():
-			return nil
+			return
 		default:
 			currentSHA, err := gitUpdate(s)
 			if err != nil {
 				logger.Error(err, fmt.Sprintf("failed while watching repo %s", s.Remote))
 			}
 
-			if s.OnSyncCompleted != nil && lastSHA != currentSHA {
+			if s.OnSyncCompleted != nil && lastSHA != "" && lastSHA != currentSHA {
 				err = s.OnSyncCompleted()
 				if err != nil {
 					logger.Error(err, "failed during callback execution OnSyncCompleted()")

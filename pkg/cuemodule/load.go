@@ -32,7 +32,7 @@ type OperatorCUE struct {
 }
 
 // LoadAll loads the provided CUE for configuring the operator into an OperatorCUE and a Mesh
-func LoadAll(cuemoduleRoot string) (*OperatorCUE, *v1alpha1.Mesh) {
+func LoadAll(cuemoduleRoot string) (*OperatorCUE, *v1alpha1.Mesh, error) {
 	//cwd, _ := os.Getwd()
 	allCUEInstances := load.Instances([]string{
 		"./k8s/outputs",
@@ -44,10 +44,10 @@ func LoadAll(cuemoduleRoot string) (*OperatorCUE, *v1alpha1.Mesh) {
 	operatorCUE.K8s = cuecontext.New().BuildInstance(allCUEInstances[0])
 	operatorCUE.GM = cuecontext.New().BuildInstance(allCUEInstances[1])
 	if err := operatorCUE.K8s.Err(); err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 	if err := operatorCUE.GM.Err(); err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 
 	// load default mesh and store it in mesh_install. Later, one operator, one mesh.
@@ -57,9 +57,9 @@ func LoadAll(cuemoduleRoot string) (*OperatorCUE, *v1alpha1.Mesh) {
 
 	err := Extract(operatorCUE.K8s, &extracted)
 	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
-	return operatorCUE, &extracted.Mesh
+	return operatorCUE, &extracted.Mesh, nil
 }
 
 // Config represents the `config` struct from the operator CUE in inputs.cue
