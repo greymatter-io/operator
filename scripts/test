@@ -303,20 +303,20 @@ test_integration() {
   local test=$1
   case $test in
     default)
-      install_operator
+      install_operator "-t test=true"
       test_operator_install
       test_mesh_startup
       test_reachable_mesh
       ;;
     with_spire)
-      install_operator "-t spire=true"
+      install_operator "-t test=true -t spire=true"
       test_operator_install
       test_with_spire
       test_mesh_startup
       test_reachable_mesh
       ;;
     tear_down)
-      install_operator "-t auto_apply_mesh=false"
+      install_operator "-t test=true -t auto_apply_mesh=false"
       test_operator_install
       test_no_mesh
       test_install_remove_mesh
