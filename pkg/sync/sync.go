@@ -222,12 +222,13 @@ func gitUpdate(sc *Sync) (string, error) {
 
 	// Do the pull
 	if err := wt.Pull(&git.PullOptions{
-		RemoteName:      "origin",
-		ReferenceName:   branch,
-		SingleBranch:    true,
-		Auth:            opts.Auth,
-		Force:           true,
-		InsecureSkipTLS: true,
+		RemoteName:        "origin",
+		ReferenceName:     branch,
+		SingleBranch:      true,
+		Auth:              opts.Auth,
+		Force:             true,
+		InsecureSkipTLS:   true,
+		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}); err != nil {
 		if !errors.Is(err, git.NoErrAlreadyUpToDate) {
 			return "", fmt.Errorf("failed to pull changes from remote: %w", err)
