@@ -34,17 +34,7 @@ func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ..
 
 	// Apply core Grey Matter components from CUE
 	// This just dumps them on the channel, so it will block until the consumer is ready
-	go func() {
-		// by this point, GM has already been unified with THE mesh this operator manages
-		// Extract correct GM config for options - for now there's only one
-
-		meshConfigs, kinds, err := operatorCUE.ExtractCoreMeshConfigs()
-		if err != nil {
-			logger.Error(err, "failed to extract while attempting to apply core components mesh config - ignoring")
-			return
-		}
-		ApplyAll(client, meshConfigs, kinds)
-	}()
+	go ApplyCoreMeshConfigs(client, operatorCUE)
 
 	// Consumer of commands to send to Control
 	go func(ctx context.Context, controlCmds chan Cmd) {
@@ -85,8 +75,17 @@ func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ..
 			case c := <-controlCmds:
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
 				if _, err := c.run(client.flags); err != nil && c.requeue {
-					logger.Info("requeued failed command", "args", c.args)
-					controlCmds <- c
+					logger.Info("command failed, will reattempt in 10 seconds", "args", c.args)
+					go func(args string) {
+						time.Sleep(10 * time.Second)
+						select {
+						case <-ctx.Done():
+							return
+						default:
+							logger.Info("requeued failed command", "args", args)
+							controlCmds <- c
+						}
+					}(c.args)
 				}
 			}
 		}
@@ -125,12 +124,33 @@ func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ..
 			case c := <-catalogCmds:
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
 				if _, err := c.run(client.flags); err != nil && c.requeue {
-					logger.Info("requeued failed command", "args", c.args)
-					catalogCmds <- c
+					logger.Info("command failed, will reattempt in 10 seconds", "args", c.args)
+					go func(args string) {
+						time.Sleep(10 * time.Second)
+						select {
+						case <-ctx.Done():
+							return
+						default:
+							logger.Info("requeued failed command", "args", args)
+							catalogCmds <- c
+						}
+					}(c.args)
 				}
 			}
 		}
 	}(client.Ctx, client.CatalogCmds)
 
 	return client, nil
+}
+
+func ApplyCoreMeshConfigs(client *Client, operatorCUE *cuemodule.OperatorCUE) {
+	// by this point, GM has already been unified with THE mesh this operator manages
+	// Extract correct GM config for options - for now there's only one
+
+	meshConfigs, kinds, err := operatorCUE.ExtractCoreMeshConfigs()
+	if err != nil {
+		logger.Error(err, "failed to extract while attempting to apply core components mesh config - ignoring")
+		return
+	}
+	ApplyAll(client, meshConfigs, kinds)
 }

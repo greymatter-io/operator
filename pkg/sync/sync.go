@@ -141,6 +141,7 @@ func clone(s *Sync) error {
 
 	opts := &git.CloneOptions{
 		URL:               s.Remote,
+		ReferenceName:     plumbing.NewBranchReferenceName(s.Branch),
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth, // we need this to pull the cue config submodules
 	}
 

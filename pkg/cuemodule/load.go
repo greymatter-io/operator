@@ -363,51 +363,9 @@ func ExtractAndTypeK8sManifestObjects(manifests []json.RawMessage) (manifestObje
 			var obj opnshftsec.SecurityContextConstraints
 			_ = json.Unmarshal(manifest, &obj)
 			manifestObjects = append(manifestObjects, &obj)
-			logger.Info("SecurityContextConstraints object loaded", "object", obj) // DEBUG
 		default:
 			logger.Error(errors.New("got unrecognized K8s manifest object from CUE"), "ignoring", "Kind", ke.Kind, "Object", manifest)
 		}
 	}
 	return manifestObjects
 }
-
-//// TODO remove old stuff once we've adjusted the tests vvvvv
-//
-//// Loader loads a package from our CUE module.
-//type Loader func(string) (cue.Value, error)
-//
-//// LoadPackage loads a package from our Cue module.
-//// Packages are added to subdirectories and declared with the same name as the subdirectory.
-//func LoadPackage(pkgName string) (cue.Value, error) {
-//	dirPath, err := os.Getwd()
-//	if err != nil {
-//		return cue.Value{}, err
-//	}
-//
-//	return loadPackage(pkgName, dirPath)
-//}
-//
-//// LoadPackageForTest loads a package from our Cue module within a test context.
-//func LoadPackageForTest(pkgName string) (cue.Value, error) {
-//	_, filename, _, _ := runtime.Caller(0)
-//	dirPath := path.Dir(filename)
-//
-//	return loadPackage(pkgName, dirPath)
-//}
-//
-//func loadPackage(pkgName, dirPath string) (cue.Value, error) {
-//	instances := load.Instances([]string{"greymatter.io/operator/" + pkgName}, &load.Config{
-//		ModuleRoot: dirPath,
-//	})
-//
-//	if len(instances) != 1 {
-//		return cue.Value{}, fmt.Errorf("did not load expected package %s", pkgName)
-//	}
-//
-//	value := cuecontext.New().BuildInstance(instances[0])
-//	if err := value.Err(); err != nil {
-//		return cue.Value{}, err
-//	}
-//
-//	return value, nil
-//}

@@ -153,7 +153,7 @@ func (i *Installer) Start(ctx context.Context) error {
 		}
 	}
 
-	// called on completion of a sync cycle.
+	// called on completion of a sync cycle if there are new commits
 	i.Sync.OnSyncCompleted = func() error {
 		logger.Info("GitOps repo updated and synchronized. Reapplying configuration...")
 		// reload CUE here
