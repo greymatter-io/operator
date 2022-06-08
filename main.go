@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -81,6 +82,12 @@ func main() {
 }
 
 func run() error {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Error(errors.New("panic occurred"), "error", err)
+		}
+	}()
+
 	flag.StringVar(&cueRoot, "cueRoot", "core", "Path to the CUE module with Grey Matter config. Defaults to the current working directory.")
 	flag.BoolVar(&zapDevMode, "zapDevMode", false, "Configure zap logger in development mode.")
 	flag.StringVar(&pprofAddr, "pprofAddr", ":1234", "Address for pprof server; has no effect on release builds")

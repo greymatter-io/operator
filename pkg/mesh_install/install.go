@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cuemodule"
+	"github.com/greymatter-io/operator/pkg/gmapi"
 	"github.com/greymatter-io/operator/pkg/k8sapi"
 	"github.com/greymatter-io/operator/pkg/wellknown"
 	v1 "k8s.io/api/core/v1"
@@ -27,7 +28,6 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 			TypeMeta: metav1.TypeMeta{Kind: "Namespace", APIVersion: "v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: mesh.Spec.InstallNamespace,
-				//Annotations: map[string]string{"openshift.io/sa.scc.mcs": "s0:c30,c5"}, // HACK this should be pulled from config, if this even solves my OpenShift problem
 			},
 		}
 		k8sapi.Apply(i.K8sClient, namespace, mesh, k8sapi.GetOrCreate)
@@ -41,8 +41,6 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 			k8sapi.Apply(i.K8sClient, secret, mesh, k8sapi.GetOrCreate)
 		}
 	}
-
-	// The idea is a) one operator per mesh, and b) the sidecar template comes from unification with global OperatorCUE
 
 	// Label existing deployments and statefulsets in this Mesh's namespaces
 	deployments := &appsv1.DeploymentList{}
@@ -101,8 +99,6 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 			"Mesh", mesh)
 		return
 	}
-	i.Mesh = mesh                  // set this mesh as THE mesh managed by the operator
-	go i.ConfigureMeshClient(mesh) // Applies the Grey Matter configuration once Control and Catalog are up
 
 	// Extract 'em
 	manifestObjects, err := i.OperatorCUE.ExtractCoreK8sManifests()
@@ -112,6 +108,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	}
 
 	// Apply the k8s manifests we just extracted
+	logger.Info("Reapplying k8s manifests")
 	for _, manifest := range manifestObjects {
 		logger.Info("Applying manifest object:",
 			"Name", manifest.GetName(),
@@ -120,6 +117,14 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		k8sapi.Apply(i.K8sClient, manifest, mesh, k8sapi.CreateOrUpdate)
 	}
 
+	if prev == nil {
+		i.ConfigureMeshClient(mesh) // Synchronously applies the Grey Matter configuration once Control and Catalog are up
+	} else {
+		logger.Info("Reapplying mesh configs")
+		i.EnsureClient("ApplyMesh")
+		go gmapi.ApplyCoreMeshConfigs(i.Client, i.OperatorCUE)
+	}
+	i.Mesh = mesh // set this mesh as THE mesh managed by the operator
 }
 
 // RemoveMesh removes all references to a deleted Mesh custom resource.

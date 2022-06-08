@@ -50,6 +50,7 @@ func New(ctx context.Context, operatorCUE *cuemodule.OperatorCUE) (*CLI, error) 
 		<-ctx.Done()
 		c.RLock()
 		defer c.RUnlock()
+		logger.Info("Cancelling Client goroutines")
 		if c.Client != nil {
 			c.Client.Cancel()
 		}
@@ -142,15 +143,18 @@ func (c *CLI) ConfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string, 
 		logger.Error(err, "Failed to unify or extract CUE", "name", name, "injectedSidecarPort", injectedSidecarPort)
 	}
 
-	// Wait for c.Client to exist
+	c.EnsureClient("ConfigureSidecar")
+	ApplyAll(c.Client, configObjects, kinds)
+}
+
+func (c *CLI) EnsureClient(in string) {
 	for {
 		if c.Client != nil {
 			break
 		}
-		logger.Info("greymatter client does not yet exist, will retry in 10 seconds")
+		logger.Info(fmt.Sprintf("(in %s) greymatter client does not yet exist, will retry in 10 seconds", in))
 		time.Sleep(10 * time.Second)
 	}
-	ApplyAll(c.Client, configObjects, kinds)
 }
 
 // UnconfigureSidecar removes fabric objects, disconnecting the workload from the mesh specified
