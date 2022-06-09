@@ -34,12 +34,13 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		secret := i.imagePullSecret.DeepCopy()
 		secret.Namespace = mesh.Spec.InstallNamespace
 		k8sapi.Apply(i.K8sClient, secret, mesh, k8sapi.GetOrCreate)
-		// TODO reverse-Chesterton's fence: I don't understand why this _wasn't_ done in the old operator
-		for _, watched_ns := range mesh.Spec.WatchNamespaces {
-			secret := i.imagePullSecret.DeepCopy()
-			secret.Namespace = watched_ns
-			k8sapi.Apply(i.K8sClient, secret, mesh, k8sapi.GetOrCreate)
-		}
+	}
+
+	// Copy the imagePullSecret into all watched namespaces
+	for _, watchedNS := range mesh.Spec.WatchNamespaces {
+		secret := i.imagePullSecret.DeepCopy()
+		secret.Namespace = watchedNS
+		k8sapi.Apply(i.K8sClient, secret, mesh, k8sapi.GetOrCreate)
 	}
 
 	// Label existing deployments and statefulsets in this Mesh's namespaces
