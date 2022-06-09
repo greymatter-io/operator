@@ -21,7 +21,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
@@ -45,8 +44,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	_ "net/http/pprof"
+	//_ "net/http/pprof" // DEBUG
 )
 
 var (
@@ -110,7 +108,7 @@ func run() error {
 	// We have to call Parse late for some reason
 	flag.Parse()
 
-	go http.ListenAndServe(pprofAddr, nil)
+	//go http.ListenAndServe(pprofAddr, nil) // DEBUG
 
 	// build sync options based on user configuration.
 	syncOpts := []func(*sync.Sync){}
