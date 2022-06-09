@@ -21,6 +21,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
@@ -44,7 +45,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	//+kubebuilder:scaffold:imports
+
+	_ "net/http/pprof"
 )
 
 var (
@@ -68,10 +70,11 @@ var (
 
 	// Configuration flags for fetching the initial operator
 	// config repository on startup with Git.
-	bootstrapRepo       string
-	bootstrapSSHKeyPath string
-	bootstrapBranch     string
-	interval            int
+	bootstrapRepo           string
+	bootstrapSSHKeyPath     string
+	bootstrapSSHKeyPassword string
+	bootstrapBranch         string
+	interval                int
 )
 
 func main() {
@@ -95,6 +98,7 @@ func run() error {
 	// Flags that enable bootstrap configuration loading from a git repo.
 	flag.StringVar(&bootstrapRepo, "repo", "", "Bootstrap repository for operator configuration.")
 	flag.StringVar(&bootstrapSSHKeyPath, "sshPrivateKeyPath", "", "SSH key which has privileges to fetch the operators core configuration from Git.")
+	flag.StringVar(&bootstrapSSHKeyPassword, "sshPrivateKeyPassword", "", "SSH key which has privileges to fetch the operators core configuration from Git.")
 	flag.StringVar(&bootstrapBranch, "branch", "main", "target branch to fetch and watch for changes in the core configuration repo.")
 	flag.IntVar(&interval, "interval", 30, "Interval to watch bootstrap core config repo.")
 
@@ -106,9 +110,11 @@ func run() error {
 	// We have to call Parse late for some reason
 	flag.Parse()
 
+	go http.ListenAndServe(pprofAddr, nil)
+
 	// build sync options based on user configuration.
 	syncOpts := []func(*sync.Sync){}
-	syncOpts = append(syncOpts, sync.WithSSHInfo(bootstrapSSHKeyPath, ""))
+	syncOpts = append(syncOpts, sync.WithSSHInfo(bootstrapSSHKeyPath, bootstrapSSHKeyPassword))
 	syncOpts = append(syncOpts, sync.WithRepoInfo(bootstrapRepo, bootstrapBranch))
 
 	// Create a context we can cancel and clean up our go routine with.

@@ -3,7 +3,7 @@ module github.com/greymatter-io/operator
 go 1.17
 
 require (
-	cuelang.org/go v0.4.0
+	cuelang.org/go v0.4.3
 	github.com/cloudflare/cfssl v1.6.1
 	github.com/go-git/go-git/v5 v5.0.0-00010101000000-000000000000
 	github.com/go-logr/logr v1.2.3
