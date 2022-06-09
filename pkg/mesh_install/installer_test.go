@@ -1,7 +1,7 @@
 package mesh_install
 
 import (
-	"encoding/json"
+	//"github.com/greymatter-io/operator/pkg/cuemodule"
 	"testing"
 	//"github.com/greymatter-io/operator/pkg/cueutils"
 	//"github.com/greymatter-io/operator/pkg/cuemodule"
@@ -11,6 +11,26 @@ import (
 )
 
 func TestLoading(t *testing.T) {
+	// memory leak test
+	//cueRoot := "/Users/danielpcox/projects/decipher/operator/pkg/cuemodule/core"
+	//for i := 0; i < 1000; i++ {
+	//	operatorCUE, freshLoadMesh, err := cuemodule.LoadAll(cueRoot)
+	//	if err != nil {
+	//		logger.Error(err, "badness")
+	//	}
+	//	logger.Info("Loaded", "i", i, "cue", operatorCUE, "mesh", freshLoadMesh)
+
+	//allCUEInstances := load.Instances([]string{
+	//	"./k8s/outputs",
+	//	"./gm/outputs",
+	//}, &load.Config{
+	//	Dir: cueRoot, // "If Dir is empty, the tool is run in the current directory"
+	//})
+	////operatorCUE := &cuemodule.OperatorCUE{}
+	//thing1 := cuecontext.New().BuildInstance(allCUEInstances[0])
+	//thing2 := cuecontext.New().BuildInstance(allCUEInstances[1])
+	//logger.Info("Loaded", "i", i, "instances", allCUEInstances, thing1, thing2)
+	//}
 
 	// K8S MANIFESTS LOADING TEST
 
@@ -211,11 +231,11 @@ func TestLoading(t *testing.T) {
 	//t.Logf("New value: %#v", newValue)
 
 	// UNMARSHALL TEST
-	data := []byte("{\"mesh_id\":\"Experiment\"}")
-	var extracted struct {
-		MeshID string `json:"mesh_id"`
-	}
-	_ = json.Unmarshal(data, &extracted)
-	t.Logf("meshid:%v", extracted.MeshID)
+	//data := []byte("{\"mesh_id\":\"Experiment\"}")
+	//var extracted struct {
+	//	MeshID string `json:"mesh_id"`
+	//}
+	//_ = json.Unmarshal(data, &extracted)
+	//t.Logf("meshid:%v", extracted.MeshID)
 
 }

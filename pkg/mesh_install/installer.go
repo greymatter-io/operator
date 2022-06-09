@@ -166,6 +166,7 @@ func (i *Installer) Start(ctx context.Context) error {
 		i.Mesh.ObjectMeta.DeepCopyInto(&freshLoadMesh.ObjectMeta)
 
 		i.ApplyMesh(i.Mesh, freshLoadMesh)
+		logger.Info("GOT HERE")
 
 		//i.OperatorCUE = freshLoadOperatorCUE
 		//i.Mesh = freshLoadMesh
