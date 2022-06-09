@@ -18,7 +18,12 @@ Make sure you have fetched all necessary dependencies:
 ./scripts/bootstrap # checks that you have the latest dependencies for the cue evaluation of manifests.
 ```
 
-Evaluate the kubernetes manifests using CUE: 
+Evaluate the kubernetes manifests using CUE:
+
+Note: You may run the operator locally entirely without GitOps (i.e., using only baked-in, local CUE config) by adding
+`-t test=true` to the `cue eval ...`. At the moment, you will still need to create the greymatter-sync-secret as below,
+or else remove the references to it in the operator manifests, but it won't be used with `-t test=true`.
+
 ```bash
 ( 
 cd pkg/cuemodule/core
@@ -30,8 +35,19 @@ kubectl create secret docker-registry gm-docker-secret \
   --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
   --docker-email=$GREYMATTER_REGISTRY_USERNAME \
   -n gm-operator
+  
+  # EDIT THIS to reflect your own, or some other SSH private key with access,
+  # to the repository you would like the operator to use for GitOps. Note
+  # that by default, the operator is going to fetch from 
+  # https://github.com/greymatter-io/gitops-core and you would
+  # need to edit the operator StatefulSet to change the argument to the
+  # operator binary to change the git repository or branch.
+  kubectl create secret generic greymatter-sync-secret \
+  --from-file=id_ed25519=$HOME/.ssh/id_ed25519 \
+  -n gm-operator
 )
 ```
+
 > HINT: Your username and password are your Grey Matter credentials.
 
 The operator will be running in a pod in the `gm-operator` namespace, and shortly after installation, the default Mesh
