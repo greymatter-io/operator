@@ -154,7 +154,7 @@ _release_bundle() {
 #  in the ephemeral ec2s. The output of the echo commands runs on the ec2, not the original machine running the rest of the pipeline.
 cmd_generate_integration_tests () {
   declare steps_yaml
-  cases=('default' 'with_spire' 'tear_down')
+  cases=('default' 'with_spire')
 
   for C in "${cases[@]}"; do
     launch_cluster $C
