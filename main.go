@@ -68,11 +68,11 @@ var (
 
 	// Configuration flags for fetching the initial operator
 	// config repository on startup with Git.
-	bootstrapRepo           string
-	bootstrapSSHKeyPath     string
-	bootstrapSSHKeyPassword string
-	bootstrapBranch         string
-	interval                int
+	syncRepo           string
+	syncSSHKeyPath     string
+	syncSSHKeyPassword string
+	syncBranch         string
+	syncInterval       int
 )
 
 func main() {
@@ -93,12 +93,12 @@ func run() error {
 	flag.BoolVar(&zapDevMode, "zapDevMode", false, "Configure zap logger in development mode.")
 	flag.StringVar(&pprofAddr, "pprofAddr", ":1234", "Address for pprof server; has no effect on release builds")
 
-	// Flags that enable bootstrap configuration loading from a git repo.
-	flag.StringVar(&bootstrapRepo, "repo", "", "Bootstrap repository for operator configuration.")
-	flag.StringVar(&bootstrapSSHKeyPath, "sshPrivateKeyPath", "", "SSH key which has privileges to fetch the operators core configuration from Git.")
-	flag.StringVar(&bootstrapSSHKeyPassword, "sshPrivateKeyPassword", "", "Password for the SSH key")
-	flag.StringVar(&bootstrapBranch, "branch", "main", "target branch to fetch and watch for changes in the core configuration repo.")
-	flag.IntVar(&interval, "interval", 30, "Interval to watch bootstrap core config repo.")
+	// Flags that enable sync configuration loading from a git repo.
+	flag.StringVar(&syncRepo, "repo", "", "Bootstrap repository for operator configuration.")
+	flag.StringVar(&syncSSHKeyPath, "sshPrivateKeyPath", "", "SSH key which has privileges to fetch the operators core configuration from Git.")
+	flag.StringVar(&syncSSHKeyPassword, "sshPrivateKeyPassword", "", "Password for the SSH key")
+	flag.StringVar(&syncBranch, "branch", "main", "target branch to fetch and watch for changes in the core configuration repo.")
+	flag.IntVar(&syncInterval, "interval", 30, "Interval to watch sync core config repo.")
 
 	// Bind flags for Zap logger options.
 	opts := zap.Options{Development: zapDevMode}
@@ -112,13 +112,13 @@ func run() error {
 
 	// build sync options based on user configuration.
 	syncOpts := []func(*sync.Sync){}
-	syncOpts = append(syncOpts, sync.WithSSHInfo(bootstrapSSHKeyPath, bootstrapSSHKeyPassword))
-	syncOpts = append(syncOpts, sync.WithRepoInfo(bootstrapRepo, bootstrapBranch))
+	syncOpts = append(syncOpts, sync.WithSSHInfo(syncSSHKeyPath, syncSSHKeyPassword))
+	syncOpts = append(syncOpts, sync.WithRepoInfo(syncRepo, syncBranch))
 
 	// Create a context we can cancel and clean up our go routine with.
-	sync := sync.New(bootstrapRepo, context.Background(), syncOpts...)
+	sync := sync.New(syncRepo, context.Background(), syncOpts...)
 
-	if bootstrapRepo != "" {
+	if syncRepo != "" {
 		// GitDir should be cueRoot (where the operator expects to load its config from)
 		cueRoot = "fetched_cue"
 		sync.GitDir = cueRoot
@@ -152,7 +152,7 @@ func run() error {
 	}
 
 	// Start up our CFSSL server for issuing two certs:
-	// 1) Webhook server certs (unless disabled in the bootstrap config)
+	// 1) Webhook server certs (unless disabled in the sync config)
 	// 2) SPIRE's intermediate CA for issuing identities to workloads
 	cfssl, err := cfsslsrv.New(nil, nil)
 	if err != nil {
