@@ -51,14 +51,6 @@ func New(remote string, ctx context.Context, options ...func(*Sync)) *Sync {
 // WithSSHInfo will set a users ssh information on sync config.
 // Passwords are not required.
 func WithSSHInfo(privateKeyPath, password string) func(*Sync) {
-	//var privateKey string
-	//if privateKeyPath != "" {
-	//	dat, err := os.ReadFile(privateKeyPath)
-	//	if err != nil {
-	//		panic(fmt.Sprintf("Unable to load SSH private key from %s", privateKeyPath))
-	//	}
-	//	privateKey = string(dat)
-	//}
 	return func(s *Sync) {
 		s.SSHPassphrase = password
 		s.SSHPrivateKey = privateKeyPath
