@@ -167,13 +167,6 @@ func (i *Installer) Start(ctx context.Context) error {
 
 		i.ApplyMesh(i.Mesh, freshLoadMesh)
 
-		//i.OperatorCUE = freshLoadOperatorCUE
-		//i.Mesh = freshLoadMesh
-		//err = k8sapi.Apply(i.K8sClient, i.Mesh, nil, k8sapi.CreateOrUpdate)
-		//if err != nil {
-		//	// TODO retry?
-		//	logger.Error(err, "unable to apply mesh as described in the freshly loaded CUE")
-		//}
 		return nil
 	}
 
