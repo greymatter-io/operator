@@ -1,6 +1,6 @@
 # Changelog
 
-## vNEXT
+## 0.9.0 (June 13, 2022)
 
 ### Changed
 
@@ -22,6 +22,9 @@
 - Switch to ECDSA 256 certificates for speed and security.
 - Checked in `pkg/cuemodule/core/cue.mod/gen/k8s.io/`, the result of `cue get go k8s.io/api/...`,
   for the CI build.
+- GitOps workflow now fetches the operator's CUE from a repository (default greymatter-io/gitops-core)
+  and polls it for changes which then trigger live updates to the Kubernetes and Grey Matter config
+  of the live environment.
 
 ### Added
 
