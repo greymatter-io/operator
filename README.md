@@ -31,7 +31,7 @@ cue eval -c ./k8s/outputs --out text -e operator_manifests_yaml | kubectl apply 
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=docker.greymatter.io \
-  --docker-username=$GREYMATTER_REGISTRY_USERNAME \s
+  --docker-username=$GREYMATTER_REGISTRY_USERNAME \
   --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
   --docker-email=$GREYMATTER_REGISTRY_USERNAME \
   -n gm-operator
