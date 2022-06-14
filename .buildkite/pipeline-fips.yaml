@@ -1,0 +1,6 @@
+agents:
+  container_image: ubuntu-2204-ci-fips
+steps:
+  - label: ":shipit: Build FIPS"
+    commands:
+      - ./scripts/cibuild build
