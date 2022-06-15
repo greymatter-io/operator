@@ -133,8 +133,8 @@ func (c *CLI) ConfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string, 
 	}
 
 	// we skip configuration if we're explicitly told to
-	configureSidecar := annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR]
-	if configureSidecar == "false" {
+	configureSidecar, configureSidecarPresent := annotations[wellknown.ANNOTATION_CONFIGURE_SIDECAR]
+	if !configureSidecarPresent || configureSidecar == "false" {
 		return
 	}
 
