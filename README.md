@@ -57,6 +57,54 @@ That is all you need to do to launch the operator. Note that if you have the spi
 (in pkg/cuemodule/core/inputs.cue) then you will need to wait for the operator to insert the server-ca bootstrap certificates
 before spire-server and spire-agent can successfully launch.
 
+## Deployment Assist
+
+The operator can assist with deployments by injecting and configuring a sidecar with an HTTP ingress, given only a
+correctly-annotated Deployment or StatefulSet. This makes use of the following two annotations, which need to be in
+`spec.template.metadata.annotations`. (NB: they must go in the _template_ metadata, not the metadata of the Deployment
+or StatefulSet itself. This is because the Pod itself must have those annotations available for the webhooks to
+inspect.)
+
+```
+greymatter.io/inject-sidecar-to: "3000"    # (a)
+greymatter.io/configure-sidecar: "true"    # (b)
+```
+
+The meaning of the above is
+a) inject a sidecar into this pod that (if configured) will forward traffic upstream to port 3000.
+b) configure the injected sidecar (i.e., send Grey Matter configuration to Control API that configures an HTTP ingress,
+   a metrics beacon to Redis for health checks, Spire configuration if applicable, and a Catalog service entry.
+
+For clarity, here is a full working example of a Deployment that will receive a sidecar injection and Grey Matter
+configuration. Once it has been applied, the operator logs should show its configuration, it should appear with two
+containers in the pod, and there should shortly afterwards be a working service in the mesh with a card on the
+dashboard:
+
+```
+# workload.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-server
+spec:
+  selector:
+    matchLabels:
+      app: simple-server
+  template:
+    metadata:
+      labels:
+        app: simple-server
+      annotations:
+        greymatter.io/inject-sidecar-to: "3000"
+        greymatter.io/configure-sidecar: "true"
+    spec:
+      containers:
+        - name: server1
+          image: python:3
+          command: ["python"]
+          args: ["-m", "http.server", "3000"]
+
+```
 
 ## Alternative Debug Build
 
