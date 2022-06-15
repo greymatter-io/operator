@@ -44,10 +44,10 @@ cmd_create_secrets () {
 
   # Image pull secret
   k3s kubectl create secret docker-registry $name \
-    --docker-server=docker.greymatter.io \
-    --docker-username="$NEXUS_USER" \
-    --docker-password="$NEXUS_PASS" \
-    --docker-email=$NEXUS_USER -n $ns
+    --docker-server=quay.io \
+    --docker-username="$QUAY_USERNAME" \
+    --docker-password="$QUAY_PASSWORD" \
+    --docker-email=$QUAY_USERNAME -n $ns
 
   # SSH key secret for GitOps
   kubectl create secret generic greymatter-sync-secret \
