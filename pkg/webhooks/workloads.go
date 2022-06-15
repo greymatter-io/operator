@@ -67,7 +67,8 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 	}
 
 	annotations := pod.Annotations
-	if _, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]; !injectSidecar {
+	if injectSidecarTo, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]; !injectSidecar || injectSidecarTo == "" {
+		logger.Info("No inject-sidecar-to annotation, skipping", "name", req.Name, "annotations", annotations)
 		return admission.ValidationResponse(true, "allowed")
 	}
 
@@ -146,10 +147,10 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 		deployment := &appsv1.Deployment{}
 		if req.Operation != admissionv1.Delete { // if new or updated Deployment
 			wd.Decode(req, deployment)
-			if deployment.Annotations == nil {
-				deployment.Annotations = make(map[string]string)
+			if deployment.Spec.Template.Annotations == nil {
+				deployment.Spec.Template.Annotations = make(map[string]string)
 			}
-			deployment.Annotations[wellknown.ANNOTATION_LAST_APPLIED] = time.Now().String()
+			deployment.Spec.Template.Annotations[wellknown.ANNOTATION_LAST_APPLIED] = time.Now().String()
 			deployment.Spec.Template = addClusterLabels(deployment.Spec.Template, meshName, req.Name)
 			rawUpdate, err = json.Marshal(deployment)
 			if err != nil {
@@ -158,22 +159,22 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
 
-			annotations := deployment.ObjectMeta.Annotations
+			annotations := deployment.Spec.Template.Annotations
 			_, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
 			if injectSidecar {
 				go func() {
-					wd.ConfigureSidecar(wd.OperatorCUE, req.Name, deployment.ObjectMeta)
+					wd.ConfigureSidecar(wd.OperatorCUE, req.Name, annotations)
 				}()
 			}
 
 		} else { // if this Deployment is being deleted...
 			wd.DecodeRaw(req.OldObject, deployment)
 
-			annotations := deployment.ObjectMeta.Annotations
+			annotations := deployment.Spec.Template.Annotations
 			_, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
 			if injectSidecar {
 				go func() {
-					wd.UnconfigureSidecar(wd.OperatorCUE, req.Name, deployment.ObjectMeta)
+					wd.UnconfigureSidecar(wd.OperatorCUE, req.Name, annotations)
 				}()
 			}
 			return admission.ValidationResponse(true, "allowed")
@@ -195,22 +196,22 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 			}
 			logger.Info("added cluster label", "kind", req.Kind.Kind, "name", req.Name, "namespace", req.Namespace)
 
-			annotations := statefulset.ObjectMeta.Annotations
+			annotations := statefulset.Spec.Template.Annotations
 			_, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
 			if injectSidecar {
 				go func() {
-					wd.ConfigureSidecar(wd.OperatorCUE, req.Name, statefulset.ObjectMeta)
+					wd.ConfigureSidecar(wd.OperatorCUE, req.Name, annotations)
 				}()
 			}
 
 		} else { // if this StatefulSet is being deleted...
 			wd.DecodeRaw(req.OldObject, statefulset)
 
-			annotations := statefulset.ObjectMeta.Annotations
+			annotations := statefulset.Spec.Template.Annotations
 			_, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
 			if injectSidecar {
 				go func() {
-					wd.UnconfigureSidecar(wd.OperatorCUE, req.Name, statefulset.ObjectMeta)
+					wd.UnconfigureSidecar(wd.OperatorCUE, req.Name, annotations)
 				}()
 			}
 			return admission.ValidationResponse(true, "allowed")
