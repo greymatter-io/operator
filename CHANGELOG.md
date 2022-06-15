@@ -2,6 +2,11 @@
 
 ## vNEXT
 
+### Changed
+
+- The annotations for deployment assist now need to be put in `spec.template.metadata.annotations`,
+  not the top-level `metadata.annotations` for the Deployment or StatefulSet.
+
 ### Fixed
 
 - A sidecar is no longer injected if the inject-sidecar-to annotation is missing from a Deployment
