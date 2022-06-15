@@ -66,6 +66,11 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
+	annotations := pod.Annotations
+	if _, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]; !injectSidecar {
+		return admission.ValidationResponse(true, "allowed")
+	}
+
 	// Check for a cluster label; if not found, this pod does not belong to a Mesh.
 	clusterLabel, ok := pod.Labels[wellknown.LABEL_CLUSTER]
 	if !ok {
