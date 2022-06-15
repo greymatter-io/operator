@@ -41,7 +41,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		namespace := &v1.Namespace{
 			TypeMeta: metav1.TypeMeta{Kind: "Namespace", APIVersion: "v1"},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: mesh.Spec.InstallNamespace,
+				Name: watchedNS,
 			},
 		}
 		k8sapi.Apply(i.K8sClient, namespace, mesh, k8sapi.GetOrCreate)
