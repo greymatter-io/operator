@@ -36,8 +36,16 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		k8sapi.Apply(i.K8sClient, secret, mesh, k8sapi.GetOrCreate)
 	}
 
-	// Copy the imagePullSecret into all watched namespaces
 	for _, watchedNS := range mesh.Spec.WatchNamespaces {
+		// Create all watched namespaces, if they don't already exist
+		namespace := &v1.Namespace{
+			TypeMeta: metav1.TypeMeta{Kind: "Namespace", APIVersion: "v1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mesh.Spec.InstallNamespace,
+			},
+		}
+		k8sapi.Apply(i.K8sClient, namespace, mesh, k8sapi.GetOrCreate)
+		// Copy the imagePullSecret into all watched namespaces
 		secret := i.imagePullSecret.DeepCopy()
 		secret.Namespace = watchedNS
 		k8sapi.Apply(i.K8sClient, secret, mesh, k8sapi.GetOrCreate)
