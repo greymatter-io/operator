@@ -1,5 +1,12 @@
 # Changelog
 
+## vNEXT
+
+### Fixed
+
+- A sidecar is no longer injected if the inject-sidecar-to annotation is missing from a Deployment
+  or StatefulSet in a watched namespace.
+
 ## 0.9.0 (June 13, 2022)
 
 ### Changed
