@@ -10,7 +10,6 @@ import (
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"github.com/greymatter-io/operator/pkg/wellknown"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"strconv"
 	"sync"
@@ -117,8 +116,8 @@ func (c *CLI) RemoveMeshClient() {
 
 // ConfigureSidecar applies fabric objects that add a workload to the mesh specified
 // given the workload's annotations and a list of its corev1.Containers.
-func (c *CLI) ConfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string, metadata metav1.ObjectMeta) {
-	annotations := metadata.Annotations
+func (c *CLI) ConfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string, annotations map[string]string) {
+	//annotations := metadata.Annotations
 	injectedSidecarPortString, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
 	var injectedSidecarPort int
 	if injectSidecar {
@@ -158,8 +157,8 @@ func (c *CLI) EnsureClient(in string) {
 }
 
 // UnconfigureSidecar removes fabric objects, disconnecting the workload from the mesh specified
-func (c *CLI) UnconfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string, metadata metav1.ObjectMeta) {
-	annotations := metadata.Annotations
+func (c *CLI) UnconfigureSidecar(operatorCUE *cuemodule.OperatorCUE, name string, annotations map[string]string) {
+	//annotations := metadata.Annotations
 	logger.Info("Unconfiguring sidecar with values", "name", name, "annotations", annotations)
 	injectedSidecarPortString, injectSidecar := annotations[wellknown.ANNOTATION_INJECT_SIDECAR_TO_PORT]
 	var injectedSidecarPort int
