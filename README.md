@@ -30,10 +30,10 @@ cd pkg/cuemodule/core
 cue eval -c ./k8s/outputs --out text -e operator_manifests_yaml | kubectl apply -f -
 
 kubectl create secret docker-registry gm-docker-secret \
-  --docker-server=docker.greymatter.io \
-  --docker-username=$GREYMATTER_REGISTRY_USERNAME \
+  --docker-server=quay.io \
+  --docker-username=$GREYMATTER_REGISTRY_USERNAME \s
   --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
-  --docker-email=$GREYMATTER_REGISTRY_USERNAME \
+  --docker-email=$GREYMATTER_REGISTRY_EMAIL \
   -n gm-operator
   
   # EDIT THIS to reflect your own, or some other SSH private key with access,
@@ -48,7 +48,7 @@ kubectl create secret docker-registry gm-docker-secret \
 )
 ```
 
-> HINT: Your username and password are your Grey Matter credentials.
+> HINT: Your username and password are your Quay.io credentials authorized to the greymatterio organization.
 
 The operator will be running in a pod in the `gm-operator` namespace, and shortly after installation, the default Mesh
 CR described in `pkg/cuemodule/core/inputs.cue` will be automatically deployed.
@@ -62,27 +62,27 @@ before spire-server and spire-agent can successfully launch.
 
 If you would like to attach a remote debugger to your operator container, do the following:
 ```bash
-# Builds and pushes docker.greymatter.io/internal/gm-operator:debug from Dockerfile.debug. Edit to taste.
-# You will need to have your credentials in $GREYMATTER_REGISTRY_USERNAME and $GREYMATTER_REGISTRY_PASSWORD
+# Builds and pushes quay.io/greymatterio/gm-operator:debug from Dockerfile.debug. Edit to taste.
+# You will need to have your credentials in $GREYMATTER_REGISTRY_USERNAME, $GREYMATTER_REGISTRY_EMAIL, and $GREYMATTER_REGISTRY_PASSWORD
 ./scripts/build debug_container
 
 # Push the image you just built to Nexus
-docker push docker.greymatter.io/internal/gm-operator:latest-debug
+docker push quay.io/greymatterio/gm-operator:latest-debug
 
 # Launch the operator with the debug build in debug mode.
 # Note the two tags (`operator_image` and `debug`) which are the only differences from Getting Started
 ( 
 cd pkg/cuemodule
 cue eval -c ./k8s/outputs --out text \
-         -t operator_image=docker.greymatter.io/internal/gm-operator:latest-debug \
+         -t operator_image=quay.io/greymatterio/gm-operator:latest-debug \
          -t debug=true \
          -e operator_manifests_yaml | kubectl apply -f -
 
 kubectl create secret docker-registry gm-docker-secret \
-  --docker-server=docker.greymatter.io \
+  --docker-server=quay.io \
   --docker-username=$GREYMATTER_REGISTRY_USERNAME \
   --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
-  --docker-email=$GREYMATTER_REGISTRY_USERNAME \
+  --docker-email=$GREYMATTER_REGISTRY_EMAIL \
   -n gm-operator
 )
   
@@ -127,7 +127,7 @@ been provided at the root of this project to launch the operator in a local
 
 Some caveats:
 * You should have Docker and Nix installed
-* You should be able to login to `docker.greymatter.io`
+* You should be able to log in to `quay.io`
 
 To launch, simply run:
 ```bash
