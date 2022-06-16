@@ -47,7 +47,7 @@ cmd_create_secrets () {
     --docker-server=quay.io \
     --docker-username="$QUAY_USERNAME" \
     --docker-password="$QUAY_PASSWORD" \
-    --docker-email=$QUAY_USERNAME -n $ns
+    -n $ns
 
   # SSH key secret for GitOps
   kubectl create secret generic greymatter-sync-secret \
