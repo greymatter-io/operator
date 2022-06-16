@@ -27,7 +27,9 @@ or else remove the references to it in the operator manifests, but it won't be u
 ```bash
 ( 
 cd pkg/cuemodule/core
-cue eval -c ./k8s/outputs --out text -e operator_manifests_yaml | kubectl apply -f -
+cue eval -c ./k8s/outputs --out text \
+         -t operator_image=quay.io/greymatterio/operator:0.9.1 \
+         -e operator_manifests_yaml | kubectl apply -f -
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=quay.io \

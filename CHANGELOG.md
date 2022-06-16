@@ -1,11 +1,16 @@
 # Changelog
 
-## vNEXT
+## 0.9.1 (June 16, 2022)
 
 ### Changed
 
 - The annotations for deployment assist now need to be put in `spec.template.metadata.annotations`,
   not the top-level `metadata.annotations` for the Deployment or StatefulSet.
+
+### Added
+
+- Watched namespaces that do not already exist are created before the imagePullSecret for
+  retrieving the Grey Matter sidecar is copied in.
 
 ### Fixed
 
