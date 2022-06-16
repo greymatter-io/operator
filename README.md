@@ -31,9 +31,8 @@ cue eval -c ./k8s/outputs --out text -e operator_manifests_yaml | kubectl apply 
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=quay.io \
-  --docker-username=$GREYMATTER_REGISTRY_USERNAME \s
-  --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
-  --docker-email=$GREYMATTER_REGISTRY_EMAIL \
+  --docker-username=$QUAY_USERNAME \
+  --docker-password=$QUAY_PASSWORD \
   -n gm-operator
   
   # EDIT THIS to reflect your own, or some other SSH private key with access,
@@ -111,7 +110,7 @@ spec:
 If you would like to attach a remote debugger to your operator container, do the following:
 ```bash
 # Builds and pushes quay.io/greymatterio/gm-operator:debug from Dockerfile.debug. Edit to taste.
-# You will need to have your credentials in $GREYMATTER_REGISTRY_USERNAME, $GREYMATTER_REGISTRY_EMAIL, and $GREYMATTER_REGISTRY_PASSWORD
+# You will need to have your credentials in $QUAY_USERNAME, and $QUAY_PASSWORD
 ./scripts/build debug_container
 
 # Push the image you just built to Nexus
@@ -128,9 +127,8 @@ cue eval -c ./k8s/outputs --out text \
 
 kubectl create secret docker-registry gm-docker-secret \
   --docker-server=quay.io \
-  --docker-username=$GREYMATTER_REGISTRY_USERNAME \
-  --docker-password=$GREYMATTER_REGISTRY_PASSWORD \
-  --docker-email=$GREYMATTER_REGISTRY_EMAIL \
+  --docker-username=$QUAY_USERNAME \
+  --docker-password=$QUAY_PASSWORD \
   -n gm-operator
 )
   
