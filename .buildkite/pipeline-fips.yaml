@@ -1,5 +1,6 @@
 agents:
   container_image: ubuntu-2204-ci-fips
+  queue: fips
 steps:
   - label: ":shipit: Build FIPS"
     commands:
