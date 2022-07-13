@@ -47,6 +47,6 @@ spec:
     name: Kyle Gallagher
   maturity: alpha
   provider:
-    name: Decipher Technology Studios
+    name: greymatter.io
     url: https://greymatter.io
   version: 0.0.0
