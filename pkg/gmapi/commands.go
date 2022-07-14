@@ -3,8 +3,6 @@ package gmapi
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
-
 	"github.com/tidwall/gjson"
 )
 
@@ -20,13 +18,6 @@ func MkApply(kind string, data json.RawMessage) Cmd {
 			} else {
 				logger.Info("apply", "type", kind, "key", key)
 			}
-		},
-		modify: func(out []byte) ([]byte, error) {
-			outStr := string(out)
-			if !strings.Contains(outStr, "200") {
-				return out, fmt.Errorf(string(out))
-			}
-			return out, nil
 		},
 	}
 }

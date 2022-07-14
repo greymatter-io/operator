@@ -74,15 +74,15 @@ func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ..
 				return
 			case c := <-controlCmds:
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
-				if _, err := c.run(client.flags); err != nil && c.requeue {
-					logger.Info("command failed, will reattempt in 10 seconds", "args", c.args)
+				if response, err := c.run(client.flags); err != nil && c.requeue {
+					logger.Info("command failed, will reattempt in 10 seconds", "args", c.args, "error", err, "response", response)
 					go func(args string) {
 						time.Sleep(10 * time.Second)
 						select {
 						case <-ctx.Done():
 							return
 						default:
-							logger.Info("requeued failed command", "args", args)
+							logger.Info("requeuing failed command", "args", args)
 							controlCmds <- c
 						}
 					}(c.args)
@@ -123,15 +123,15 @@ func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ..
 				return
 			case c := <-catalogCmds:
 				// Requeue failed commands, since there are likely object dependencies (TODO: check)
-				if _, err := c.run(client.flags); err != nil && c.requeue {
-					logger.Info("command failed, will reattempt in 10 seconds", "args", c.args)
+				if response, err := c.run(client.flags); err != nil && c.requeue {
+					logger.Info("command failed, will reattempt in 10 seconds", "args", c.args, "error", err, "response", response)
 					go func(args string) {
 						time.Sleep(10 * time.Second)
 						select {
 						case <-ctx.Done():
 							return
 						default:
-							logger.Info("requeued failed command", "args", args)
+							logger.Info("requeuing failed command", "args", args)
 							catalogCmds <- c
 						}
 					}(c.args)

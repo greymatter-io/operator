@@ -18,7 +18,7 @@ ARG username
 ARG password
 ENV USERNAME=$username
 ENV PASSWORD=$password
-COPY scripts/cli cli
+COPY scripts/get_greymatter_cli cli
 RUN ./cli
 
 # Build
