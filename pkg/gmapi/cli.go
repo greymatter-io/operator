@@ -78,9 +78,9 @@ func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
 func mkCLIConfig(apiHost, catalogHost, catalogMesh string) string {
 	return base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(`
 	[api]
-	host = "%s"
+	url = "%s"
 	[catalog]
-	host = "%s"
+	url = "%s"
 	mesh = "%s"
 	`, apiHost, catalogHost, catalogMesh)))
 }
