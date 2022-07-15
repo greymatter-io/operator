@@ -1,10 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## 0.9.2 (July 15, 2022)
 
 ### Changed
 
 - Upgraded the packaged greymatter CLI version to 4.2.
+- Updated submodules
 
 ## 0.9.1 (June 16, 2022)
 
