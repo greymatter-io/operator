@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: operator-config
-  namespace: system
-data:
-  bootstrap_config.yaml: ""

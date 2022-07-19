@@ -1,7 +1,0 @@
-resources:
-- namespace.yaml
-- deployment.yaml
-- bootstrap_config.yaml
-
-generatorOptions:
-  disableNameSuffixHash: true
