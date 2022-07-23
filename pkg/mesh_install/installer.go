@@ -8,6 +8,7 @@ import (
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/greymatter-io/operator/pkg/wellknown"
 	configv1 "github.com/openshift/api/config/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"reflect"
 	"sort"
 	"strings"
@@ -20,7 +21,6 @@ import (
 	"github.com/greymatter-io/operator/pkg/k8sapi"
 	"github.com/greymatter-io/operator/pkg/sync"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,7 +41,7 @@ type Installer struct {
 
 	// The meshes.greymatter.io CRD, used as an owner when applying cluster-scoped resources.
 	// If the operator is uninstalled on a cluster, owned cluster-scoped resources will be cleaned up.
-	owner *appsv1.StatefulSet
+	owner *rbacv1.ClusterRoleBinding
 	// The Docker image pull secret to create in namespaces where core services are installed.
 	imagePullSecret *corev1.Secret
 
@@ -69,14 +69,14 @@ type Installer struct {
 }
 
 // New returns a new *Installer instance for installing Grey Matter components and dependencies.
-func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1alpha1.Mesh, cueRoot string, gmcli *gmapi.CLI, cfssl *cfsslsrv.CFSSLServer, sync *sync.Sync) (*Installer, error) {
+func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, cueRoot string, gmcli *gmapi.CLI, cfssl *cfsslsrv.CFSSLServer, sync *sync.Sync) (*Installer, error) {
 	config, defaults := operatorCUE.ExtractConfig()
 	return &Installer{
 		CLI:         gmcli,
 		K8sClient:   c,
 		cfssl:       cfssl,
 		OperatorCUE: operatorCUE,
-		Mesh:        initialMesh,
+		Mesh:        nil,
 		CueRoot:     cueRoot,
 		Config:      config,
 		Defaults:    defaults,
@@ -92,12 +92,14 @@ func (i *Installer) Start(ctx context.Context) error {
 	// This secret will be re-created in each install namespace and watch namespaces where core services are pulled.
 	i.imagePullSecret = getImagePullSecret(i.K8sClient)
 
-	// Get our Mesh CRD to set as an owner for cluster-scoped resources
-	i.owner = &appsv1.StatefulSet{}
+	// Get our ClusterRoleBinding to set as an owner for cluster-scoped resources
+	// The choice of owner is solely because it is a cluster-scoped resource that
+	// will be destroyed when the operator itself is destroyed.
+	i.owner = &rbacv1.ClusterRoleBinding{}
 	// TODO don't hardcode operator namespace
-	err := (*i.K8sClient).Get(ctx, client.ObjectKey{Name: "gm-operator", Namespace: "gm-operator"}, i.owner)
+	err := (*i.K8sClient).Get(ctx, client.ObjectKey{Name: "gm-operator-rolebinding"}, i.owner)
 	if err != nil {
-		logger.Error(err, "Failed to get the operator's own StatefulSet: 'gm-operator'")
+		logger.Error(err, "Failed to get the operator's own ClusterRoleBinding: 'gm-operator-rolebinding'")
 		return err
 	}
 

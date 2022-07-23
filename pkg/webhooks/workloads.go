@@ -3,7 +3,6 @@ package webhooks
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -118,13 +117,13 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 // TODO: Modification should happen using a CUE package.
 func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Response {
 	// If there's no mesh, don't assist deployment
+	logger.Info("DEBUG: GOT HERE", "req.Name", req.Name, "wd.Mesh", wd.Mesh)
 	meshName := wd.Mesh.Name                           // wd.WatchedBy(req.Namespace)
 	if meshName == "" || wd.Installer.Mesh.UID == "" { // If the mesh isn't actually applied, don't assist deployments
 		return admission.ValidationResponse(true, "allowed")
 	}
 
-	// If the workload isn't in a watched namespace, don't assist deployment
-	// TODO also need the install namespace in here
+	// If the workload isn't in a watched namespace or the install namespace, don't assist deployment
 	watched := false
 	for _, ns := range wd.Mesh.Spec.WatchNamespaces {
 		if req.Namespace == ns {
@@ -151,7 +150,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				deployment.Spec.Template.Annotations = make(map[string]string)
 			}
 			deployment.Spec.Template.Annotations[wellknown.ANNOTATION_LAST_APPLIED] = time.Now().String()
-			deployment.Spec.Template = addClusterLabels(deployment.Spec.Template, meshName, req.Name)
+			deployment.Spec.Template = mesh_install.AddClusterLabels(deployment.Spec.Template, meshName, req.Name)
 			rawUpdate, err = json.Marshal(deployment)
 			if err != nil {
 				logger.Error(err, "Failed to add cluster label to Deployment", "Name", req.Name, "Namespace", req.Namespace)
@@ -188,7 +187,7 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 				statefulset.Annotations = make(map[string]string)
 			}
 			statefulset.Annotations[wellknown.ANNOTATION_LAST_APPLIED] = time.Now().String()
-			statefulset.Spec.Template = addClusterLabels(statefulset.Spec.Template, meshName, req.Name)
+			statefulset.Spec.Template = mesh_install.AddClusterLabels(statefulset.Spec.Template, meshName, req.Name)
 			rawUpdate, err = json.Marshal(statefulset)
 			if err != nil {
 				logger.Error(err, "Failed to add cluster label to StatefulSet", "Name", req.Name, "Namespace", req.Namespace)
@@ -219,15 +218,4 @@ func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Res
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, rawUpdate)
-}
-
-func addClusterLabels(tmpl corev1.PodTemplateSpec, meshName, clusterName string) corev1.PodTemplateSpec {
-	if tmpl.Labels == nil {
-		tmpl.Labels = make(map[string]string)
-	}
-	// For service discovery
-	tmpl.Labels[wellknown.LABEL_CLUSTER] = clusterName
-	// For Spire identification
-	tmpl.Labels[wellknown.LABEL_WORKLOAD] = fmt.Sprintf("%s.%s", meshName, clusterName)
-	return tmpl
 }

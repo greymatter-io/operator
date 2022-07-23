@@ -132,7 +132,7 @@ func run() error {
 	}
 
 	// Immediately load all CUE
-	operatorCUE, initialMesh, err := cuemodule.LoadAll(cueRoot)
+	operatorCUE, _, err := cuemodule.LoadAll(cueRoot)
 	if err != nil {
 		// initial load panics if unsuccessful, because we need valid config to start up
 		panic(err)
@@ -187,7 +187,7 @@ func run() error {
 	}
 
 	// Initialize manifests mesh_install.
-	inst, err := mesh_install.New(&c, operatorCUE, initialMesh, cueRoot, gmcli, cfssl, sync)
+	inst, err := mesh_install.New(&c, operatorCUE, cueRoot, gmcli, cfssl, sync)
 	if err != nil {
 		return fmt.Errorf("failed to initialize manifest mesh_install: %w", err)
 	}
