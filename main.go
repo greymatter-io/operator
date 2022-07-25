@@ -120,6 +120,7 @@ func run() error {
 
 	if syncRepo != "" {
 		// GitDir should be cueRoot (where the operator expects to load its config from)
+		logger.Info(fmt.Sprintf("GitOps repository configured: %s branch: %s", syncRepo, syncBranch))
 		cueRoot = "fetched_cue"
 		sync.GitDir = cueRoot
 		err := sync.Bootstrap()

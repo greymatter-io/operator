@@ -45,7 +45,7 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 	}
 
 	// If there's no mesh, don't assist deployment
-	if wd.Mesh.Name == "" || wd.Installer.Mesh.UID == "" {
+	if wd.Mesh == nil || wd.Mesh.Name == "" {
 		return admission.ValidationResponse(true, "allowed")
 	}
 	// If the pod isn't in a watched namespace, don't assist deployment
@@ -117,11 +117,10 @@ func (wd *workloadDefaulter) handlePod(req admission.Request) admission.Response
 // TODO: Modification should happen using a CUE package.
 func (wd *workloadDefaulter) handleWorkload(req admission.Request) admission.Response {
 	// If there's no mesh, don't assist deployment
-	logger.Info("DEBUG: GOT HERE", "req.Name", req.Name, "wd.Mesh", wd.Mesh)
-	meshName := wd.Mesh.Name                           // wd.WatchedBy(req.Namespace)
-	if meshName == "" || wd.Installer.Mesh.UID == "" { // If the mesh isn't actually applied, don't assist deployments
+	if wd.Mesh == nil || wd.Mesh.Name == "" {
 		return admission.ValidationResponse(true, "allowed")
 	}
+	meshName := wd.Mesh.Name // wd.WatchedBy(req.Namespace)
 
 	// If the workload isn't in a watched namespace or the install namespace, don't assist deployment
 	watched := false
