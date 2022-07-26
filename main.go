@@ -72,6 +72,7 @@ var (
 	syncSSHKeyPath     string
 	syncSSHKeyPassword string
 	syncBranch         string
+	syncTag            string
 	syncInterval       int
 )
 
@@ -97,7 +98,8 @@ func run() error {
 	flag.StringVar(&syncRepo, "repo", "", "Bootstrap repository for operator configuration.")
 	flag.StringVar(&syncSSHKeyPath, "sshPrivateKeyPath", "", "SSH key which has privileges to fetch the operators core configuration from Git.")
 	flag.StringVar(&syncSSHKeyPassword, "sshPrivateKeyPassword", "", "Password for the SSH key")
-	flag.StringVar(&syncBranch, "branch", "main", "target branch to fetch and watch for changes in the core configuration repo.")
+	flag.StringVar(&syncBranch, "branch", "", "target branch to fetch and watch for changes in the core configuration repo.")
+	flag.StringVar(&syncTag, "tag", "", "target tag to fetch and watch for changes in the core configuration repo.")
 	flag.IntVar(&syncInterval, "interval", 30, "Interval to watch sync core config repo.")
 
 	// Bind flags for Zap logger options.
@@ -113,7 +115,7 @@ func run() error {
 	// build sync options based on user configuration.
 	syncOpts := []func(*sync.Sync){}
 	syncOpts = append(syncOpts, sync.WithSSHInfo(syncSSHKeyPath, syncSSHKeyPassword))
-	syncOpts = append(syncOpts, sync.WithRepoInfo(syncRepo, syncBranch))
+	syncOpts = append(syncOpts, sync.WithRepoInfo(syncRepo, syncBranch, syncTag))
 
 	// Create a context we can cancel and clean up our go routine with.
 	sync := sync.New(syncRepo, context.Background(), syncOpts...)

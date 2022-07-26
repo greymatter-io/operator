@@ -21,6 +21,7 @@ type Sync struct {
 	SSHPassphrase string
 	Remote        string
 	Branch        string
+	Tag           string
 	Interval      int
 
 	// Internal callback that is executed at the end
@@ -36,7 +37,6 @@ type Sync struct {
 func New(remote string, ctx context.Context, options ...func(*Sync)) *Sync {
 	s := &Sync{
 		Remote: remote,
-		Branch: "main", // default branch, can be overwritten
 		ctx:    ctx,
 	}
 
@@ -59,10 +59,11 @@ func WithSSHInfo(privateKeyPath, password string) func(*Sync) {
 
 // WithRepoInfo will set target repository information
 // on a sync configuration object.
-func WithRepoInfo(remote, branch string) func(*Sync) {
+func WithRepoInfo(remote, branch string, tag string) func(*Sync) {
 	return func(s *Sync) {
 		s.Remote = remote
 		s.Branch = branch
+		s.Tag = tag
 	}
 }
 
@@ -131,9 +132,18 @@ func clone(s *Sync) error {
 		s.GitDir, _ = os.Getwd()
 	}
 
+	var referenceName plumbing.ReferenceName
+	if s.Branch != "" {
+		referenceName = plumbing.NewBranchReferenceName(s.Branch)
+	} else if s.Tag != "" {
+		referenceName = plumbing.NewTagReferenceName(s.Tag)
+	} else {
+		return errors.New("no branch or tag specified")
+	}
+
 	opts := &git.CloneOptions{
 		URL:               s.Remote,
-		ReferenceName:     plumbing.NewBranchReferenceName(s.Branch),
+		ReferenceName:     referenceName,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth, // we need this to pull the cue config submodules
 	}
 
