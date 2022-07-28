@@ -9,6 +9,7 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/google/uuid v1.3.0
 	github.com/kylelemons/godebug v1.1.0
+	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/openshift/api v0.0.0-20220414050251-a83e6f8f1d50
 	github.com/tidwall/gjson v1.9.4
 	github.com/urfave/cli/v2 v2.3.0
@@ -101,6 +102,7 @@ require (
 	github.com/mpvl/unique v0.0.0-20150818121801-cbe035fff7de // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
+	github.com/onsi/gomega v1.19.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.12.2 // indirect

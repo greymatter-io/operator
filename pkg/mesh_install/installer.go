@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	sync2 "sync"
 	"time"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
@@ -66,21 +67,27 @@ type Installer struct {
 
 	// Sync configuration with access to a callback for updating on git repo changes
 	Sync *sync.Sync
+
+	// For diff-before-apply sc-18788, store the previously-applied k8s and gm config object hashes
+	previousK8sHashes map[string]uint64
+	hashLock          sync2.RWMutex
 }
 
 // New returns a new *Installer instance for installing Grey Matter components and dependencies.
 func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1alpha1.Mesh, cueRoot string, gmcli *gmapi.CLI, cfssl *cfsslsrv.CFSSLServer, sync *sync.Sync) (*Installer, error) {
 	config, defaults := operatorCUE.ExtractConfig()
 	return &Installer{
-		CLI:         gmcli,
-		K8sClient:   c,
-		cfssl:       cfssl,
-		OperatorCUE: operatorCUE,
-		Mesh:        initialMesh,
-		CueRoot:     cueRoot,
-		Config:      config,
-		Defaults:    defaults,
-		Sync:        sync,
+		CLI:               gmcli,
+		K8sClient:         c,
+		cfssl:             cfssl,
+		OperatorCUE:       operatorCUE,
+		Mesh:              initialMesh,
+		CueRoot:           cueRoot,
+		Config:            config,
+		Defaults:          defaults,
+		Sync:              sync,
+		previousK8sHashes: make(map[string]uint64),
+		hashLock:          sync2.RWMutex{},
 	}, nil
 }
 
