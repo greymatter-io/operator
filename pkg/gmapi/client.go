@@ -179,8 +179,8 @@ func (c *Client) filterChangedGM(configObjects []json.RawMessage, kinds []string
 		var key string
 		keyName := cuemodule.KindToKeyName[kind]
 		result := gjson.GetBytes(configObj, keyName)
-		key = result.String()
-		logger.Info("GOT KEY", "key", key, "key_name", keyName) // DEBUG
+		key = fmt.Sprintf("%s-%s", kind, result.String())
+		logger.Info("GM HASH", "key", key, "key_name", keyName, "kind", kind) // DEBUG
 		hash, _ := hashstructure.Hash(configObj, hashstructure.FormatV2, nil)
 		newHashes[key] = hash // store *all* of them in newHashes, to replace previousGMHashes
 		if prevHash, ok := c.previousGMHashes[key]; !ok || prevHash != hash {

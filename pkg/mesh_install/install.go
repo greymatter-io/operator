@@ -2,6 +2,7 @@ package mesh_install
 
 import (
 	"context"
+	"fmt"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"github.com/greymatter-io/operator/pkg/gmapi"
@@ -229,9 +230,10 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 func (i *Installer) filterChangedK8s(manifestObjects []client.Object) (filtered []client.Object, newK8sHashes map[string]uint64) {
 	newK8sHashes = make(map[string]uint64)
 	for _, manifestObject := range manifestObjects {
-		key := manifestObject.GetName()
+		key := fmt.Sprintf("%s.-%s-%s", manifestObject.GetNamespace(), manifestObject.GetObjectKind(), manifestObject.GetName())
 		hash, _ := hashstructure.Hash(manifestObject, hashstructure.FormatV2, nil)
-		newK8sHashes[key] = hash // store *all* of them in newHashes, to replace previousGMHashes
+		logger.Info("K8S HASH", "key", key, "hash", hash) // DEBUG
+		newK8sHashes[key] = hash                          // store *all* of them in newHashes, to replace previousGMHashes
 		if prevHash, ok := i.previousK8sHashes[key]; !ok || prevHash != hash {
 			filtered = append(filtered, manifestObject)
 		}

@@ -263,12 +263,12 @@ func (operatorCUE *OperatorCUE) ExtractRedisListener() (configObject json.RawMes
 }
 
 var KindToKeyName = map[string]string{
-	"proxy":         "proxy_key",
-	"cluster":       "cluster_key",
-	"route":         "route_key",
-	"domain":        "domain_key",
-	"listener":      "listener_key",
-	"catalogserice": "service_id",
+	"proxy":          "proxy_key",
+	"cluster":        "cluster_key",
+	"route":          "route_key",
+	"domain":         "domain_key",
+	"listener":       "listener_key",
+	"catalogservice": "service_id",
 }
 
 type justKeys struct {
