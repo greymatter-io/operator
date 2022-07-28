@@ -230,6 +230,7 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 func (i *Installer) filterChangedK8s(manifestObjects []client.Object) (filtered []client.Object, newK8sHashes map[string]uint64) {
 	newK8sHashes = make(map[string]uint64)
 	for _, manifestObject := range manifestObjects {
+		// A properly-namespaced key for the object
 		key := fmt.Sprintf("%s.-%s-%s", manifestObject.GetNamespace(), manifestObject.GetObjectKind(), manifestObject.GetName())
 		hash, _ := hashstructure.Hash(manifestObject, hashstructure.FormatV2, nil)
 		logger.Info("K8S HASH", "key", key, "hash", hash) // DEBUG

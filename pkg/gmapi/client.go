@@ -178,8 +178,10 @@ func (c *Client) filterChangedGM(configObjects []json.RawMessage, kinds []string
 		kind := kinds[i]
 		var key string
 		keyName := cuemodule.KindToKeyName[kind]
-		result := gjson.GetBytes(configObj, keyName)
-		key = fmt.Sprintf("%s-%s", kind, result.String())
+		nameResult := gjson.GetBytes(configObj, keyName)
+		zoneResult := gjson.GetBytes(configObj, "zone_key")
+		// A properly-namespaced key for the object
+		key = fmt.Sprintf("%s-%s-%s", zoneResult.String(), kind, nameResult.String())
 		logger.Info("GM HASH", "key", key, "key_name", keyName, "kind", kind) // DEBUG
 		hash, _ := hashstructure.Hash(configObj, hashstructure.FormatV2, nil)
 		newHashes[key] = hash // store *all* of them in newHashes, to replace previousGMHashes
