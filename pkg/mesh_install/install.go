@@ -7,8 +7,10 @@ import (
 	"github.com/greymatter-io/operator/pkg/gmapi"
 	"github.com/greymatter-io/operator/pkg/k8sapi"
 	"github.com/greymatter-io/operator/pkg/wellknown"
+	"github.com/mitchellh/hashstructure/v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -115,6 +117,10 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 		logger.Error(err, "failed to extract k8s manifests")
 		return
 	}
+	i.hashLock.Lock()
+	// Filter by what has changed (ignore unchanged)
+	var newK8sHashes map[string]uint64
+	manifestObjects, newK8sHashes = i.filterChangedK8s(manifestObjects)
 
 	// Apply the k8s manifests we just extracted
 	logger.Info("Reapplying k8s manifests")
@@ -125,6 +131,9 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 
 		k8sapi.Apply(i.K8sClient, manifest, mesh, k8sapi.CreateOrUpdate)
 	}
+	// Save new hashes for next update
+	i.previousK8sHashes = newK8sHashes
+	i.hashLock.Unlock()
 
 	if prev == nil {
 		i.ConfigureMeshClient(mesh) // Synchronously applies the Grey Matter configuration once Control and Catalog are up
@@ -213,4 +222,19 @@ func (i *Installer) RemoveMesh(mesh *v1alpha1.Mesh) {
 		}
 	}
 
+}
+
+// TODO also return deleted list
+// TODO persist previous hashes to a database
+func (i *Installer) filterChangedK8s(manifestObjects []client.Object) (filtered []client.Object, newK8sHashes map[string]uint64) {
+	newK8sHashes = make(map[string]uint64)
+	for _, manifestObject := range manifestObjects {
+		key := manifestObject.GetName()
+		hash, _ := hashstructure.Hash(manifestObject, hashstructure.FormatV2, nil)
+		newK8sHashes[key] = hash // store *all* of them in newHashes, to replace previousGMHashes
+		if prevHash, ok := i.previousK8sHashes[key]; !ok || prevHash != hash {
+			filtered = append(filtered, manifestObject)
+		}
+	}
+	return
 }

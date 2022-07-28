@@ -2,8 +2,12 @@ package gmapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/greymatter-io/operator/pkg/cuemodule"
+	"github.com/mitchellh/hashstructure/v2"
+	"github.com/tidwall/gjson"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,12 +15,14 @@ import (
 )
 
 type Client struct {
-	mesh        string
-	flags       []string
-	ControlCmds chan Cmd
-	CatalogCmds chan Cmd
-	Ctx         context.Context
-	Cancel      context.CancelFunc
+	mesh             string
+	flags            []string
+	ControlCmds      chan Cmd
+	CatalogCmds      chan Cmd
+	Ctx              context.Context
+	Cancel           context.CancelFunc
+	previousGMHashes map[string]uint64
+	hashLock         sync.RWMutex
 }
 
 func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ...string) (*Client, error) {
@@ -24,12 +30,14 @@ func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ..
 	ctxt, cancel := context.WithCancel(context.Background())
 
 	client := &Client{
-		mesh:        mesh.Name,
-		flags:       flags,
-		ControlCmds: make(chan Cmd),
-		CatalogCmds: make(chan Cmd),
-		Ctx:         ctxt,
-		Cancel:      cancel,
+		mesh:             mesh.Name,
+		flags:            flags,
+		ControlCmds:      make(chan Cmd),
+		CatalogCmds:      make(chan Cmd),
+		Ctx:              ctxt,
+		Cancel:           cancel,
+		previousGMHashes: make(map[string]uint64),
+		hashLock:         sync.RWMutex{},
 	}
 
 	// Apply core Grey Matter components from CUE
@@ -144,13 +152,41 @@ func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ..
 }
 
 func ApplyCoreMeshConfigs(client *Client, operatorCUE *cuemodule.OperatorCUE) {
-	// by this point, GM has already been unified with THE mesh this operator manages
-	// Extract correct GM config for options - for now there's only one
-
+	client.hashLock.Lock()
+	defer client.hashLock.Unlock()
+	// Extract 'em
 	meshConfigs, kinds, err := operatorCUE.ExtractCoreMeshConfigs()
 	if err != nil {
 		logger.Error(err, "failed to extract while attempting to apply core components mesh config - ignoring")
 		return
 	}
+	// Filter by what has changed (ignore unchanged)
+	var newGMHashes map[string]uint64
+	meshConfigs, kinds, newGMHashes = client.filterChangedGM(meshConfigs, kinds)
+
 	ApplyAll(client, meshConfigs, kinds)
+
+	// Save new hashes for next update
+	client.previousGMHashes = newGMHashes
+}
+
+// TODO also return deleted list
+// TODO persist previous hashes to a database
+func (c *Client) filterChangedGM(configObjects []json.RawMessage, kinds []string) (filteredConf []json.RawMessage, filteredKinds []string, newHashes map[string]uint64) {
+	newHashes = make(map[string]uint64)
+	for i, configObj := range configObjects {
+		kind := kinds[i]
+		var key string
+		keyName := cuemodule.KindToKeyName[kind]
+		result := gjson.GetBytes(configObj, keyName)
+		key = result.String()
+		logger.Info("GOT KEY", "key", key, "key_name", keyName) // DEBUG
+		hash, _ := hashstructure.Hash(configObj, hashstructure.FormatV2, nil)
+		newHashes[key] = hash // store *all* of them in newHashes, to replace previousGMHashes
+		if prevHash, ok := c.previousGMHashes[key]; !ok || prevHash != hash {
+			filteredConf = append(filteredConf, configObj)
+			filteredKinds = append(filteredKinds, kind)
+		}
+	}
+	return
 }
