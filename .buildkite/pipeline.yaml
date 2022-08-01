@@ -1,13 +1,13 @@
 steps:
   - label: "run unit tests"
     agents:
-      container_image: ubuntu-2110-ci
+      container_image: ubuntu-2204-ci
     commands:
       - ./scripts/cibuild bootstrap
       - ./scripts/cibuild test
   - label: ":shipit: build"
     agents:
-      container_image: ubuntu-2110-ci
+      container_image: ubuntu-2204-ci
     commands:
       - ./scripts/cibuild bootstrap
       - ./scripts/cibuild build
@@ -22,9 +22,9 @@ steps:
     commands:
       - ./scripts/cibuild generate_integration_tests
     agents:
-      container_image: ubuntu-2110-ci
+      container_image: ubuntu-2204-ci
   - wait
   - label: "release"
     agents:
-      container_image: ubuntu-2110-ci
+      container_image: ubuntu-2204-ci
     command: "./scripts/cibuild release"
