@@ -8,6 +8,7 @@ import (
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/greymatter-io/operator/pkg/wellknown"
 	configv1 "github.com/openshift/api/config/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"reflect"
 	"sort"
 	"strings"
@@ -22,7 +23,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,7 +41,7 @@ type Installer struct {
 
 	// The meshes.greymatter.io CRD, used as an owner when applying cluster-scoped resources.
 	// If the operator is uninstalled on a cluster, owned cluster-scoped resources will be cleaned up.
-	owner *extv1.CustomResourceDefinition
+	owner *rbacv1.ClusterRoleBinding
 	// The Docker image pull secret to create in namespaces where core services are installed.
 	imagePullSecret *corev1.Secret
 
@@ -69,14 +69,14 @@ type Installer struct {
 }
 
 // New returns a new *Installer instance for installing Grey Matter components and dependencies.
-func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1alpha1.Mesh, cueRoot string, gmcli *gmapi.CLI, cfssl *cfsslsrv.CFSSLServer, sync *sync.Sync) (*Installer, error) {
+func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, cueRoot string, gmcli *gmapi.CLI, cfssl *cfsslsrv.CFSSLServer, sync *sync.Sync) (*Installer, error) {
 	config, defaults := operatorCUE.ExtractConfig()
 	return &Installer{
 		CLI:         gmcli,
 		K8sClient:   c,
 		cfssl:       cfssl,
 		OperatorCUE: operatorCUE,
-		Mesh:        initialMesh,
+		Mesh:        nil,
 		CueRoot:     cueRoot,
 		Config:      config,
 		Defaults:    defaults,
@@ -92,11 +92,14 @@ func (i *Installer) Start(ctx context.Context) error {
 	// This secret will be re-created in each install namespace and watch namespaces where core services are pulled.
 	i.imagePullSecret = getImagePullSecret(i.K8sClient)
 
-	// Get our Mesh CRD to set as an owner for cluster-scoped resources
-	i.owner = &extv1.CustomResourceDefinition{}
-	err := (*i.K8sClient).Get(ctx, client.ObjectKey{Name: "meshes.greymatter.io"}, i.owner)
+	// Get our ClusterRoleBinding to set as an owner for cluster-scoped resources
+	// The choice of owner is solely because it is a cluster-scoped resource that
+	// will be destroyed when the operator itself is destroyed.
+	i.owner = &rbacv1.ClusterRoleBinding{}
+	// TODO don't hardcode operator namespace
+	err := (*i.K8sClient).Get(ctx, client.ObjectKey{Name: "gm-operator-rolebinding"}, i.owner)
 	if err != nil {
-		logger.Error(err, "Failed to get CustomResourceDefinition meshes.greymatter.io")
+		logger.Error(err, "Failed to get the operator's own ClusterRoleBinding: 'gm-operator-rolebinding'")
 		return err
 	}
 
@@ -129,67 +132,16 @@ func (i *Installer) Start(ctx context.Context) error {
 		i.clusterIngressDomain = clusterIngressDomain
 	}
 
-	// If this operator's Mesh CR already exists in the environment, load it
-	meshAlreadyDeployed := false
-	meshList := &v1alpha1.MeshList{}
-	if err := (*i.K8sClient).List(context.TODO(), meshList); err != nil {
-		logger.Error(err, "failed to list all meshes for state restoration - check operator permissions")
-	}
-	for _, mesh := range meshList.Items {
-		if mesh.Name == i.Mesh.Name {
-			logger.Info("Mesh already deployed. Reloading values.", "Name", mesh.Name)
-			i.Mesh = &mesh // load the live version of the mesh
-			// immediately update OperatorCUE and the SidecarList
-			err := i.OperatorCUE.UnifyWithMesh(i.Mesh)
-			if err != nil {
-				logger.Error(err,
-					"error while attempting to unify existing deployed Mesh with Grey Matter mesh configs CUE",
-					"Mesh", mesh)
-				return err
-			}
-			i.ConfigureMeshClient(i.Mesh)
-			meshAlreadyDeployed = true
-			break
-		}
-	}
-
 	// called on completion of a sync cycle if there are new commits
 	i.Sync.OnSyncCompleted = func() error {
 		logger.Info("GitOps repo updated and synchronized. Reapplying configuration...")
-		// reload CUE here
-		_, freshLoadMesh, err := cuemodule.LoadAll(i.CueRoot)
-		if err != nil {
-			return err
-		}
-		// copy in old mesh dynamic values
-		freshLoadMesh.TypeMeta = i.Mesh.TypeMeta
-		i.Mesh.ObjectMeta.DeepCopyInto(&freshLoadMesh.ObjectMeta)
-
-		i.ApplyMesh(i.Mesh, freshLoadMesh)
-
+		i.ApplyMesh()
 		return nil
 	}
 
-	// Immediately apply the default mesh from the CUE if the flag is set and we don't already have a mesh
-	// Then re-apply the mesh whenever the repository is updated (checked by polling)
-	go func() {
-		// initial mesh application
-		if i.Config.AutoApplyMesh && !meshAlreadyDeployed {
-			logger.Info("Waiting 30 seconds to apply loaded default Mesh resource to cluster.")
-			time.Sleep(30 * time.Second) // Sleep for an arbitrary initial duration
-			for {
-				err := k8sapi.Apply(i.K8sClient, i.Mesh, nil, k8sapi.GetOrCreate)
-				if err == nil {
-					break
-				}
-				logger.Info("Temporary failure to apply Mesh resource. Will retry in 10 seconds.")
-				time.Sleep(10 * time.Second)
-			}
-		}
-
-		// GitOps-triggered subsequent mesh applications
-		i.Sync.Watch() // Executes its callback (defined above) whenever there are new commits
-	}()
+	logger.Info("Apply loaded mesh to cluster.")
+	i.ApplyMesh()
+	i.Sync.Watch() // Executes its callback (defined above) whenever there are new commits
 
 	// If Spire, set up to periodically reconcile the extant sidecars with the Redis listener's allowable subjects
 	if i.Config.Spire {

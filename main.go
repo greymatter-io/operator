@@ -72,6 +72,7 @@ var (
 	syncSSHKeyPath     string
 	syncSSHKeyPassword string
 	syncBranch         string
+	syncTag            string
 	syncInterval       int
 )
 
@@ -97,7 +98,8 @@ func run() error {
 	flag.StringVar(&syncRepo, "repo", "", "Bootstrap repository for operator configuration.")
 	flag.StringVar(&syncSSHKeyPath, "sshPrivateKeyPath", "", "SSH key which has privileges to fetch the operators core configuration from Git.")
 	flag.StringVar(&syncSSHKeyPassword, "sshPrivateKeyPassword", "", "Password for the SSH key")
-	flag.StringVar(&syncBranch, "branch", "main", "target branch to fetch and watch for changes in the core configuration repo.")
+	flag.StringVar(&syncBranch, "branch", "", "target branch to fetch and watch for changes in the core configuration repo.")
+	flag.StringVar(&syncTag, "tag", "", "target tag to fetch and watch for changes in the core configuration repo.")
 	flag.IntVar(&syncInterval, "interval", 30, "Interval to watch sync core config repo.")
 
 	// Bind flags for Zap logger options.
@@ -113,13 +115,14 @@ func run() error {
 	// build sync options based on user configuration.
 	syncOpts := []func(*sync.Sync){}
 	syncOpts = append(syncOpts, sync.WithSSHInfo(syncSSHKeyPath, syncSSHKeyPassword))
-	syncOpts = append(syncOpts, sync.WithRepoInfo(syncRepo, syncBranch))
+	syncOpts = append(syncOpts, sync.WithRepoInfo(syncRepo, syncBranch, syncTag))
 
 	// Create a context we can cancel and clean up our go routine with.
 	sync := sync.New(syncRepo, context.Background(), syncOpts...)
 
 	if syncRepo != "" {
 		// GitDir should be cueRoot (where the operator expects to load its config from)
+		logger.Info(fmt.Sprintf("GitOps repository configured: %s branch: %s", syncRepo, syncBranch))
 		cueRoot = "fetched_cue"
 		sync.GitDir = cueRoot
 		err := sync.Bootstrap()
@@ -132,7 +135,7 @@ func run() error {
 	}
 
 	// Immediately load all CUE
-	operatorCUE, initialMesh, err := cuemodule.LoadAll(cueRoot)
+	operatorCUE, _, err := cuemodule.LoadAll(cueRoot)
 	if err != nil {
 		// initial load panics if unsuccessful, because we need valid config to start up
 		panic(err)
@@ -187,7 +190,7 @@ func run() error {
 	}
 
 	// Initialize manifests mesh_install.
-	inst, err := mesh_install.New(&c, operatorCUE, initialMesh, cueRoot, gmcli, cfssl, sync)
+	inst, err := mesh_install.New(&c, operatorCUE, cueRoot, gmcli, cfssl, sync)
 	if err != nil {
 		return fmt.Errorf("failed to initialize manifest mesh_install: %w", err)
 	}

@@ -109,18 +109,6 @@ func (wl *Loader) Start(ctx context.Context) error {
 		return m
 	}))
 
-	// Patch the validatingwebhookconfiguration with our previously loaded cabundle
-	vwc := &admissionregistrationv1.ValidatingWebhookConfiguration{
-		ObjectMeta: metav1.ObjectMeta{Name: "gm-validate-config"},
-	}
-	k8sapi.Apply(&wl.Client, vwc, nil, k8sapi.MkPatchAction(func(obj client.Object) client.Object {
-		v := obj.(*admissionregistrationv1.ValidatingWebhookConfiguration)
-		for i := range v.Webhooks {
-			v.Webhooks[i].ClientConfig.CABundle = wl.caBundle
-		}
-		return v
-	}))
-
 	// Since we've just patched our webhook secret, check the mounted file for changes.
 	// This lets us wait for the certwatcher to identify cert "rotation" before registering webhooks.
 	logger.Info("Waiting for certwatcher to detect new webhook TLS certs")
@@ -139,7 +127,5 @@ func (wl *Loader) Start(ctx context.Context) error {
 
 func (wl *Loader) register() {
 	server := wl.getServer()
-	server.Register("/mutate-mesh", &admission.Webhook{Handler: &meshDefaulter{Installer: wl.Installer}})
-	server.Register("/validate-mesh", &admission.Webhook{Handler: &meshValidator{Installer: wl.Installer, Client: wl.Client}})
 	server.Register("/mutate-workload", &admission.Webhook{Handler: &workloadDefaulter{Installer: wl.Installer, CLI: wl.CLI}})
 }

@@ -1,5 +1,0 @@
-bases:
-- ../kubernetes
-
-patchesStrategicMerge:
-- patches.yaml

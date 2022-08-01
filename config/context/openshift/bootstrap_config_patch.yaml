@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: gm-operator-config
-  namespace: gm-operator
-data:
-  bootstrap_config.yaml: |
-    disableWebhookCertGeneration: true
-    clusterIngressName: cluster

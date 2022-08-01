@@ -66,7 +66,6 @@ func LoadAll(cuemoduleRoot string) (*OperatorCUE, *v1alpha1.Mesh, error) {
 type Config struct {
 	// Flags
 	Spire                bool `json:"spire"`
-	AutoApplyMesh        bool `json:"auto_apply_mesh"`
 	GenerateWebhookCerts bool `json:"generate_webhook_certs"`
 
 	// Values

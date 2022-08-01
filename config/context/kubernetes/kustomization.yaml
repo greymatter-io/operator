@@ -1,6 +1,0 @@
-bases:
-- ../../base
-
-resources:
-# Add an opaque secret which will be populated by the operator with signed certs from cfssl
-- webhook_secret.yaml
