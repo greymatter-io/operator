@@ -74,7 +74,10 @@ type Config struct {
 }
 
 type Defaults struct {
-	SidecarList []string `json:"sidecar_list"`
+	SidecarList       []string `json:"sidecar_list"`
+	RedisHost         string   `json:"redis_host"`
+	GitOpsStateKeyGM  string   `json:"gitops_state_key_gm"`
+	GitOpsStateKeyK8s string   `json:"gitops_state_key_k8s"`
 }
 
 // ExtractConfig pulls the values from the CUE into the Config struct in Go

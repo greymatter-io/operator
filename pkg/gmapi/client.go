@@ -2,42 +2,39 @@ package gmapi
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/greymatter-io/operator/pkg/cuemodule"
-	"github.com/mitchellh/hashstructure/v2"
-	"github.com/tidwall/gjson"
-	"sync"
-	"time"
-
+	"github.com/go-redis/redis/v9"
 	"github.com/google/uuid"
 	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/cuemodule"
+	"github.com/greymatter-io/operator/pkg/gitops"
+	"time"
 )
 
 type Client struct {
-	mesh             string
-	flags            []string
-	ControlCmds      chan Cmd
-	CatalogCmds      chan Cmd
-	Ctx              context.Context
-	Cancel           context.CancelFunc
-	previousGMHashes map[string]uint64
-	hashLock         sync.RWMutex
+	mesh        string
+	flags       []string
+	ControlCmds chan Cmd
+	CatalogCmds chan Cmd
+	Rdb         *redis.Client
+	Ctx         context.Context
+	Cancel      context.CancelFunc
+	sync        gitops.Sync
 }
 
-func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ...string) (*Client, error) {
+func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, sync gitops.Sync, flags ...string) (*Client, error) {
 
 	ctxt, cancel := context.WithCancel(context.Background())
 
 	client := &Client{
-		mesh:             mesh.Name,
-		flags:            flags,
-		ControlCmds:      make(chan Cmd),
-		CatalogCmds:      make(chan Cmd),
-		Ctx:              ctxt,
-		Cancel:           cancel,
-		previousGMHashes: make(map[string]uint64),
-		hashLock:         sync.RWMutex{},
+		mesh:        mesh.Name,
+		flags:       flags,
+		ControlCmds: make(chan Cmd),
+		CatalogCmds: make(chan Cmd),
+		Rdb:         nil, // Filled when Redis is available
+		Ctx:         ctxt,
+		Cancel:      cancel,
+		sync:        sync,
 	}
 
 	// Apply core Grey Matter components from CUE
@@ -152,8 +149,6 @@ func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, flags ..
 }
 
 func ApplyCoreMeshConfigs(client *Client, operatorCUE *cuemodule.OperatorCUE) {
-	client.hashLock.Lock()
-	defer client.hashLock.Unlock()
 	// Extract 'em
 	meshConfigs, kinds, err := operatorCUE.ExtractCoreMeshConfigs()
 	if err != nil {
@@ -161,34 +156,8 @@ func ApplyCoreMeshConfigs(client *Client, operatorCUE *cuemodule.OperatorCUE) {
 		return
 	}
 	// Filter by what has changed (ignore unchanged)
-	var newGMHashes map[string]uint64
-	meshConfigs, kinds, newGMHashes = client.filterChangedGM(meshConfigs, kinds)
+	filteredMeshConfigs, filteredKinds, deleted := client.sync.SyncState.FilterChangedGM(meshConfigs, kinds)
+	_ = deleted // TODO delete the deleted - will need to update this with enough information to find it for deletion
 
-	ApplyAll(client, meshConfigs, kinds)
-
-	// Save new hashes for next update
-	client.previousGMHashes = newGMHashes
-}
-
-// TODO also return deleted list
-// TODO persist previous hashes to a database
-func (c *Client) filterChangedGM(configObjects []json.RawMessage, kinds []string) (filteredConf []json.RawMessage, filteredKinds []string, newHashes map[string]uint64) {
-	newHashes = make(map[string]uint64)
-	for i, configObj := range configObjects {
-		kind := kinds[i]
-		var key string
-		keyName := cuemodule.KindToKeyName[kind]
-		nameResult := gjson.GetBytes(configObj, keyName)
-		zoneResult := gjson.GetBytes(configObj, "zone_key")
-		// A properly-namespaced key for the object
-		key = fmt.Sprintf("%s-%s-%s", zoneResult.String(), kind, nameResult.String())
-		logger.Info("GM HASH", "key", key, "key_name", keyName, "kind", kind) // DEBUG
-		hash, _ := hashstructure.Hash(configObj, hashstructure.FormatV2, nil)
-		newHashes[key] = hash // store *all* of them in newHashes, to replace previousGMHashes
-		if prevHash, ok := c.previousGMHashes[key]; !ok || prevHash != hash {
-			filteredConf = append(filteredConf, configObj)
-			filteredKinds = append(filteredKinds, kind)
-		}
-	}
-	return
+	ApplyAll(client, filteredMeshConfigs, filteredKinds)
 }

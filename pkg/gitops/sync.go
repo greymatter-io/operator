@@ -1,9 +1,11 @@
-package sync
+package gitops
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/greymatter-io/operator/api/v1alpha1"
+	"github.com/greymatter-io/operator/pkg/cuemodule"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"time"
@@ -13,7 +15,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 )
 
-var logger = ctrl.Log.WithName("sync")
+var logger = ctrl.Log.WithName("gitops")
 
 type Sync struct {
 	GitDir        string
@@ -22,6 +24,7 @@ type Sync struct {
 	Remote        string
 	Branch        string
 	Interval      int
+	SyncState     *SyncState
 
 	// Internal callback that is executed at the end
 	// of every sync iteration.
@@ -32,7 +35,7 @@ type Sync struct {
 // New sync will build a sync with provided constructor options.
 // A remote should be specified it attempting to fetch
 // config from a remote repo. If not specified, operator
-// will use it's default bundled config.
+// will use its default bundled config.
 func New(remote string, ctx context.Context, options ...func(*Sync)) *Sync {
 	s := &Sync{
 		Remote: remote,
@@ -88,6 +91,14 @@ func (s *Sync) Bootstrap() error {
 	}
 
 	return nil
+}
+
+// StartStateBackup creates and maintains the SyncState object and connection to Redis, which is responsible for
+// ensuring that we only apply objects that have actually *changed* during GitOps updates.
+func (s *Sync) StartStateBackup(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh) {
+	_, defaults := operatorCUE.ExtractConfig()
+	ss := newSyncState(defaults)
+	s.SyncState = ss
 }
 
 // Watch will kick off a loop that will pull a git project for changes on an interval

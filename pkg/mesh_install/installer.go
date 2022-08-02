@@ -11,15 +11,14 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	sync2 "sync"
 	"time"
 
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cfsslsrv"
 	"github.com/greymatter-io/operator/pkg/cuemodule"
+	"github.com/greymatter-io/operator/pkg/gitops"
 	"github.com/greymatter-io/operator/pkg/gmapi"
 	"github.com/greymatter-io/operator/pkg/k8sapi"
-	"github.com/greymatter-io/operator/pkg/sync"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -66,28 +65,22 @@ type Installer struct {
 	clusterIngressDomain string
 
 	// Sync configuration with access to a callback for updating on git repo changes
-	Sync *sync.Sync
-
-	// For diff-before-apply sc-18788, store the previously-applied k8s and gm config object hashes
-	previousK8sHashes map[string]uint64
-	hashLock          sync2.RWMutex
+	Sync *gitops.Sync
 }
 
 // New returns a new *Installer instance for installing Grey Matter components and dependencies.
-func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1alpha1.Mesh, cueRoot string, gmcli *gmapi.CLI, cfssl *cfsslsrv.CFSSLServer, sync *sync.Sync) (*Installer, error) {
+func New(c *client.Client, operatorCUE *cuemodule.OperatorCUE, initialMesh *v1alpha1.Mesh, cueRoot string, gmcli *gmapi.CLI, cfssl *cfsslsrv.CFSSLServer, sync *gitops.Sync) (*Installer, error) {
 	config, defaults := operatorCUE.ExtractConfig()
 	return &Installer{
-		CLI:               gmcli,
-		K8sClient:         c,
-		cfssl:             cfssl,
-		OperatorCUE:       operatorCUE,
-		Mesh:              initialMesh,
-		CueRoot:           cueRoot,
-		Config:            config,
-		Defaults:          defaults,
-		Sync:              sync,
-		previousK8sHashes: make(map[string]uint64),
-		hashLock:          sync2.RWMutex{},
+		CLI:         gmcli,
+		K8sClient:   c,
+		cfssl:       cfssl,
+		OperatorCUE: operatorCUE,
+		Mesh:        initialMesh,
+		CueRoot:     cueRoot,
+		Config:      config,
+		Defaults:    defaults,
+		Sync:        sync,
 	}, nil
 }
 
@@ -160,7 +153,7 @@ func (i *Installer) Start(ctx context.Context) error {
 		}
 	}
 
-	// called on completion of a sync cycle if there are new commits
+	// called on completion of a gitops sync cycle if there are new commits
 	i.Sync.OnSyncCompleted = func() error {
 		logger.Info("GitOps repo updated and synchronized. Reapplying configuration...")
 		// reload CUE here
