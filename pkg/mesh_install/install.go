@@ -130,7 +130,7 @@ func (i *Installer) ApplyMesh(prev, mesh *v1alpha1.Mesh) {
 	}
 
 	if prev == nil {
-		i.ConfigureMeshClient(mesh) // Synchronously applies the Grey Matter configuration once Control and Catalog are up
+		i.ConfigureMeshClient(mesh, i.Sync) // Synchronously applies the Grey Matter configuration once Control and Catalog are up
 	} else {
 		logger.Info("Reapplying mesh configs")
 		i.EnsureClient("ApplyMesh")

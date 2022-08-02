@@ -147,7 +147,7 @@ func (i *Installer) Start(ctx context.Context) error {
 					"Mesh", mesh)
 				return err
 			}
-			i.ConfigureMeshClient(i.Mesh)
+			i.ConfigureMeshClient(i.Mesh, i.Sync)
 			meshAlreadyDeployed = true
 			break
 		}

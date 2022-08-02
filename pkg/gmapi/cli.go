@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cuemodule"
+	"github.com/greymatter-io/operator/pkg/gitops"
 	"github.com/greymatter-io/operator/pkg/wellknown"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"strconv"
@@ -60,7 +61,7 @@ func New(ctx context.Context, operatorCUE *cuemodule.OperatorCUE) (*CLI, error) 
 
 // ConfigureMeshClient initializes or updates a Client with flags specifying connection options
 // for reaching Control and Catalog for the given Mesh CR.
-func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
+func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh, sync *gitops.Sync) {
 	conf := mkCLIConfig( // TODO this should come from config
 		// control
 		fmt.Sprintf("http://controlensemble.%s.svc.cluster.local:5555", mesh.Spec.InstallNamespace),
@@ -70,7 +71,7 @@ func (c *CLI) ConfigureMeshClient(mesh *v1alpha1.Mesh) {
 	)
 	flags := []string{"--base64-config", conf}
 
-	if err := c.configureMeshClient(mesh, flags...); err != nil {
+	if err := c.configureMeshClient(mesh, sync, flags...); err != nil {
 		logger.Error(err, "failed to configure Client", "Mesh", mesh.Name)
 	}
 }
@@ -85,7 +86,7 @@ func mkCLIConfig(apiHost, catalogHost, catalogMesh string) string {
 	`, apiHost, catalogHost, catalogMesh)))
 }
 
-func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) error {
+func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, sync *gitops.Sync, flags ...string) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -97,7 +98,7 @@ func (c *CLI) configureMeshClient(mesh *v1alpha1.Mesh, flags ...string) error {
 		logger.Info("Initializing mesh Client", "Mesh", mesh.Name)
 	}
 
-	cl, err := newClient(c.operatorCUE, mesh, flags...)
+	cl, err := newClient(c.operatorCUE, mesh, sync, flags...)
 	if err != nil {
 		return err
 	}

@@ -3,7 +3,6 @@ package gmapi
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v9"
 	"github.com/google/uuid"
 	"github.com/greymatter-io/operator/api/v1alpha1"
 	"github.com/greymatter-io/operator/pkg/cuemodule"
@@ -16,13 +15,12 @@ type Client struct {
 	flags       []string
 	ControlCmds chan Cmd
 	CatalogCmds chan Cmd
-	Rdb         *redis.Client
 	Ctx         context.Context
 	Cancel      context.CancelFunc
-	sync        gitops.Sync
+	sync        *gitops.Sync
 }
 
-func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, sync gitops.Sync, flags ...string) (*Client, error) {
+func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, sync *gitops.Sync, flags ...string) (*Client, error) {
 
 	ctxt, cancel := context.WithCancel(context.Background())
 
@@ -31,7 +29,6 @@ func newClient(operatorCUE *cuemodule.OperatorCUE, mesh *v1alpha1.Mesh, sync git
 		flags:       flags,
 		ControlCmds: make(chan Cmd),
 		CatalogCmds: make(chan Cmd),
-		Rdb:         nil, // Filled when Redis is available
 		Ctx:         ctxt,
 		Cancel:      cancel,
 		sync:        sync,
